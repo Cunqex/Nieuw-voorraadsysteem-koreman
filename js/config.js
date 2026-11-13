@@ -5,4 +5,4 @@
 // met Row Level Security (alleen ingelogde gebruikers).
 // ============================================================
 export const SUPABASE_URL = 'https://tdhzdnbfnypmendnfmso.supabase.co';
-export const SUPABASE_ANON_KEY = 'JOUW-ANON-KEY';
+export const SUPABASE_ANON_KEY = 'sb_publishable_Kglx9YK206RBq9gB4VT2Uw_IXTSYNYC';

@@ -5,7 +5,7 @@ export async function render(c) {
   setTitle('Uitgeleend / op zicht');
   c.innerHTML = `
     <div class="page-head"><h1>Uitgeleend / op zicht</h1><span class="spacer"></span>
-      <button class="btn primary" id="nieuw">+ Uitlenen</button></div>
+      <button class="btn primary" id="nieuw"><i data-lucide="plus"></i> Uitlenen</button></div>
     <div class="help">Hier zie je welke stalen en tapijten bij welke klant of architect liggen (vervangt de Excel-stalenlijst).
       Uitgeleende stuks tellen nog mee in de voorraad, maar niet als "in showroom".</div>
     <div class="toolbar">

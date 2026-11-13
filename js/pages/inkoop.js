@@ -9,7 +9,7 @@ export async function renderList(c, _p, query) {
   const levs = check(await sb.from('leveranciers').select('id, naam, valuta').order('naam'));
   c.innerHTML = `
     <div class="page-head"><h1>Inkooporders</h1><span class="spacer"></span>
-      <button class="btn primary" id="nieuw">+ Nieuwe inkooporder</button></div>
+      <button class="btn primary" id="nieuw"><i data-lucide="plus"></i> Nieuwe inkooporder</button></div>
     <div class="toolbar">
       <input type="search" id="q" placeholder="Zoek op nummer of referentie…">
       <select id="status"><option value="open">Alle open</option><option value="">Alles</option>
@@ -102,18 +102,19 @@ export async function renderDetail(c, [id]) {
   const geenAanbetaling = po.verkooporder_id && !aanbetaald;
 
   c.innerHTML = `
-    <div class="page-head"><a class="btn small" href="#/inkoop">← Inkooporders</a>
+    <div class="page-head"><a class="btn small" href="#/inkoop"><i data-lucide="arrow-left"></i> Inkooporders</a>
       <h1>Inkooporder ${po.ordernummer}</h1>${badge(PO_STATUS, po.status)}<span class="spacer"></span>
-      <a class="btn" href="#/doc/po/${po.id}" target="_blank">📄 Document / PDF</a>
-      <button class="btn primary" id="mail">✉️ Mail naar leverancier</button>
+      <a class="btn" href="#/doc/po/${po.id}" target="_blank"><i data-lucide="file-text"></i> Document / PDF</a>
+      <button class="btn primary" id="mail"><i data-lucide="mail"></i> Mail naar leverancier</button>
     </div>
-    ${geenAanbetaling ? `<div class="warnbox">⚠️ Deze inkooporder hoort bij <a href="#/verkoop/${po.verkooporder_id}">verkooporder ${po.verkooporders?.orderbev_nummer || ''}</a>, maar daar is <b>nog geen aanbetaling</b> ontvangen. Verstuur pas na ontvangst van de aanbetaling.</div>` : ''}
+    ${geenAanbetaling ? `<div class="warnbox">Deze inkooporder hoort bij <a href="#/verkoop/${po.verkooporder_id}">verkooporder ${po.verkooporders?.orderbev_nummer || ''}</a>, maar daar is <b>nog geen aanbetaling</b> ontvangen. Verstuur pas na ontvangst van de aanbetaling.</div>` : ''}
     ${po.verkooporder_id && aanbetaald ? `<div class="help">Gekoppeld aan <a href="#/verkoop/${po.verkooporder_id}">verkooporder ${po.verkooporders?.orderbev_nummer || ''}</a> · aanbetaling ontvangen: ${money(aanbetaald)}</div>` : ''}
 
     <div class="card"><h2>Status</h2>
-      <div class="btn-row">${Object.entries(PO_STATUS).filter(([k]) => k !== 'geannuleerd').map(([k, [l]]) =>
-        `<button class="btn small ${po.status === k ? 'primary' : ''}" data-status="${k}">${l}</button>`).join('')}
-        <span class="spacer" style="flex:1"></span>
+      <div class="btn-row">
+        <div class="segmented">${Object.entries(PO_STATUS).filter(([k]) => k !== 'geannuleerd').map(([k, [l]]) =>
+          `<button class="btn small ${po.status === k ? 'primary' : ''}" data-status="${k}">${l}</button>`).join('')}</div>
+        <span class="spacer"></span>
         ${po.status !== 'geannuleerd' ? '<button class="btn small danger" data-status="geannuleerd">Annuleren</button>' : ''}
         ${isConcept && !betalingen.length ? '<button class="btn small danger" id="del">Verwijderen</button>' : ''}
       </div>
@@ -139,7 +140,7 @@ export async function renderDetail(c, [id]) {
     </form>
 
     <div class="card"><h2>Regels</h2>
-      <div class="table-wrap"><table class="list"><thead><tr><th>Foto op PO</th><th>Artikel</th><th>Omschrijving (Engels)</th><th class="num">Aantal</th><th class="num">Prijs (${cur})</th><th class="num">Totaal</th><th class="num">Ontvangen</th><th></th></tr></thead><tbody>
+      <div class="table-wrap"><table class="list edit"><thead><tr><th>Foto op PO</th><th>Artikel</th><th>Omschrijving (Engels)</th><th class="num">Aantal</th><th class="num">Prijs (${cur})</th><th class="num">Totaal</th><th class="num">Ontvangen</th><th></th></tr></thead><tbody>
       ${regels.map((r) => { const opts = fotoOpties(r); return `<tr data-regel="${r.id}">
         <td style="width:150px">${r.foto_pad ? `<img class="thumb" data-path="${esc(r.foto_pad)}" alt="">` : ''}
           ${opts.length ? `<select data-f="foto_pad" style="margin-top:4px;font-size:12px;padding:3px"><option value="">geen foto</option>${opts.map(([p, l]) => `<option value="${esc(p)}" ${p === r.foto_pad ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}</td>
@@ -150,20 +151,20 @@ export async function renderDetail(c, [id]) {
         <td class="num">${money(r.aantal * r.prijs, cur)}</td>
         <td class="num">${num(r.aantal_ontvangen)} / ${num(r.aantal)}
           ${r.aantal_ontvangen < r.aantal && po.status !== 'geannuleerd' ? `<br><button class="btn small ok" data-ontvang="${r.id}" data-rest="${r.aantal - r.aantal_ontvangen}" style="margin-top:4px">Ontvangen</button>` : ''}</td>
-        <td>${r.aantal_ontvangen > 0 ? '' : `<button class="btn small danger" data-delregel="${r.id}">✕</button>`}</td></tr>`; }).join('')}
+        <td>${r.aantal_ontvangen > 0 ? '' : `<button class="btn small danger" data-delregel="${r.id}"><i data-lucide="trash-2"></i></button>`}</td></tr>`; }).join('')}
       </tbody></table></div>
       <div class="toolbar" style="margin-top:12px">
         <div style="flex:1;min-width:260px"><input id="zoek" placeholder="+ Artikel toevoegen: typ artikelnummer of naam…"></div>
         <button class="btn" id="vrij">+ Vrije regel</button>
       </div>
-      <p style="text-align:right"><b>Totaal: ${money(totaal, cur)}</b></p>
+      <div class="totals"><div class="strong"><span>Totaal</span><span>${money(totaal, cur)}</span></div></div>
     </div>
 
     <div class="card"><h2>Betalingen aan leverancier<span class="spacer"></span><button class="btn small primary" id="betaling">+ Betaling</button></h2>
       ${betalingen.length ? `<table class="list"><thead><tr><th>Datum</th><th>Omschrijving</th><th class="num">Bedrag (${cur})</th>${cur === 'USD' ? '<th class="num">Afgeschreven (€)</th><th class="num">Koers</th>' : ''}<th></th></tr></thead><tbody>
       ${betalingen.map((b) => `<tr><td>${datum(b.datum)}</td><td>${esc(b.omschrijving || '')}</td><td class="num">${money(b.bedrag, cur)}</td>
         ${cur === 'USD' ? `<td class="num">${money(b.bedrag_eur)}</td><td class="num">${(b.bedrag_eur / b.bedrag).toFixed(4)}</td>` : ''}
-        <td><button class="btn small danger" data-delbet="${b.id}">✕</button></td></tr>`).join('')}
+        <td><button class="btn small danger" data-delbet="${b.id}"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Nog niets betaald.</p>'}
       <div class="kv" style="margin-top:12px">
         <div><span>Ordertotaal</span><b>${money(totaal, cur)}</b></div>
@@ -176,8 +177,9 @@ export async function renderDetail(c, [id]) {
     <div class="card"><h2>Bijkomende kosten (vracht, invoerrechten…)<span class="spacer"></span><button class="btn small" id="kost">+ Kosten</button></h2>
       <p class="small muted">Alleen ter registratie – telt <b>niet</b> mee in de voorraadwaarde.</p>
       ${kosten.length ? `<table class="list"><thead><tr><th>Datum</th><th>Soort</th><th>Omschrijving</th><th class="num">Bedrag (€)</th><th></th></tr></thead><tbody>
-      ${kosten.map((k) => `<tr><td>${datum(k.datum)}</td><td>${esc(k.soort)}</td><td>${esc(k.omschrijving || '')}</td><td class="num">${money(k.bedrag_eur)}</td><td><button class="btn small danger" data-delkost="${k.id}">✕</button></td></tr>`).join('')}
-      </tbody></table><p style="text-align:right">Totaal kosten: <b>${money(kostenEur)}</b></p>` : ''}
+      ${kosten.map((k) => `<tr><td>${datum(k.datum)}</td><td>${esc(k.soort)}</td><td>${esc(k.omschrijving || '')}</td><td class="num">${money(k.bedrag_eur)}</td><td><button class="btn small danger" data-delkost="${k.id}"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}
+      </tbody></table>` : ''}
+      ${kosten.length ? `<div class="totals"><div class="strong"><span>Totaal kosten</span><span>${money(kostenEur)}</span></div></div>` : ''}
     </div>`;
   loadImages(c);
 

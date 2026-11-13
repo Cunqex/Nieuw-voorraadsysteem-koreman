@@ -20,9 +20,9 @@ export async function render(c) {
 
   c.innerHTML = `
     <div class="page-head"><h1>Overzicht</h1><span class="spacer"></span>
-      <a class="btn" href="#/artikel/new">+ Nieuw artikel</a>
-      <a class="btn" href="#/inkoop?nieuw=1">+ Inkooporder</a>
-      <a class="btn primary" href="#/verkoop?nieuw=1">+ Verkooporder</a>
+      <a class="btn" href="#/artikel/new"><i data-lucide="plus"></i> Nieuw artikel</a>
+      <a class="btn" href="#/inkoop?nieuw=1"><i data-lucide="plus"></i> Inkooporder</a>
+      <a class="btn primary" href="#/verkoop?nieuw=1"><i data-lucide="plus"></i> Verkooporder</a>
     </div>
     <div class="stats">
       <a class="stat" href="#/artikelen?voorraad=1"><div class="num">${money(waarde)}</div><div class="lbl">Voorraadwaarde (${stuks} stuks)${schatting ? ' – deels geschat' : ''}</div></a>

@@ -8,7 +8,7 @@ export async function renderList(c) {
   setTitle('Designs');
   c.innerHTML = `
     <div class="page-head"><h1>Designs</h1><span class="spacer"></span>
-      <a class="btn primary" href="#/design/new">+ Nieuw design</a></div>
+      <a class="btn primary" href="#/design/new"><i data-lucide="plus"></i> Nieuw design</a></div>
     <div class="help">Een design is een tapijtontwerp van de leverancier, zoals het op het staal staat (bv. <b>JO#8010</b>).
       Hier bewaar je de foto's en CAD's. Daaronder maak je de artikelen aan: het staal, en elk tapijt in een bepaalde maat.
       De designcode en foto gaan automatisch mee op de inkooporder, zodat de leverancier weet welk tapijt je bedoelt.</div>
@@ -49,7 +49,7 @@ export async function renderDetail(c, [idStr]) {
   ];
 
   c.innerHTML = `
-    <div class="page-head"><a class="btn small" href="#/designs">← Designs</a>
+    <div class="page-head"><a class="btn small" href="#/designs"><i data-lucide="arrow-left"></i> Designs</a>
       <h1>${isNew ? 'Nieuw design' : esc(d.naam)}</h1><span class="spacer"></span>
       ${isNew ? '' : '<button class="btn danger" id="del">Verwijderen</button>'}</div>
     <form id="f" class="card"><h2>Gegevens</h2>${formFields(fields, d)}
@@ -90,13 +90,13 @@ export async function renderDetail(c, [idStr]) {
       <p class="small muted">Klik op "Hoofdfoto" om te kiezen welke foto standaard op de inkooporder komt. Bestanden kun je ook hierheen slepen.</p>
       <div class="files" id="files">
       ${files.length ? files.map((f) => `<div class="file ${f.pad === d.hoofdfoto_pad ? 'main' : ''}">
-          ${isImage(f.pad) ? `<img data-path="${esc(f.pad)}" alt="">` : `<div class="fileicon">📄</div>`}
+          ${isImage(f.pad) ? `<img data-path="${esc(f.pad)}" alt="">` : `<div class="fileicon"><i data-lucide="file"></i></div>`}
           <div style="margin:6px 0;word-break:break-all">${esc(f.bestandsnaam || '')}</div>
           <select data-soort="${f.id}" style="padding:4px;font-size:12px">${['foto', 'cad', 'overig'].map((s) => `<option ${s === f.soort ? 'selected' : ''}>${s}</option>`).join('')}</select>
           <div class="btn-row" style="margin-top:6px">
             ${f.pad === d.hoofdfoto_pad ? '<span class="badge blue">Hoofdfoto</span>' : (isImage(f.pad) ? `<button class="btn small" data-main="${esc(f.pad)}">Hoofdfoto</button>` : '')}
             <button class="btn small" data-open="${esc(f.pad)}">Open</button>
-            <button class="btn small danger" data-delf="${f.id}" data-pad="${esc(f.pad)}">✕</button>
+            <button class="btn small danger" data-delf="${f.id}" data-pad="${esc(f.pad)}"><i data-lucide="trash-2"></i></button>
           </div></div>`).join('') : '<p class="muted">Nog geen bestanden.</p>'}
       </div></div>
     <div class="card"><h2>Artikelen van dit design<span class="spacer"></span>

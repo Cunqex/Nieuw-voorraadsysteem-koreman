@@ -53,7 +53,7 @@ export async function renderList(c, table) {
   setTitle(k.titel);
   c.innerHTML = `
     <div class="page-head"><h1>${k.titel}</h1><span class="spacer"></span>
-      <button class="btn primary" id="nieuw">+ Nieuwe ${k.enkel}</button></div>
+      <button class="btn primary" id="nieuw"><i data-lucide="plus"></i> Nieuwe ${k.enkel}</button></div>
     <div class="toolbar">
       <input type="search" id="q" placeholder="Zoeken…">
       ${table === 'klanten' ? `<select id="soort"><option value="">Alle soorten</option>${Object.entries(SOORT_KLANT).map(([a, b]) => `<option value="${a}">${b}</option>`).join('')}</select>` : ''}
@@ -80,7 +80,7 @@ export async function renderList(c, table) {
 
 function kopHtml(r, table, extraKv) {
   const k = cfg[table];
-  return `<div class="page-head"><a class="btn small" href="#/${table}">← ${k.titel}</a><h1>${esc(r.naam)}</h1><span class="spacer"></span>
+  return `<div class="page-head"><a class="btn small" href="#/${table}"><i data-lucide="arrow-left"></i> ${k.titel}</a><h1>${esc(r.naam)}</h1><span class="spacer"></span>
     <button class="btn" id="edit">Bewerken</button><button class="btn danger" id="del">Verwijderen</button></div>
     <div class="card"><div class="kv">
       <div><span>Nummer</span><b>${r.nummer}</b></div>${extraKv}
@@ -113,7 +113,7 @@ export async function renderKlant(c, [id]) {
   c.innerHTML = kopHtml(r, 'klanten', `<div><span>Soort</span><b>${esc(SOORT_KLANT[r.soort])}</b></div>
       <div><span>Btw-nummer</span><b>${esc(r.btw_nummer || '–')}</b></div>
       <div><span>Taal / btw</span><b>${r.taal === 'en' ? 'Engels' : 'Nederlands'} · ${esc(BTW[r.btw_regeling])}</b></div>`) + `
-    <div class="card"><h2>Verkooporders<span class="spacer"></span><a class="btn small primary" href="#/verkoop?nieuw=1&klant=${r.id}">+ Verkooporder</a></h2>
+    <div class="card"><h2>Verkooporders<span class="spacer"></span><a class="btn small primary" href="#/verkoop?nieuw=1&klant=${r.id}"><i data-lucide="plus"></i> Verkooporder</a></h2>
       ${sos.length ? `<table class="list"><thead><tr><th>Nr.</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th></tr></thead><tbody>
       ${sos.map((s) => `<tr class="click" onclick="location.hash='#/verkoop/${s.id}'"><td>${s.factuurnummer ? 'F ' + s.factuurnummer : s.orderbev_nummer ? 'OB ' + s.orderbev_nummer : s.offertenummer ? 'OF ' + s.offertenummer : '–'}</td><td>${datum(s.orderdatum)}</td><td>${badge(SO_STATUS, s.status)}</td><td class="num">${money(s._t.totaal)}</td><td class="num">${money(s._t.betaald)}</td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Nog geen verkooporders.</p>'}</div>
@@ -142,7 +142,7 @@ export async function renderLeverancier(c, [id]) {
   ]).then((x) => x.map(check));
   await withTotals(pos, 'v_inkooporder_totalen', 'inkooporder_id');
   c.innerHTML = kopHtml(r, 'leveranciers', `<div><span>Valuta</span><b>${r.valuta}</b></div>`) + `
-    <div class="card"><h2>Inkooporders<span class="spacer"></span><a class="btn small primary" href="#/inkoop?nieuw=1&leverancier=${r.id}">+ Inkooporder</a></h2>
+    <div class="card"><h2>Inkooporders<span class="spacer"></span><a class="btn small primary" href="#/inkoop?nieuw=1&leverancier=${r.id}"><i data-lucide="plus"></i> Inkooporder</a></h2>
       ${pos.length ? `<table class="list"><thead><tr><th>Nr.</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th></tr></thead><tbody>
       ${pos.map((p) => `<tr class="click" onclick="location.hash='#/inkoop/${p.id}'"><td>${p.ordernummer}</td><td>${datum(p.orderdatum)}</td><td>${badge(PO_STATUS, p.status)}</td><td class="num">${money(p._t.totaal, p.valuta)}</td><td class="num">${money(p._t.betaald, p.valuta)}</td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Nog geen inkooporders.</p>'}</div>

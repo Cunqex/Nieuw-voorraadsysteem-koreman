@@ -168,8 +168,8 @@ export async function render(el, type, id, soort, query) {
     : '';
   el.innerHTML = `<div class="doc-bar">
       <b>${esc(document.title)}</b><span style="flex:1"></span>${taalKnoppen}
-      <button class="btn small" id="pdf">⬇️ PDF downloaden</button>
-      <button class="btn small" id="print">🖨️ Afdrukken</button>
+      <button class="btn small" id="pdf"><i data-lucide="download"></i> PDF downloaden</button>
+      <button class="btn small" id="print"><i data-lucide="printer"></i> Afdrukken</button>
       <button class="btn small" id="sluit">Sluiten</button>
     </div>${html}`;
   await fillImages(el);

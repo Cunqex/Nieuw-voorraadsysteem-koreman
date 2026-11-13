@@ -10,7 +10,7 @@ export async function renderList(c, _p, query) {
   setTitle('Verkooporders');
   c.innerHTML = `
     <div class="page-head"><h1>Verkooporders</h1><span class="spacer"></span>
-      <button class="btn primary" id="nieuw">+ Nieuwe verkooporder</button></div>
+      <button class="btn primary" id="nieuw"><i data-lucide="plus"></i> Nieuwe verkooporder</button></div>
     <div class="help">Een verkooporder doorloopt: <b>offerte</b> → <b>orderbevestiging</b> (met aanbetaling) → <b>levering</b> → <b>factuur</b>.
       Artikelen die besteld moeten worden, krijgen bij het bevestigen automatisch een concept-inkooporder voor de leverancier.</div>
     <div class="toolbar">
@@ -89,30 +89,32 @@ export async function renderDetail(c, [id]) {
   const docLink = (soort) => `#/doc/so/${so.id}/${soort}?taal=${taal}`;
 
   c.innerHTML = `
-    <div class="page-head"><a class="btn small" href="#/verkoop">← Verkooporders</a>
+    <div class="page-head"><a class="btn small" href="#/verkoop"><i data-lucide="arrow-left"></i> Verkooporders</a>
       <h1>${esc(nrLabel(so))}</h1>${badge(SO_STATUS, st)}<span class="spacer"></span>
       <span class="muted">${esc(so.klanten?.naam)}</span></div>
 
     <div class="card"><h2>Stappen</h2>
-      <div class="btn-row">
-        <button class="btn ${st === 'offerte' && !so.offertenummer ? 'primary' : ''}" data-doc="offerte">1. ${so.offertenummer ? `Offerte ${so.offertenummer} bekijken` : 'Offerte maken'}</button>
-        <button class="btn ${st === 'offerte' ? 'primary' : ''}" id="bevestig">2. ${so.orderbev_nummer ? `Orderbevestiging ${so.orderbev_nummer} bekijken` : 'Order bevestigen'}</button>
-        <button class="btn ${st === 'bevestigd' && !betaald ? 'primary' : ''}" id="betaling">3. Betaling registreren</button>
-        <button class="btn ${st === 'bevestigd' && betaald ? 'primary' : ''}" id="lever" ${allesGeleverd ? 'disabled' : ''}>4. ${allesGeleverd ? 'Geleverd ✓' : 'Leveren (voorraad afboeken)'}</button>
-        <button class="btn ${st === 'geleverd' ? 'primary' : ''}" data-doc="factuur">5. ${so.factuurnummer ? `Factuur ${so.factuurnummer} bekijken` : 'Factuur maken'}</button>
-        ${st === 'gefactureerd' ? `<button class="btn ok" id="betaald">6. Markeer als betaald</button>` : ''}
-        <span style="flex:1"></span>
+      <div class="steps">
+        <button class="btn step ${so.offertenummer ? 'done' : st === 'offerte' ? 'primary' : ''}" data-doc="offerte"><span class="step-n">Stap 1</span>${so.offertenummer ? `Offerte ${so.offertenummer} bekijken` : 'Offerte maken'}</button>
+        <button class="btn step ${so.orderbev_nummer ? 'done' : st === 'offerte' ? 'primary' : ''}" id="bevestig"><span class="step-n">Stap 2</span>${so.orderbev_nummer ? `Orderbevestiging ${so.orderbev_nummer} bekijken` : 'Order bevestigen'}</button>
+        <button class="btn step ${betaald >= totaal && totaal > 0 ? 'done' : st === 'bevestigd' && !betaald ? 'primary' : ''}" id="betaling"><span class="step-n">Stap 3</span>Betaling registreren</button>
+        <button class="btn step ${allesGeleverd ? 'done' : st === 'bevestigd' && betaald ? 'primary' : ''}" id="lever" ${allesGeleverd ? 'disabled' : ''}><span class="step-n">Stap 4</span>${allesGeleverd ? 'Geleverd' : 'Leveren (voorraad afboeken)'}</button>
+        <button class="btn step ${so.factuurnummer ? 'done' : st === 'geleverd' ? 'primary' : ''}" data-doc="factuur"><span class="step-n">Stap 5</span>${so.factuurnummer ? `Factuur ${so.factuurnummer} bekijken` : 'Factuur maken'}</button>
+        ${st === 'gefactureerd' ? `<button class="btn step primary" id="betaald"><span class="step-n">Stap 6</span>Markeer als betaald</button>` : ''}
+      </div>
+      <div class="btn-row" style="margin-top:14px">
+        <span class="small muted">Documenten in het ${taal === 'en' ? 'Engels' : 'Nederlands'} (wijzig "Taal" bij Gegevens).
+        ${so.offerte_datum ? `Offerte ${datum(so.offerte_datum)}. ` : ''}${so.orderbev_datum ? `Bevestigd ${datum(so.orderbev_datum)}. ` : ''}${so.factuur_datum ? `Gefactureerd ${datum(so.factuur_datum)}.` : ''}</span>
+        <span class="spacer"></span>
         ${st !== 'geannuleerd' ? '<button class="btn danger small" id="annuleer">Annuleren</button>' : ''}
         ${!so.offertenummer && !so.orderbev_nummer && !so.factuurnummer ? '<button class="btn danger small" id="del">Verwijderen</button>' : ''}
       </div>
-      <p class="small muted" style="margin-top:10px">Documenten in het ${taal === 'en' ? 'Engels' : 'Nederlands'} (wijzig "Taal" bij Gegevens).
-        ${so.offerte_datum ? `Offerte ${datum(so.offerte_datum)}. ` : ''}${so.orderbev_datum ? `Bevestigd ${datum(so.orderbev_datum)}. ` : ''}${so.factuur_datum ? `Gefactureerd ${datum(so.factuur_datum)}.` : ''}</p>
       ${nogBestellen.length && so.orderbev_nummer ? `<div class="warnbox">${nogBestellen.length} regel(s) moeten nog besteld worden. <button class="btn small" id="maakpo">Inkooporder(s) aanmaken</button></div>` : ''}
       ${zonderLev.length ? `<div class="warnbox">Let op: ${zonderLev.length} te bestellen artikel(en) hebben geen leverancier. Vul die in bij het artikel, anders kan er geen inkooporder gemaakt worden.</div>` : ''}
     </div>
 
     <div class="card"><h2>Regels</h2>
-      <div class="table-wrap"><table class="list"><thead><tr><th>Artikel</th><th>Omschrijving</th><th class="num">Aantal</th><th class="num">Prijs excl. btw</th><th class="num">Korting %</th><th class="num">Totaal</th><th>In showroom</th><th>Bestellen?</th><th>Inkooporder</th><th></th></tr></thead><tbody>
+      <div class="table-wrap"><table class="list edit"><thead><tr><th>Artikel</th><th>Omschrijving</th><th class="num">Aantal</th><th class="num">Prijs excl. btw</th><th class="num">Korting %</th><th class="num">Totaal</th><th>In showroom</th><th>Bestellen?</th><th>Inkooporder</th><th></th></tr></thead><tbody>
       ${regels.map((r) => { const v = vmap.get(r.artikel_id); const po = r.inkooporder_regels?.inkooporders; return `<tr data-regel="${r.id}">
         <td>${r.artikelen ? `<a href="#/artikel/${r.artikelen.id}"><b>${r.artikelen.artikelnummer}</b></a><br><span class="small muted">${esc(SOORT_ARTIKEL[r.artikelen.soort])}</span>` : '<span class="muted">vrije regel</span>'}</td>
         <td style="min-width:220px"><textarea data-f="omschrijving" rows="3">${esc(r.omschrijving || '')}</textarea></td>
@@ -123,21 +125,21 @@ export async function renderDetail(c, [id]) {
         <td>${r.artikelen && r.artikelen.soort !== 'dienst' ? num(v?.in_showroom ?? 0) : ''}${r.geleverd ? '<br><span class="badge green">geleverd</span>' : ''}</td>
         <td>${r.artikelen && r.artikelen.soort !== 'dienst' ? `<input type="checkbox" data-f="bestellen" ${r.bestellen ? 'checked' : ''} ${r.inkoopregel_id ? 'disabled' : ''} style="width:auto">` : ''}</td>
         <td>${po ? `<a href="#/inkoop/${po.id}">${po.ordernummer}</a><br>${badge(PO_STATUS, po.status)}` : ''}</td>
-        <td>${r.geleverd || r.inkoopregel_id ? '' : `<button class="btn small danger" data-delregel="${r.id}">✕</button>`}</td></tr>`; }).join('')}
+        <td>${r.geleverd || r.inkoopregel_id ? '' : `<button class="btn small danger" data-delregel="${r.id}"><i data-lucide="trash-2"></i></button>`}</td></tr>`; }).join('')}
       </tbody></table></div>
       <div class="toolbar" style="margin-top:12px">
         <div style="flex:1;min-width:260px"><input id="zoek" placeholder="+ Artikel toevoegen: typ artikelnummer of naam…"></div>
         <button class="btn" id="vrij">+ Vrije regel</button>
       </div>
-      <p class="small muted">De prijs wordt overgenomen van het artikel (verkoopprijs incl. btw ÷ 1,21). "Bestellen?" staat automatisch aan voor maatwerk en als er te weinig in de showroom ligt.</p>
-      <div style="display:flex;justify-content:flex-end"><table class="list" style="width:auto">
-        <tr><td>Netto</td><td class="num">${money(netto)}</td></tr>
-        <tr><td>${esc(BTW[so.btw_regeling])}</td><td class="num">${money(btw)}</td></tr>
-        <tr><td><b>Totaal</b></td><td class="num"><b>${money(totaal)}</b></td></tr>
-        <tr><td>Aanbetaling ${num(so.aanbetaling_pct)}%</td><td class="num">${money(aanbetaling)}</td></tr>
-        <tr><td>Betaald</td><td class="num">${money(betaald)}</td></tr>
-        <tr><td><b>Nog te voldoen</b></td><td class="num"><b>${money(totaal - betaald)}</b></td></tr>
-      </table></div>
+      <p class="small muted" style="margin-bottom:16px">De prijs wordt overgenomen van het artikel (verkoopprijs incl. btw ÷ 1,21). "Bestellen?" staat automatisch aan voor maatwerk en als er te weinig in de showroom ligt.</p>
+      <div class="totals">
+        <div><span>Netto</span><span>${money(netto)}</span></div>
+        <div><span>${esc(BTW[so.btw_regeling])}</span><span>${money(btw)}</span></div>
+        <div class="strong"><span>Totaal</span><span>${money(totaal)}</span></div>
+        <div><span>Aanbetaling ${num(so.aanbetaling_pct)}%</span><span>${money(aanbetaling)}</span></div>
+        <div><span>Betaald</span><span>${money(betaald)}</span></div>
+        <div class="strong"><span>Nog te voldoen</span><span>${money(totaal - betaald)}</span></div>
+      </div>
     </div>
 
     <form class="card" id="kop"><h2>Gegevens</h2>
@@ -159,7 +161,7 @@ export async function renderDetail(c, [id]) {
 
     <div class="card"><h2>Betalingen van klant</h2>
       ${betalingen.length ? `<table class="list"><thead><tr><th>Datum</th><th>Soort</th><th>Omschrijving</th><th class="num">Bedrag</th><th></th></tr></thead><tbody>
-      ${betalingen.map((b) => `<tr><td>${datum(b.datum)}</td><td>${esc(b.soort)}</td><td>${esc(b.omschrijving || '')}</td><td class="num">${money(b.bedrag)}</td><td><button class="btn small danger" data-delbet="${b.id}">✕</button></td></tr>`).join('')}
+      ${betalingen.map((b) => `<tr><td>${datum(b.datum)}</td><td>${esc(b.soort)}</td><td>${esc(b.omschrijving || '')}</td><td class="num">${money(b.bedrag)}</td><td><button class="btn small danger" data-delbet="${b.id}"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Nog niets ontvangen.</p>'}
     </div>
 

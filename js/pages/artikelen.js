@@ -11,7 +11,7 @@ export async function renderList(c, _p, query) {
   const levs = check(await sb.from('leveranciers').select('id, naam').order('naam'));
   c.innerHTML = `
     <div class="page-head"><h1>Artikelen</h1><span class="spacer"></span>
-      <a class="btn primary" href="#/artikel/new">+ Nieuw artikel</a></div>
+      <a class="btn primary" href="#/artikel/new"><i data-lucide="plus"></i> Nieuw artikel</a></div>
     <div class="help">Een artikel is iets dat je inkoopt of verkoopt: een tapijt in een bepaalde maat, een staal of een dienst.
       Hoort het bij een design van de leverancier (met foto's en designcode)? Koppel het dan aan dat design.</div>
     <div class="toolbar">
@@ -100,7 +100,7 @@ export async function renderDetail(c, [idStr], query) {
   const fotoPad = a.foto_pad || a.designs?.hoofdfoto_pad;
   c.innerHTML = `
     <div class="page-head">
-      <a class="btn small" href="#/artikelen">← Artikelen</a>
+      <a class="btn small" href="#/artikelen"><i data-lucide="arrow-left"></i> Artikelen</a>
       <h1>${isNew ? 'Nieuw artikel' : `Artikel ${a.artikelnummer} – ${esc(a.naam)}`}</h1><span class="spacer"></span>
       ${isNew ? '' : `<button class="btn" id="kopie">Kopiëren</button><button class="btn danger" id="del">Verwijderen</button>`}
     </div>

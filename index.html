@@ -3,50 +3,82 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
   <title>Koreman Voorraad</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div id="login" class="login hidden">
+    <div class="login-brand">
+      <p class="login-name">Koreman</p>
+      <p class="login-sub">Voorraadsysteem</p>
+    </div>
     <form id="login-form" class="login-box">
-      <h1>Koreman Voorraad</h1>
+      <h1>Inloggen</h1>
+      <p class="login-lead">Log in met je e-mailadres en wachtwoord.</p>
       <label>E-mail <input type="email" name="email" required autocomplete="username"></label>
       <label>Wachtwoord <input type="password" name="password" required autocomplete="current-password"></label>
-      <button class="btn primary" type="submit">Inloggen</button>
-      <p class="muted small" id="login-msg"></p>
+      <button class="btn primary block" type="submit">Inloggen</button>
+      <p class="login-msg" id="login-msg"></p>
     </form>
   </div>
 
   <div id="app" class="hidden">
-    <header class="topbar">
-      <button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
-      <a href="#/" class="brand">Koreman Voorraad</a>
-      <span class="spacer"></span>
-      <span class="muted small" id="user-email"></span>
-      <button class="btn small" id="logout">Uitloggen</button>
-    </header>
-    <nav class="sidebar" id="sidebar">
-      <a href="#/">🏠 Overzicht</a>
-      <div class="nav-group">Producten</div>
-      <a href="#/artikelen">📦 Artikelen</a>
-      <a href="#/designs">🖼️ Designs</a>
-      <a href="#/stalen">🔁 Uitgeleend / op zicht</a>
-      <div class="nav-group">Orders</div>
-      <a href="#/inkoop">🛒 Inkooporders</a>
-      <a href="#/verkoop">🧾 Verkooporders</a>
-      <div class="nav-group">Relaties</div>
-      <a href="#/klanten">👥 Klanten &amp; architecten</a>
-      <a href="#/leveranciers">🏭 Leveranciers</a>
-      <div class="nav-group">Overig</div>
-      <a href="#/instellingen">⚙️ Instellingen</a>
-    </nav>
-    <main id="main" class="main"></main>
+    <div class="backdrop" id="backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand">
+        <div>
+          <p class="side-name">Koreman</p>
+          <p class="side-sub">Voorraadsysteem</p>
+        </div>
+      </div>
+      <nav class="side-nav">
+        <p class="nav-group">Overzicht</p>
+        <a href="#/"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+        <p class="nav-group">Producten</p>
+        <a href="#/artikelen"><i data-lucide="package"></i><span>Artikelen</span></a>
+        <a href="#/designs"><i data-lucide="images"></i><span>Designs</span></a>
+        <a href="#/stalen"><i data-lucide="repeat"></i><span>Uitgeleend / op zicht</span></a>
+        <p class="nav-group">Orders</p>
+        <a href="#/inkoop"><i data-lucide="shopping-cart"></i><span>Inkooporders</span></a>
+        <a href="#/verkoop"><i data-lucide="file-text"></i><span>Verkooporders</span></a>
+        <p class="nav-group">Relaties</p>
+        <a href="#/klanten"><i data-lucide="users"></i><span>Klanten &amp; architecten</span></a>
+        <a href="#/leveranciers"><i data-lucide="factory"></i><span>Leveranciers</span></a>
+        <p class="nav-group">Beheer</p>
+        <a href="#/instellingen"><i data-lucide="settings"></i><span>Instellingen</span></a>
+      </nav>
+      <div class="side-user">
+        <span class="avatar" id="user-initials">K</span>
+        <div class="side-user-text">
+          <p id="user-email"></p>
+          <p class="side-sub">Ingelogd</p>
+        </div>
+      </div>
+    </aside>
+
+    <div class="shell">
+      <header class="topbar">
+        <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Menu openen"><i data-lucide="menu"></i></button>
+        <form class="search" id="global-search" role="search">
+          <i data-lucide="search"></i>
+          <input type="search" id="global-q" placeholder="Zoek artikel op nummer of naam…" aria-label="Zoek artikel">
+        </form>
+        <span class="spacer"></span>
+        <button class="btn" id="logout"><i data-lucide="log-out"></i><span class="hide-sm">Uitloggen</span></button>
+      </header>
+      <main id="main" class="main"></main>
+    </div>
   </div>
 
   <div id="doc" class="hidden"></div>
   <div id="modal-root"></div>
   <div id="toast-root"></div>
 
+  <script src="js/vendor/lucide.min.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

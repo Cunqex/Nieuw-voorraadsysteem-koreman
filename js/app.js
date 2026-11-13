@@ -47,7 +47,7 @@ async function route() {
   $('#doc').innerHTML = '';
 
   const main = $('#main');
-  $('#sidebar').classList.remove('open');
+  closeMenu();
   $$('#sidebar a').forEach((a) => {
     const target = a.getAttribute('href').slice(1);
     const first = '/' + (path.split('/')[1] || '');
@@ -74,6 +74,22 @@ async function route() {
   main.innerHTML = '<div class="card">Pagina niet gevonden. <a href="#/">Naar overzicht</a></div>';
 }
 
+function closeMenu() {
+  $('#sidebar').classList.remove('open');
+  $('#backdrop').classList.remove('open');
+}
+
+// Lijn-iconen: vervang <i data-lucide="..."> door SVG, ook na elke schermwissel
+let iconTimer;
+function refreshIcons() {
+  clearTimeout(iconTimer);
+  iconTimer = setTimeout(() => {
+    if (window.lucide && document.querySelector('i[data-lucide]')) window.lucide.createIcons();
+  }, 0);
+}
+new MutationObserver(refreshIcons).observe(document.body, { childList: true, subtree: true });
+refreshIcons();
+
 async function showApp(session) {
   if (!session) {
     $('#app').classList.add('hidden');
@@ -83,6 +99,7 @@ async function showApp(session) {
   $('#login').classList.add('hidden');
   $('#app').classList.remove('hidden');
   $('#user-email').textContent = session.user.email;
+  $('#user-initials').textContent = session.user.email.slice(0, 2);
   await route();
 }
 
@@ -99,7 +116,14 @@ if (SUPABASE_URL.includes('JOUW-PROJECT') || SUPABASE_ANON_KEY.includes('JOUW-')
     $('#login-msg').textContent = error ? 'Inloggen mislukt: ' + error.message : '';
   };
   $('#logout').onclick = async () => { await sb.auth.signOut(); };
-  $('#menu-toggle').onclick = () => $('#sidebar').classList.toggle('open');
+  $('#menu-toggle').onclick = () => { $('#sidebar').classList.add('open'); $('#backdrop').classList.add('open'); };
+  $('#backdrop').onclick = closeMenu;
+  $('#global-search').onsubmit = (e) => {
+    e.preventDefault();
+    const q = $('#global-q').value.trim();
+    location.hash = '#/artikelen' + (q ? '?q=' + encodeURIComponent(q) : '');
+    $('#global-q').value = '';
+  };
 
   let current = null;
   sb.auth.onAuthStateChange((_ev, session) => {

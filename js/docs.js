@@ -1,4 +1,4 @@
-import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js';
+import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261113163017';
 
 const T = {
   nl: {

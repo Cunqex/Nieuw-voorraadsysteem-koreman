@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Koreman Voorraad</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="login" class="login hidden">
+    <form id="login-form" class="login-box">
+      <h1>Koreman Voorraad</h1>
+      <label>E-mail <input type="email" name="email" required autocomplete="username"></label>
+      <label>Wachtwoord <input type="password" name="password" required autocomplete="current-password"></label>
+      <button class="btn primary" type="submit">Inloggen</button>
+      <p class="muted small" id="login-msg"></p>
+    </form>
+  </div>
+
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
+      <a href="#/" class="brand">Koreman Voorraad</a>
+      <span class="spacer"></span>
+      <span class="muted small" id="user-email"></span>
+      <button class="btn small" id="logout">Uitloggen</button>
+    </header>
+    <nav class="sidebar" id="sidebar">
+      <a href="#/">🏠 Overzicht</a>
+      <div class="nav-group">Producten</div>
+      <a href="#/artikelen">📦 Artikelen</a>
+      <a href="#/designs">🖼️ Designs</a>
+      <a href="#/stalen">🔁 Uitgeleend / op zicht</a>
+      <div class="nav-group">Orders</div>
+      <a href="#/inkoop">🛒 Inkooporders</a>
+      <a href="#/verkoop">🧾 Verkooporders</a>
+      <div class="nav-group">Relaties</div>
+      <a href="#/klanten">👥 Klanten &amp; architecten</a>
+      <a href="#/leveranciers">🏭 Leveranciers</a>
+      <div class="nav-group">Overig</div>
+      <a href="#/instellingen">⚙️ Instellingen</a>
+    </nav>
+    <main id="main" class="main"></main>
+  </div>
+
+  <div id="doc" class="hidden"></div>
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

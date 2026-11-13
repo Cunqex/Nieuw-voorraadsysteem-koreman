@@ -1,5 +1,5 @@
 import { sb, $, $$, toast, esc } from './ui.js';
-import { SUPABASE_URL } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import * as dashboard from './pages/dashboard.js';
 import * as artikelen from './pages/artikelen.js';
 import * as designs from './pages/designs.js';
@@ -87,9 +87,9 @@ async function showApp(session) {
 }
 
 // ---------- Init ----------
-if (SUPABASE_URL.includes('JOUW-PROJECT')) {
+if (SUPABASE_URL.includes('JOUW-PROJECT') || SUPABASE_ANON_KEY.includes('JOUW-')) {
   document.body.innerHTML = `<div class="login"><div class="login-box"><h1>Nog niet ingesteld</h1>
-    <p>Vul in <code>js/config.js</code> de Supabase-URL en anon key in.</p></div></div>`;
+    <p>Vul in <code>js/config.js</code> de Supabase anon key in.</p></div></div>`;
 } else {
   $('#login-form').onsubmit = async (e) => {
     e.preventDefault();

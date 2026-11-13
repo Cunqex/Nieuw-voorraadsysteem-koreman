@@ -21,7 +21,7 @@ export async function renderList(c, _p, query) {
       <label class="check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="opvoorraad" style="width:auto" ${query.voorraad ? 'checked' : ''}> Alleen op voorraad</label>
       <label class="check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="inactief" style="width:auto"> Ook inactieve</label>
     </div>
-    <div class="card" style="padding:0"><div class="table-wrap" id="tbl"></div></div>`;
+    <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
 
   const load = async () => {
     const q = $('#q', c).value.trim().replace(/[%,()]/g, '');

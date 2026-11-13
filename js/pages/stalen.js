@@ -13,7 +13,7 @@ export async function render(c) {
       <select id="filter"><option value="open">Nog uit</option><option value="telaat">Te laat terug</option><option value="alle">Alles (ook terug)</option></select>
       <select id="soort"><option value="">Stalen en tapijten</option><option value="staal">Alleen stalen</option><option value="tapijt">Alleen tapijten</option></select>
     </div>
-    <div class="card" style="padding:0"><div class="table-wrap" id="tbl"></div></div>`;
+    <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
   const load = async () => {
     let query = sb.from('uitleningen').select('*, klanten(id, naam), artikelen(id, artikelnummer, naam, soort)').order('datum_uit', { ascending: false }).limit(1000);
     const f = $('#filter', c).value;

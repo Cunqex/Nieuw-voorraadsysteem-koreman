@@ -32,6 +32,13 @@ const LEV_FIELDS = [
   { name: 'notities', label: 'Notities', type: 'textarea' },
 ];
 
+const KLEUREN = ['#7C5CFC', '#3B82F6', '#0E9F6E', '#F59E0B', '#EF4444', '#DB2777', '#0891B2', '#65A30D', '#9333EA', '#EA580C', '#475569', '#B45309'];
+function kleur(naam) {
+  let h = 0;
+  for (const ch of String(naam || '')) h = (h * 31 + ch.codePointAt(0)) % 9973;
+  return KLEUREN[h % KLEUREN.length];
+}
+
 const cfg = {
   klanten: { titel: 'Klanten & architecten', enkel: 'klant', fields: KLANT_FIELDS, route: 'klant' },
   leveranciers: { titel: 'Leveranciers', enkel: 'leverancier', fields: LEV_FIELDS, route: 'leverancier' },
@@ -58,19 +65,54 @@ export async function renderList(c, table) {
     <div class="toolbar">
       <input type="search" id="q" placeholder="Zoeken…">
       ${table === 'klanten' ? `<select id="soort"><option value="">Alle soorten</option>${Object.entries(SOORT_KLANT).map(([a, b]) => `<option value="${a}">${b}</option>`).join('')}</select>` : ''}
+      <span class="spacer"></span>
+      <div class="segmented" id="view">
+        <button class="btn small" data-view="kaart" title="Kaartjes"><i data-lucide="layout-grid"></i></button>
+        <button class="btn small" data-view="lijst" title="Lijst"><i data-lucide="list"></i></button>
+      </div>
     </div>
-    <div class="card" style="padding:0"><div class="table-wrap" id="tbl"></div></div>`;
+    <div class="rel-grid" id="kaarten"></div>
+    <div class="card flush" id="tbl-card"><div class="table-wrap" id="tbl"></div></div>`;
+  let view = 'kaart';
+  try { view = localStorage.getItem('relatie-weergave') || 'kaart'; } catch { /* geen opslag */ }
+  const zetView = () => c.querySelectorAll('#view [data-view]').forEach((b) => b.classList.toggle('primary', b.dataset.view === view));
+  zetView();
+  on(c, 'click', '#view [data-view]', (_e, b) => {
+    view = b.dataset.view;
+    try { localStorage.setItem('relatie-weergave', view); } catch { /* geen opslag */ }
+    zetView(); load();
+  });
   const load = async () => {
     const q = $('#q', c).value.trim().replace(/[%,()]/g, '');
     let query = sb.from(table).select('*').order('naam').limit(1000);
     if (q) query = query.or(`naam.ilike.%${q}%,contactpersoon.ilike.%${q}%,email.ilike.%${q}%`);
     if ($('#soort', c)?.value) query = query.eq('soort', $('#soort', c).value);
     const rows = check(await query);
-    $('#tbl', c).innerHTML = rows.length ? `<table class="list"><thead><tr><th>Nr.</th><th>Naam</th>${table === 'klanten' ? '<th>Soort</th><th>Plaats</th>' : '<th>Valuta</th><th>Land</th>'}<th>Contact</th><th>E-mail</th><th>Telefoon</th></tr></thead><tbody>
+    const el = $('#tbl', c);
+    $('#tbl-card', c).style.display = view === 'kaart' ? 'none' : '';
+    $('#kaarten', c).style.display = view === 'kaart' ? '' : 'none';
+    if (!rows.length) { el.innerHTML = '<p class="empty">Niets gevonden.</p>'; $('#tbl-card', c).style.display = ''; $('#kaarten', c).innerHTML = ''; return; }
+    if (view === 'kaart') {
+      $('#kaarten', c).innerHTML = rows.map((r) => {
+        const adres = [(r.adres || '').replace(/\n/g, ', '), r.postcode_plaats, table === 'klanten' && /^nederland$/i.test(r.land || '') ? '' : r.land].filter(Boolean).join(', ');
+        const sub = table === 'klanten' ? SOORT_KLANT[r.soort] : r.valuta;
+        return `<a class="rel-card" data-id="${r.id}" href="#/${k.route}/${r.id}">
+          <span class="rel-av" style="background:${kleur(r.naam)}">${esc((r.naam || '?').trim()[0].toUpperCase())}</span>
+          <span class="rel-body">
+            <span class="rel-naam">${esc(r.naam)}${r.actief ? '' : ' <span class="badge">inactief</span>'}</span>
+            <span class="rel-meta">${r.nummer} · ${esc(sub)}</span>
+            ${adres ? `<span class="rel-line">${esc(adres)}</span>` : ''}
+            ${r.telefoon || r.mobiel ? `<span class="rel-line">${esc(r.telefoon || r.mobiel)}</span>` : ''}
+            ${r.email ? `<span class="rel-line rel-mail">${esc(r.email)}</span>` : ''}
+          </span></a>`;
+      }).join('');
+      return;
+    }
+    el.innerHTML = `<table class="list"><thead><tr><th>Nr.</th><th>Naam</th>${table === 'klanten' ? '<th>Soort</th><th>Plaats</th>' : '<th>Valuta</th><th>Land</th>'}<th>Contact</th><th>E-mail</th><th>Telefoon</th></tr></thead><tbody>
       ${rows.map((r) => `<tr class="click" data-id="${r.id}"><td>${r.nummer}</td><td><b>${esc(r.naam)}</b>${r.actief ? '' : ' <span class="badge">inactief</span>'}</td>
         ${table === 'klanten' ? `<td>${esc(SOORT_KLANT[r.soort])}</td><td>${esc(r.postcode_plaats || '')}</td>` : `<td>${r.valuta}</td><td>${esc(r.land || '')}</td>`}
         <td>${esc(r.contactpersoon || '')}</td><td>${esc(r.email || '')}</td><td>${esc(r.telefoon || r.mobiel || '')}</td></tr>`).join('')}
-    </tbody></table>` : '<p class="empty">Nog niets toegevoegd.</p>';
+    </tbody></table>`;
   };
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = `#/${k.route}/${tr.dataset.id}`; });
   $('#nieuw', c).onclick = async () => { const id = await bewerkRelatie(table); if (id) location.hash = `#/${k.route}/${id}`; };

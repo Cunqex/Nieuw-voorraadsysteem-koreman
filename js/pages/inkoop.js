@@ -16,7 +16,7 @@ export async function renderList(c, _p, query) {
         ${Object.entries(PO_STATUS).map(([k, [l]]) => `<option value="${k}" ${query.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <select id="lev"><option value="">Alle leveranciers</option>${levs.map((l) => `<option value="${l.id}">${esc(l.naam)}</option>`).join('')}</select>
     </div>
-    <div class="card" style="padding:0"><div class="table-wrap" id="tbl"></div></div>`;
+    <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
 
   const load = async () => {
     let q = sb.from('inkooporders').select('id, ordernummer, status, orderdatum, voor_wie, referentie, valuta, leveranciers(naam), klanten(naam)').order('ordernummer', { ascending: false }).limit(500);

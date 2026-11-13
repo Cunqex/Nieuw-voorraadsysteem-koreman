@@ -134,7 +134,7 @@ export async function render(el, type, id, soort, query) {
           ${so.klant_referentie ? `<tr><td>${t.ref}</td><td>: ${esc(so.klant_referentie)}</td></tr>` : ''}
           <tr><td>${t.verkoper}</td><td>: ${esc(inst.verkoper || '')}</td></tr>
         </table>
-        <div class="d-addr"><b>${esc(k.naam)}</b>${k.contactpersoon ? '\nt.a.v. ' + esc(k.contactpersoon) : ''}${k.adres ? '\n' + esc(k.adres) : ''}${k.postcode_plaats ? '\n' + esc(k.postcode_plaats) : ''}${k.land && !/^nederland$/i.test(k.land) ? '\n' + esc(k.land) : ''}${k.telefoon ? '\nT ' + esc(k.telefoon) : ''}${k.mobiel ? '\nM ' + esc(k.mobiel) : ''}${k.email ? '\n@ ' + esc(k.email) : ''}</div>
+        <div class="d-addr"><b>${esc([k.aanhef, k.naam].filter(Boolean).join(' '))}</b>${k.contactpersoon ? '\nt.a.v. ' + esc(k.contactpersoon) : ''}${k.adres ? '\n' + esc(k.adres) : ''}${k.postcode_plaats ? '\n' + esc(k.postcode_plaats) : ''}${k.land && !/^nederland$/i.test(k.land) ? '\n' + esc(k.land) : ''}${k.telefoon ? '\nT ' + esc(k.telefoon) : ''}${k.mobiel ? '\nM ' + esc(k.mobiel) : ''}${k.email ? '\n@ ' + esc(k.email) : ''}</div>
       </div>
       <table class="d-lines"><thead><tr><th style="width:14mm">${t.aantal}</th><th>${t.oms}</th><th class="num">${t.stuks}</th><th class="num">${t.regel}</th></tr></thead><tbody>
       ${regels.map((r) => { const lt = r.aantal * r.prijs * (1 - r.korting_pct / 100); return `<tr><td>${Number(r.aantal)}</td>

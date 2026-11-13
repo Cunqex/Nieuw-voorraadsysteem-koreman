@@ -4,6 +4,7 @@ import {
 } from '../ui.js';
 
 const KLANT_FIELDS = [
+  { name: 'aanhef', label: 'Aanhef', placeholder: 'bv. Familie, De heer, Mevrouw' },
   { name: 'naam', label: 'Naam / bedrijfsnaam *', required: true },
   { name: 'soort', label: 'Soort', type: 'select', options: SOORT_KLANT },
   { name: 'contactpersoon', label: 'Contactpersoon' },

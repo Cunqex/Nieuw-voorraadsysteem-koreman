@@ -64,6 +64,7 @@ create table public.leveranciers (
 create table public.klanten (
   id             bigint generated always as identity primary key,
   nummer         integer not null unique default nextval('public.klant_nr_seq'),
+  aanhef         text,
   naam           text not null,
   soort          text not null default 'particulier'
                  check (soort in ('particulier','zakelijk','architect','agent')),

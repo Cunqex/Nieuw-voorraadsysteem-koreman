@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261114165846';
+import { sb, check, esc, $, toast } from './ui.js?v=20261114165901';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -265,8 +265,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261114165846');
-  const { printHtml } = await import('./kaarten.js?v=20261114165846');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261114165901');
+  const { printHtml } = await import('./kaarten.js?v=20261114165901');
   const logoUrl = new URL('img/logo-koreman.jpg', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({
@@ -293,7 +293,7 @@ export async function stalenVelModal(ids = []) {
       const toon = () => {
         const l = velLeesG(); const n = perVel(); const tot = l.reduce((s2, k) => s2 + (Number(k.n) || 1), 0);
         $('#sv-info', form).innerHTML = l.length
-          ? `${l.length} staal${l.length === 1 ? '' : 'en'}, samen ${tot} kaart${tot === 1 ? '' : 'en'} · ${n} per A4 · ${Math.ceil(tot / n)} vel${Math.ceil(tot / n) === 1 ? '' : 'len'}. Kaarten zonder QR-code zijn (nog) niet gekoppeld aan de website – open dan het artikel en kies het product bij "Staalkaart (B2B)".`
+          ? `${l.length} ${l.length === 1 ? 'staal' : 'stalen'}, samen ${tot} kaart${tot === 1 ? '' : 'en'} · ${n} per A4 · ${Math.ceil(tot / n)} vel${Math.ceil(tot / n) === 1 ? '' : 'len'}. Kaarten zonder QR-code zijn (nog) niet gekoppeld aan de website – open dan het artikel en kies het product bij "Staalkaart (B2B)".`
           : 'Nog geen stalen gekozen. Zoek hierboven een staal en klik erop.';
         $('#sv-print', form).innerHTML = `<i data-lucide="printer"></i> Print (${tot} kaart${tot === 1 ? '' : 'en'})`;
         $('#sv-grid', form).innerHTML = l.map((k, i) => `<div class="sv-item"><div class="wrap"><div class="schaal">${staalkaart({ ...k }, logoUrl, qr).replace('class="sk"', 'class="sk" style="--w:100mm;--h:90mm"')}</div></div>

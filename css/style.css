@@ -486,3 +486,33 @@ select:hover { border-color: var(--navy-200); }
 .tl-ic svg.lucide { width: 14px; height: 14px; }
 .tl-d { color: var(--navy-400); font-variant-numeric: tabular-nums; font-size: 13px; }
 h3.sub { font-size: 13px; font-weight: 600; color: var(--navy-500); margin: 20px 0 10px; text-transform: uppercase; letter-spacing: .05em; }
+
+/* rapportage */
+.kpi { cursor: default; flex-direction: column; justify-content: flex-start; }
+.kpi .lbl { order: -1; }
+.kpi .num { font-size: 26px; line-height: 32px; }
+.delta { font-size: 12.5px; color: var(--navy-400); }
+.delta.op { color: var(--green-fg); }
+.delta.neer { color: var(--red-fg); }
+.legenda { display: flex; gap: 18px; font-size: 13px; color: var(--navy-600); margin-bottom: 6px; }
+.legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+.legenda i.nu, .balk-spoor i.nu { background: var(--navy-950); }
+.legenda i.toen, .balk-spoor i.toen { background: var(--navy-200); }
+.grafiek { width: 100%; height: auto; display: block; }
+.grafiek .raster { stroke: var(--line); stroke-width: 1; }
+.grafiek .as, .jaren .as { font-size: 11px; fill: var(--navy-400); color: var(--navy-400); }
+.grafiek rect.nu { fill: var(--navy-950); }
+.grafiek rect.toen { fill: var(--navy-200); }
+.grafiek rect:hover { opacity: .8; }
+.balken { display: flex; flex-direction: column; gap: 10px; }
+.balk-rij { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; gap: 12px; align-items: center; font-size: 13.5px; }
+.balk-naam { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.balk-spoor { display: flex; flex-direction: column; gap: 2px; }
+.balk-spoor i { display: block; height: 8px; border-radius: 3px; min-width: 2px; }
+.balk-spoor i.toen { height: 5px; }
+.balk-bedrag { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.balk-bedrag small { display: block; font-weight: 400; color: var(--navy-400); font-size: 11.5px; }
+.jaren { display: flex; align-items: flex-end; gap: 14px; overflow-x: auto; padding-top: 6px; }
+.jaar { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1 1 0; min-width: 48px; }
+.jaar i { display: block; width: 100%; max-width: 64px; background: var(--navy-950); border-radius: 4px 4px 0 0; }
+.jaar-bedrag { font-size: 12px; font-weight: 600; color: var(--navy-700); }

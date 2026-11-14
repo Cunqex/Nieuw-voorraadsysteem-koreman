@@ -231,29 +231,43 @@ input[type=file] { height: auto; padding: 8px; }
 body.doc-mode { background: #8a8d98; }
 body.doc-mode #app, body.doc-mode #login { display: none !important; }
 .doc-bar { position: sticky; top: 0; background: var(--navy-950); color: #fff; padding: 12px 20px; display: flex; gap: 8px; align-items: center; z-index: 5; flex-wrap: wrap; }
-.a4 { width: 210mm; min-height: 297mm; margin: 24px auto; background: #fff; padding: 16mm 16mm 20mm; font-size: 10pt; line-height: 1.35; color: #000; font-family: Arial, Helvetica, sans-serif; position: relative; box-shadow: var(--shadow-pop); }
+.a4 { width: 210mm; min-height: 297mm; margin: 24px auto; background: #fff; padding: 12mm 14mm 16mm; font-size: 10pt; line-height: 1.3; color: #000; font-family: Arial, Helvetica, sans-serif; position: relative; box-shadow: 0 4px 24px rgb(0 0 0 / .25); display: flex; flex-direction: column; box-sizing: border-box; }
 .a4 b { font-weight: 700; }
-.a4 .d-head { display: flex; justify-content: flex-end; gap: 30px; font-size: 9pt; line-height: 1.45; margin-bottom: 14mm; }
-.a4 .d-title { font-size: 18pt; font-weight: 700; margin: 0 0 6mm; }
-.a4 .d-meta { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 10mm; }
-.a4 .d-meta table td { padding: 1px 10px 1px 0; vertical-align: top; }
-.a4 .d-addr { min-width: 70mm; line-height: 1.45; white-space: pre-line; }
-.a4 table.d-lines { width: 100%; border-collapse: collapse; margin-bottom: 8mm; }
-.a4 table.d-lines th { text-align: left; border-bottom: 1px solid #000; padding: 4px 6px; font-size: 9pt; }
-.a4 table.d-lines td { padding: 6px; vertical-align: top; border-bottom: 1px solid #ddd; }
-.a4 table.d-lines .num { text-align: right; white-space: nowrap; }
+.a4 table { border-collapse: collapse; }
+.a4 .d-head { display: grid; grid-template-columns: 70mm 1fr 58mm; gap: 6mm; align-items: start; font-size: 9.5pt; line-height: 1.3; margin-bottom: 12mm; }
+.a4 .d-logo { width: 60mm; height: auto; display: block; margin-top: -2mm; }
+.a4 .d-title { font-size: 14pt; font-weight: 700; margin: 0 0 3mm; }
+.a4 .d-meta { display: grid; grid-template-columns: 1fr 62mm; gap: 10mm; align-items: start; margin-bottom: 9mm; }
+.a4 .d-kv { justify-self: start; width: auto; }
+.a4 .d-kv td { padding: 0 3mm 0 0; vertical-align: top; }
+.a4 .d-kv td:first-child { font-weight: 700; white-space: nowrap; }
+.a4 .d-addr { line-height: 1.3; }
+.a4 .d-addr > b { display: block; margin-bottom: 1mm; }
+.a4 .d-contact { margin-top: 4mm; }
+.a4 .d-contact td { padding: 0 3mm 0 0; }
+.a4 .d-pre { white-space: pre-line; }
+.a4 table.d-lines { width: 100%; margin-bottom: 4mm; }
+.a4 table.d-lines th { text-align: left; border-bottom: 1px solid #000; padding: 1mm 2mm; font-weight: 700; white-space: nowrap; }
+.a4 table.d-lines td { padding: 1mm 2mm 4mm; vertical-align: top; }
+.a4 table.d-lines .num { text-align: right; white-space: nowrap; width: 26mm; }
+.a4 table.d-lines .d-qty { text-align: right; width: 20mm; padding-right: 12mm; }
+.a4 table.d-lines .d-fotokol { width: 26mm; padding: 1mm 2mm 4mm 0; }
 .a4 .d-desc { white-space: pre-line; }
-.a4 .d-img { width: 45mm; max-height: 45mm; object-fit: contain; display: block; margin-top: 4px; }
-.a4 .d-bottom { display: flex; justify-content: space-between; gap: 20px; }
-.a4 .d-totals td { padding: 2px 0 2px 16px; }
-.a4 .d-totals td.num { text-align: right; min-width: 30mm; }
-.a4 .d-totals tr.strong td { font-weight: 700; border-top: 1px solid #000; padding-top: 4px; }
-.a4 .d-note { margin-top: 8mm; white-space: pre-line; font-size: 9pt; }
-.a4 .d-foot { position: absolute; bottom: 10mm; left: 0; right: 0; text-align: center; font-size: 8pt; color: #555; }
+.a4 .d-img { width: 24mm; height: 24mm; object-fit: cover; display: block; }
+.a4 .d-note { margin-top: 3mm; white-space: pre-line; font-size: 9pt; }
+.a4 .d-bottom { margin-top: auto; border-top: 1.5px solid #000; padding-top: 2mm; display: flex; justify-content: space-between; align-items: flex-start; gap: 10mm; }
+.a4 .d-totals td { padding: 0 0 0 4mm; white-space: nowrap; }
+.a4 .d-totals td:first-child { text-align: right; padding-left: 0; }
+.a4 .d-totals.d-links td:first-child { text-align: left; min-width: 30mm; }
+.a4 .d-totals td.num { text-align: right; min-width: 22mm; }
+.a4 .d-totals tr.strong td { font-weight: 700; }
+.a4 .d-klein { margin-top: 5mm; white-space: pre-line; font-size: 8pt; color: #333; }
+.a4 .d-foot { margin-top: 6mm; text-align: center; font-size: 9pt; }
 @media print {
-  body.doc-mode { background: #fff; }
+  html, body, body.doc-mode { background: #fff; margin: 0; }
   .doc-bar { display: none; }
-  .a4 { margin: 0; width: auto; min-height: auto; padding: 0; box-shadow: none; }
+  .a4 { margin: 0; width: auto; min-height: 262mm; padding: 0; box-shadow: none; }
+  .a4 tr, .a4 .d-bottom { break-inside: avoid; }
   @page { size: A4; margin: 14mm; }
 }
 

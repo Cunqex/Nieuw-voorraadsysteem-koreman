@@ -1,4 +1,4 @@
-import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261114121927';
+import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261114122451';
 
 const T = {
   nl: {
@@ -33,10 +33,21 @@ const d = (v) => (v ? new Date(v).toLocaleDateString('nl-NL', { day: '2-digit', 
 function kop(i, taal = 'en') {
   const t = T[taal];
   return `<div class="d-head">
-    <div><b>${esc(i.bedrijfsnaam)}</b><br>${esc(i.adres)}<br>${esc(i.postcode_plaats)}<br>Tel: ${esc(i.telefoon || '')}</div>
+    <img class="d-logo" src="img/logo-koreman.jpg" alt="${esc(i.bedrijfsnaam)}">
+    <div><b>${esc((i.bedrijfsnaam || '').split(' ')[0])}</b><br>${esc(i.adres)}<br>${esc(i.postcode_plaats)}<br>Tel: ${esc(i.telefoon || '')}</div>
     <div>${t.btwnr}: ${esc(i.btw_nummer || '')}<br>${t.kvk}: ${esc(i.kvk_nummer || '')}<br>IBAN: ${esc(i.iban || '')}<br>BIC: ${esc(i.bic || '')}<br>${esc(i.email || '')}<br>${esc(i.website || '')}</div>
   </div>`;
 }
+// bedrag zonder valutateken (regels) en adresblok met kopje, T / M / @
+const getal = (v) => Number(v || 0).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const teken = (cur) => (cur === 'USD' ? '$' : '€');
+const meta = (rijen) => `<table class="d-kv">${rijen.filter(Boolean).map(([l, v], i) => `<tr><td>${l}</td><td>: ${i === 0 ? `<b>${v}</b>` : v}</td></tr>`).join('')}</table>`;
+function adresblok(kopje, regels, contact) {
+  const c = contact.filter(([, v]) => v);
+  return `<div class="d-addr"><b>${kopje}</b>${regels.filter(Boolean).map((r) => `<div>${esc(r)}</div>`).join('')}
+    ${c.length ? `<table class="d-contact">${c.map(([l, v]) => `<tr><td>${l}</td><td>${esc(v)}</td></tr>`).join('')}</table>` : ''}</div>`;
+}
+const totRij = (label, bedrag, cur, vet) => `<tr class="${vet ? 'strong' : ''}"><td>${label}</td><td>${teken(cur)}</td><td class="num">${getal(bedrag)}</td></tr>`;
 
 async function loadHtml2pdf() {
   if (window.html2pdf) return window.html2pdf;
@@ -72,31 +83,31 @@ export async function render(el, type, id, soort, query) {
     bestandsnaam = `Purchase order ${po.ordernummer}.pdf`;
     document.title = `Purchase order ${po.ordernummer}`;
     // LET OP: klantnaam staat bewust NIET op de inkooporder, alleen de referentie.
+    const metFoto = regels.some((r) => r.foto_pad);
     html = `<div class="a4">${kop(inst)}
       <h1 class="d-title">Purchase order</h1>
       <div class="d-meta">
-        <table>
-          <tr><td>Purchase order no.</td><td>: ${po.ordernummer}</td></tr>
-          <tr><td>Supplier no.</td><td>: ${l.nummer}</td></tr>
-          <tr><td>Order date</td><td>: ${d(po.orderdatum)}</td></tr>
-          <tr><td>Delivery date</td><td>: ${esc(po.leverdatum || '')}</td></tr>
-          ${po.referentie ? `<tr><td>Reference</td><td>: <b>${esc(po.referentie)}</b></td></tr>` : ''}
-          <tr><td>Sales person</td><td>: ${esc(inst.verkoper || '')}</td></tr>
-        </table>
-        <div class="d-addr"><b>${esc(l.naam)}</b>${l.contactpersoon ? '\nAttn. ' + esc(l.contactpersoon) : ''}${l.adres ? '\n' + esc(l.adres) : ''}${l.land ? '\n' + esc(l.land) : ''}${l.telefoon ? '\nT ' + esc(l.telefoon) : ''}${l.email ? '\n@ ' + esc(l.email) : ''}</div>
+        ${meta([
+          ['Purchase order no.', po.ordernummer],
+          ['Supplier no.', l.nummer],
+          ['Order date', d(po.orderdatum)],
+          ['Delivery date', esc(po.leverdatum || '')],
+          po.referentie && ['Reference', `<b>${esc(po.referentie)}</b>`],
+          ['Sales person', esc(inst.verkoper || '')],
+        ])}
+        ${adresblok('Supplier', [l.naam, l.contactpersoon && 'Attn. ' + l.contactpersoon, l.adres, l.postcode_plaats, l.land], [['T', l.telefoon], ['@', l.email]])}
       </div>
-      <table class="d-lines"><thead><tr><th style="width:12mm">Qty</th><th>Description</th><th class="num">Unit price</th><th class="num">Total price</th></tr></thead><tbody>
-      ${regels.map((r) => `<tr><td>${Number(r.aantal)}</td><td><div class="d-desc">${esc(r.omschrijving || '')}</div>${r.foto_pad ? `<img class="d-img" data-path="${esc(r.foto_pad)}" alt="">` : ''}</td>
-        <td class="num">${fmt(r.prijs, cur)}</td><td class="num">${fmt(r.aantal * r.prijs, cur)}</td></tr>`).join('')}
+      <table class="d-lines"><thead><tr>${metFoto ? '<th class="d-fotokol"></th>' : ''}<th class="d-qty">Qty</th><th>Description</th><th class="num">Unit price${cur === 'USD' ? ' (USD)' : ''}</th><th class="num">Total price</th></tr></thead><tbody>
+      ${regels.map((r) => `<tr>${metFoto ? `<td class="d-fotokol">${r.foto_pad ? `<img class="d-img" data-path="${esc(r.foto_pad)}" alt="">` : ''}</td>` : ''}
+        <td class="d-qty">${Number(r.aantal)}</td><td><div class="d-desc">${esc(r.omschrijving || '')}</div></td>
+        <td class="num">${getal(r.prijs)}</td><td class="num">${getal(r.aantal * r.prijs)}</td></tr>`).join('')}
       </tbody></table>
-      <div class="d-bottom">
-        <div class="d-addr"><b>Delivery address</b>\n${esc(po.afleveradres || inst.afleveradres_inkoop || '')}</div>
-        <table class="d-totals"><tr><td>Total (excl. VAT)</td><td class="num">${fmt(tot, cur)}</td></tr>
-          <tr><td>VAT 0%</td><td class="num">${fmt(0, cur)}</td></tr>
-          <tr class="strong"><td>Total order amount</td><td class="num">${fmt(tot, cur)}</td></tr></table>
-      </div>
       ${po.opmerking_lev ? `<div class="d-note"><b>Remarks</b>\n${esc(po.opmerking_lev)}</div>` : ''}
       <div class="d-note">Please always mention our purchase order number${po.referentie ? ' and reference' : ''} on all correspondence, labels and invoices.</div>
+      <div class="d-bottom">
+        <div class="d-addr"><b>Delivery address</b><div class="d-pre">${esc(po.afleveradres || inst.afleveradres_inkoop || '')}</div></div>
+        <table class="d-totals">${totRij('Total (excl. VAT)', tot, cur, true)}${totRij('VAT 0%', 0, cur)}${totRij('Total order amount', tot, cur, true)}</table>
+      </div>
       <div class="d-foot">Page 1 of 1</div></div>`;
   } else {
     const t = T[taal];
@@ -128,41 +139,39 @@ export async function render(el, type, id, soort, query) {
     html = `<div class="a4">${kop(inst, taal)}
       <h1 class="d-title">${t[soort]}</h1>
       <div class="d-meta">
-        <table>
-          <tr><td>${t.nr[soort]}</td><td>: ${nummer || '–'}</td></tr>
-          <tr><td>${t.klantnr}</td><td>: ${k.nummer}</td></tr>
-          <tr><td>${t.datum[soort]}</td><td>: ${d(docDatum)}</td></tr>
-          ${soort === 'factuur' && so.orderbev_nummer ? `<tr><td>${t.obnr}</td><td>: ${so.orderbev_nummer}</td></tr>` : ''}
-          ${so.levermethode ? `<tr><td>${t.levermethode}</td><td>: ${esc(so.levermethode)}</td></tr>` : ''}
-          ${so.klant_referentie ? `<tr><td>${t.ref}</td><td>: ${esc(so.klant_referentie)}</td></tr>` : ''}
-          <tr><td>${t.verkoper}</td><td>: ${esc(inst.verkoper || '')}</td></tr>
-        </table>
-        <div class="d-addr"><b>${esc([k.aanhef, k.naam].filter(Boolean).join(' '))}</b>${k.contactpersoon ? '\nt.a.v. ' + esc(k.contactpersoon) : ''}${k.adres ? '\n' + esc(k.adres) : ''}${k.postcode_plaats ? '\n' + esc(k.postcode_plaats) : ''}${k.land && !/^nederland$/i.test(k.land) ? '\n' + esc(k.land) : ''}${k.telefoon ? '\nT ' + esc(k.telefoon) : ''}${k.mobiel ? '\nM ' + esc(k.mobiel) : ''}${k.email ? '\n@ ' + esc(k.email) : ''}</div>
+        ${meta([
+          [t.nr[soort], nummer],
+          [t.klantnr, k.nummer],
+          [t.datum[soort], d(docDatum)],
+          soort === 'factuur' && so.orderbev_nummer && [t.obnr, so.orderbev_nummer],
+          so.levermethode && [t.levermethode, esc(so.levermethode)],
+          so.klant_referentie && [t.ref, esc(so.klant_referentie)],
+          [t.verkoper, esc(inst.verkoper || '')],
+        ])}
+        ${adresblok(t.adres, [[k.aanhef, k.naam].filter(Boolean).join(' '), k.contactpersoon && (taal === 'en' ? 'Attn. ' : 't.a.v. ') + k.contactpersoon, k.adres, k.postcode_plaats, k.land && !/^nederland$/i.test(k.land) ? k.land : null],
+          [['T', k.telefoon], ['M', k.mobiel], ['@', k.email]])}
       </div>
-      <table class="d-lines"><thead><tr><th style="width:14mm">${t.aantal}</th><th>${t.oms}</th><th class="num">${t.stuks}</th><th class="num">${t.regel}</th></tr></thead><tbody>
-      ${regels.map((r) => { const lt = r.aantal * r.prijs * (1 - r.korting_pct / 100); return `<tr><td>${Number(r.aantal)}</td>
-        <td>${r.artikelen ? `${r.artikelen.artikelnummer}<br>` : ''}<span class="d-desc">${esc(r.omschrijving || '')}</span>${Number(r.korting_pct) ? `<br><i>${Number(r.korting_pct)}% ${t.korting}</i>` : ''}</td>
-        <td class="num">${fmt(r.prijs)}</td><td class="num">${fmt(lt)}</td></tr>`; }).join('')}
+      <table class="d-lines"><thead><tr><th class="d-qty">${t.aantal}</th><th>${t.oms}</th><th class="num">${t.stuks}</th><th class="num">${t.regel}</th></tr></thead><tbody>
+      ${regels.map((r) => { const lt = r.aantal * r.prijs * (1 - r.korting_pct / 100); return `<tr><td class="d-qty">${Number(r.aantal)}</td>
+        <td>${r.artikelen ? `${esc(r.artikelen.artikelnummer)}<br>` : ''}<span class="d-desc">${esc(r.omschrijving || '')}</span>${Number(r.korting_pct) ? `<br><i>${Number(r.korting_pct)}% ${t.korting}</i>` : ''}</td>
+        <td class="num">${getal(r.prijs)}</td><td class="num">${getal(lt)}</td></tr>`; }).join('')}
       </tbody></table>
+      ${so.opmerking ? `<div class="d-note">${esc(so.opmerking)}</div>` : ''}
+      ${so.afleveradres ? `<div class="d-note"><b>${t.aflever}</b>\n${esc(so.afleveradres)}</div>` : ''}
+      ${so.betaalvoorwaarden ? `<div class="d-note"><b>${t.voorw}:</b> ${esc(so.betaalvoorwaarden)}</div>` : ''}
+      ${soort !== 'offerte' && totaal - betaald > 0.005 ? `<div class="d-note">${esc(t.betaal(inst.iban, `${t.nr[soort]} ${nummer}`))}</div>` : ''}
+      ${soort === 'offerte' ? `<div class="d-note">${t.geldig}</div>` : ''}
+      ${btwNote ? `<div class="d-note">${btwNote}</div>` : ''}
       <div class="d-bottom">
-        <div>
-          <table class="d-totals" style="margin-left:-16px"><tr><td>${t.netto}:</td><td class="num">${fmt(netto)}</td></tr>
-            <tr><td>${t.btw} ${btwPct}%</td><td class="num">${fmt(btw)}</td></tr></table>
-          ${btwNote ? `<p style="font-size:9pt">${btwNote}</p>` : ''}
-          ${so.afleveradres ? `<div class="d-addr" style="margin-top:4mm"><b>${t.aflever}</b>\n${esc(so.afleveradres)}</div>` : ''}
-        </div>
+        <table class="d-totals d-links"><tr><td>${t.netto}:</td><td>€</td><td class="num">${getal(netto)}</td></tr>
+          <tr><td>${t.btw} ${btwPct}%</td><td>€</td><td class="num">${getal(btw)}</td></tr></table>
         <table class="d-totals">
-          <tr class="strong"><td>${t.totaal}</td><td class="num">${fmt(totaal)}</td></tr>
-          ${soort === 'orderbevestiging' && Number(so.aanbetaling_pct) > 0 ? `<tr><td>${t.aanbet} (${Number(so.aanbetaling_pct)}%)</td><td class="num">${fmt(aanbet)}</td></tr>` : ''}
-          ${soort !== 'offerte' && betaald ? `<tr><td>${t.aanbetaald}${laatsteBet ? ' ' + d(laatsteBet.datum) : ''}:</td><td class="num">${fmt(betaald)}</td></tr>
-            <tr class="strong"><td>${t.open}</td><td class="num">${fmt(totaal - betaald)}</td></tr>` : ''}
+          ${totRij(t.totaal, totaal, 'EUR', true)}
+          ${soort === 'orderbevestiging' && Number(so.aanbetaling_pct) > 0 && !betaald ? totRij(`${t.aanbet} (${Number(so.aanbetaling_pct)}%)`, aanbet, 'EUR') : ''}
+          ${soort !== 'offerte' && betaald ? totRij(`${t.aanbetaald}${laatsteBet ? ' ' + d(laatsteBet.datum) : ''}:`, betaald, 'EUR') + totRij(t.open, totaal - betaald, 'EUR', true) : ''}
         </table>
       </div>
-      ${so.betaalvoorwaarden ? `<div class="d-note"><b>${t.voorw}:</b> ${esc(so.betaalvoorwaarden)}</div>` : ''}
-      ${soort !== 'offerte' && totaal - betaald > 0 ? `<div class="d-note">${esc(t.betaal(inst.iban, `${t.nr[soort]} ${nummer}`))}</div>` : ''}
-      ${soort === 'offerte' ? `<div class="d-note">${t.geldig}</div>` : ''}
-      ${so.opmerking ? `<div class="d-note">${esc(so.opmerking)}</div>` : ''}
-      <div class="d-note">${esc(taal === 'en' ? inst.voorwaarden_en : inst.voorwaarden_nl)}</div>
+      ${(taal === 'en' ? inst.voorwaarden_en : inst.voorwaarden_nl) ? `<div class="d-klein">${esc(taal === 'en' ? inst.voorwaarden_en : inst.voorwaarden_nl)}</div>` : ''}
       <div class="d-foot">${t.pagina}</div></div>`;
   }
 

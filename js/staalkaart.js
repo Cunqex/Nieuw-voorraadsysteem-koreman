@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261114164257';
+import { sb, check, esc, $, toast } from './ui.js?v=20261114164705';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -264,9 +264,9 @@ async function kaartVoorArtikel(a) {
   return k;
 }
 
-export async function stalenVelModal() {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261114164257');
-  const { printHtml } = await import('./kaarten.js?v=20261114164257');
+export async function stalenVelModal(ids = []) {
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261114164705');
+  const { printHtml } = await import('./kaarten.js?v=20261114164705');
   const logoUrl = new URL('img/logo-koreman.jpg', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({
@@ -322,6 +322,18 @@ export async function stalenVelModal() {
       };
       qrLib().then((q) => { qr = q; toon(); }).catch(toon);
       toon();
+      // geselecteerde artikelen uit de lijst op het vel zetten
+      if (ids.length) (async () => {
+        const l0 = velLeesG(); const al = new Set(l0.map((k) => k.nr));
+        const arts = check(await sb.from('artikelen').select('*, designs(naam, website_handle)').in('id', ids));
+        let i = 0;
+        for (const a of arts) {
+          i++; if (al.has(String(a.artikelnummer))) continue;
+          $('#sv-info', form).textContent = `Gegevens ophalen ${i} van ${arts.length}: ${a.artikelnummer} ${a.naam}…`;
+          const k = await kaartVoorArtikel(a); const l = velLeesG(); l.push(k); velZetG(l); al.add(k.nr);
+        }
+        toon();
+      })();
     },
   });
 }

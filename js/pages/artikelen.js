@@ -2,8 +2,8 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261114164257';
-import { kaartenModal } from '../kaarten.js?v=20261114164257';
+} from '../ui.js?v=20261114164705';
+import { kaartenModal } from '../kaarten.js?v=20261114164705';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -31,7 +31,10 @@ export async function renderList(c, _p, query) {
     </div>
     <div class="art-grid" id="kaarten"></div>
     <div class="card flush" id="tbl-card"><div class="table-wrap" id="tbl"></div></div>
-    <div id="meer" class="meer" hidden><button class="btn"></button></div>`;
+    <div id="meer" class="meer" hidden><button class="btn"></button></div>
+    <div class="sel-bar" id="selbar" hidden><b id="sel-aantal"></b>
+      <button class="btn small" id="sel-alles">Alles hierboven selecteren</button><button class="btn small" id="sel-wis">Selectie wissen</button>
+      <span class="spacer"></span><button class="btn primary" id="sel-stalen"><i data-lucide="printer"></i> Staalkaarten printen</button></div>`;
 
   let view = 'kaart';
   try { view = localStorage.getItem('artikel-weergave') || 'kaart'; } catch { /* geen opslag */ }
@@ -43,6 +46,30 @@ export async function renderList(c, _p, query) {
     const n = Number(r._t.voorraad_totaal || 0), uit = Number(r._t.uitgeleend || 0);
     if (n <= 0) return '<span class="badge">Niet op voorraad</span>';
     return `<span class="badge green">${num(n)} op voorraad</span>${uit ? ` <span class="badge orange">${num(uit)} uitgeleend</span>` : ''}`;
+  };
+
+  // ---- selectie (blijft staan bij zoeken en wisselen van weergave) ----
+  const gekozen = new Map(); // id -> artikelnummer
+  let zichtbaar = [];
+  const vinkje = (r) => `<span class="art-check ${gekozen.has(r.id) ? 'aan' : ''}" data-kies="${r.id}" data-nr="${esc(r.artikelnummer)}" title="Selecteren"><i data-lucide="check"></i></span>`;
+  const werkSelectieBij = () => {
+    $('#selbar', c).hidden = !gekozen.size;
+    $('#sel-aantal', c).textContent = `${gekozen.size} geselecteerd`;
+    c.querySelectorAll('[data-kies]').forEach((el) => el.classList.toggle('aan', gekozen.has(Number(el.dataset.kies))));
+  };
+  // klik op het vinkje: selecteren i.p.v. het artikel openen
+  c.addEventListener('click', (e) => {
+    const v = e.target.closest('[data-kies]'); if (!v) return;
+    e.preventDefault(); e.stopPropagation();
+    const id = Number(v.dataset.kies);
+    if (gekozen.has(id)) gekozen.delete(id); else gekozen.set(id, v.dataset.nr);
+    werkSelectieBij();
+  }, true);
+  $('#sel-wis', c).onclick = () => { gekozen.clear(); werkSelectieBij(); };
+  $('#sel-alles', c).onclick = () => { zichtbaar.forEach((r) => gekozen.set(r.id, r.artikelnummer)); werkSelectieBij(); };
+  $('#sel-stalen', c).onclick = async () => {
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261114164705');
+    await stalenVelModal([...gekozen.keys()]);
   };
 
   let seq = 0; let toon = 120;
@@ -65,6 +92,7 @@ export async function renderList(c, _p, query) {
     if (mine !== seq) return; // er is intussen opnieuw gezocht
     const totaalAantal = alle.length;
     const rows = alle.slice(0, toon);
+    zichtbaar = rows;
     await withTotals(rows, 'v_voorraad', 'artikel_id');
     if (mine !== seq) return; // er is intussen opnieuw gezocht
     $('#aantal', c).textContent = `${totaalAantal} artikel${totaalAantal === 1 ? '' : 'en'}`;
@@ -82,7 +110,7 @@ export async function renderList(c, _p, query) {
       $('#kaarten', c).innerHTML = rows.map((r) => `
         <a class="art-card" href="#/artikel/${r.id}">
           <div class="art-img">${foto(r) ? `<img data-path="${esc(foto(r))}" alt="" loading="lazy">` : '<i data-lucide="image-off"></i>'}
-            <span class="art-soort">${esc(SOORT_ARTIKEL[r.soort])}</span></div>
+            <span class="art-soort">${esc(SOORT_ARTIKEL[r.soort])}</span>${vinkje(r)}</div>
           <div class="art-body">
             <div class="art-nr">${r.artikelnummer}${r.actief ? '' : ' · inactief'}</div>
             <div class="art-naam">${esc(r.naam)}</div>
@@ -94,9 +122,9 @@ export async function renderList(c, _p, query) {
       loadImages($('#kaarten', c));
       return;
     }
-    $('#tbl', c).innerHTML = `<table class="list"><thead><tr><th></th><th>Nr.</th><th>Naam</th><th>Soort</th><th>Maat</th><th>Leverancier</th><th>Design</th><th>Voorraad</th><th class="num">Verkoopprijs</th></tr></thead><tbody>
+    $('#tbl', c).innerHTML = `<table class="list"><thead><tr><th style="width:34px"></th><th></th><th>Nr.</th><th>Naam</th><th>Soort</th><th>Maat</th><th>Leverancier</th><th>Design</th><th>Voorraad</th><th class="num">Verkoopprijs</th></tr></thead><tbody>
       ${rows.map((r) => `<tr class="click" data-id="${r.id}">
-        <td>${foto(r) ? `<img class="thumb" data-path="${esc(foto(r))}" alt="">` : '<span class="thumb"></span>'}</td>
+        <td>${vinkje(r)}</td><td>${foto(r) ? `<img class="thumb" data-path="${esc(foto(r))}" alt="">` : '<span class="thumb"></span>'}</td>
         <td><b>${r.artikelnummer}</b></td><td>${esc(r.naam)}${r.actief ? '' : ' <span class="badge">inactief</span>'}</td>
         <td>${esc(SOORT_ARTIKEL[r.soort])}</td><td>${maat(r)}</td><td>${esc(r.leveranciers?.naam || '')}</td>
         <td>${esc(r.designs?.design_code_lev || '')}</td><td>${voorraadBadge(r)}</td>
@@ -110,7 +138,7 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261114164257'); stalenVelModal(); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261114164705'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -354,7 +382,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261114164257');
+      const { artikelPicker } = await import('../ui.js?v=20261114164705');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

@@ -516,3 +516,13 @@ h3.sub { font-size: 13px; font-weight: 600; color: var(--navy-500); margin: 20px
 .jaar { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1 1 0; min-width: 48px; }
 .jaar i { display: block; width: 100%; max-width: 64px; background: var(--navy-950); border-radius: 4px 4px 0 0; }
 .jaar-bedrag { font-size: 12px; font-weight: 600; color: var(--navy-700); }
+
+/* ---------- Selecteren in de artikellijst (staalkaarten printen) ---------- */
+.art-check { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 8px; background: rgb(255 255 255 / .92); border: 1.5px solid var(--navy-200); display: flex; align-items: center; justify-content: center; cursor: pointer; color: transparent; z-index: 2; }
+.art-check svg { width: 16px; height: 16px; }
+.art-check:hover { border-color: var(--navy-500); }
+.art-check.aan { background: var(--navy-900); border-color: var(--navy-900); color: #fff; }
+td > .art-check { position: static; width: 22px; height: 22px; }
+.art-card:has(.art-check.aan) { border-color: var(--navy-900); box-shadow: 0 0 0 2px var(--navy-900); }
+.sel-bar { position: sticky; bottom: 12px; z-index: 30; margin-top: 12px; display: flex; gap: 8px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-pop); padding: 10px 14px; }
+.sel-bar[hidden] { display: none; }

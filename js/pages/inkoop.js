@@ -1,6 +1,6 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114122451';
+  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114122745';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -93,10 +93,13 @@ export async function renderDetail(c, [id]) {
   // beschikbare foto's per design
   const designIds = [...new Set(regels.map((r) => r.artikelen?.design_id).filter(Boolean))];
   const files = designIds.length ? check(await sb.from('design_bestanden').select('design_id, pad, bestandsnaam, soort').in('design_id', designIds)) : [];
+  // foto van de regel; niets gekozen → foto van het artikel of het design; '' = bewust geen foto
+  const regelFoto = (r) => (r.foto_pad === '' ? '' : r.foto_pad || r.artikelen?.foto_pad || r.artikelen?.designs?.hoofdfoto_pad || '');
   const fotoOpties = (r) => {
     const opts = [];
     if (r.artikelen?.foto_pad) opts.push([r.artikelen.foto_pad, 'Foto artikel']);
-    files.filter((f) => f.design_id === r.artikelen?.design_id && isImage(f.pad)).forEach((f) => opts.push([f.pad, `${f.soort}: ${f.bestandsnaam}`]));
+    if (r.artikelen?.designs?.hoofdfoto_pad && r.artikelen.designs.hoofdfoto_pad !== r.artikelen.foto_pad) opts.push([r.artikelen.designs.hoofdfoto_pad, 'Foto design']);
+    files.filter((f) => f.design_id === r.artikelen?.design_id && isImage(f.pad) && !opts.some((o) => o[0] === f.pad)).forEach((f) => opts.push([f.pad, `${f.soort}: ${f.bestandsnaam}`]));
     if (r.foto_pad && !opts.some((o) => o[0] === r.foto_pad)) opts.push([r.foto_pad, 'Huidige foto']);
     return opts;
   };
@@ -152,8 +155,8 @@ export async function renderDetail(c, [id]) {
     <div class="card"><h2>Regels</h2>
       <div class="lines">
       ${regels.length ? regels.map((r) => { const opts = fotoOpties(r); const rest = r.aantal - r.aantal_ontvangen; return `<div class="line" data-regel="${r.id}">
-        <div class="line-foto">${r.foto_pad ? `<img data-path="${esc(r.foto_pad)}" alt="">` : '<span class="line-nofoto"><i data-lucide="image-off"></i></span>'}
-          ${opts.length ? `<select data-f="foto_pad" title="Foto op de inkooporder"><option value="">Geen foto</option>${opts.map(([p, l]) => `<option value="${esc(p)}" ${p === r.foto_pad ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}</div>
+        <div class="line-foto">${regelFoto(r) ? `<img data-path="${esc(regelFoto(r))}" alt="">` : '<span class="line-nofoto"><i data-lucide="image-off"></i></span>'}
+          ${opts.length ? `<select data-f="foto_pad" title="Foto op de inkooporder"><option value="">Geen foto</option>${opts.map(([p, l]) => `<option value="${esc(p)}" ${p === regelFoto(r) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}</div>
         <div class="line-main">
           <div class="line-kop">${r.artikelen ? `<a href="#/artikel/${r.artikelen.id}" class="line-nr">${r.artikelen.artikelnummer}</a><span class="line-naam">${esc(r.artikelen.naam)}</span>${r.artikelen.designs?.design_code_lev ? `<span class="badge blue">Design ${esc(r.artikelen.designs.design_code_lev)}</span>` : ''}` : '<span class="line-naam muted">Vrije regel</span>'}</div>
           <label class="line-lbl">Omschrijving op de inkooporder (Engels)<textarea data-f="omschrijving" rows="2">${esc(r.omschrijving || '')}</textarea></label>
@@ -319,7 +322,7 @@ export async function renderDetail(c, [id]) {
     const f = el.dataset.f;
     let val = el.value;
     if (f === 'aantal' || f === 'prijs') val = Number(val);
-    if (f === 'foto_pad' && !val) val = null;
+    if (f === 'foto_pad' && !val) val = ''; // '' = bewust geen foto op deze regel
     check(await sb.from('inkooporder_regels').update({ [f]: val }).eq('id', rid));
     if (f !== 'omschrijving') reload(); else toast('Opgeslagen', 'ok');
   });

@@ -1,4 +1,4 @@
-import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261114122451';
+import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261114122745';
 
 const T = {
   nl: {
@@ -76,14 +76,16 @@ export async function render(el, type, id, soort, query) {
   if (type === 'po') {
     taal = 'en';
     const po = check(await sb.from('inkooporders').select('*, leveranciers(*)').eq('id', id).single());
-    const regels = check(await sb.from('inkooporder_regels').select('*').eq('inkooporder_id', id).order('volgorde').order('id'));
+    const regels = check(await sb.from('inkooporder_regels').select('*, artikelen(foto_pad, designs(hoofdfoto_pad))').eq('inkooporder_id', id).order('volgorde').order('id'));
+    // foto van de regel; niets gekozen → foto van het artikel of het design; '' = bewust geen foto
+    regels.forEach((r) => { r.foto = r.foto_pad === '' ? null : r.foto_pad || r.artikelen?.foto_pad || r.artikelen?.designs?.hoofdfoto_pad || null; });
     const cur = po.valuta;
     const tot = regels.reduce((s, r) => s + r.aantal * r.prijs, 0);
     const l = po.leveranciers;
     bestandsnaam = `Purchase order ${po.ordernummer}.pdf`;
     document.title = `Purchase order ${po.ordernummer}`;
     // LET OP: klantnaam staat bewust NIET op de inkooporder, alleen de referentie.
-    const metFoto = regels.some((r) => r.foto_pad);
+    const metFoto = regels.some((r) => r.foto);
     html = `<div class="a4">${kop(inst)}
       <h1 class="d-title">Purchase order</h1>
       <div class="d-meta">
@@ -98,7 +100,7 @@ export async function render(el, type, id, soort, query) {
         ${adresblok('Supplier', [l.naam, l.contactpersoon && 'Attn. ' + l.contactpersoon, l.adres, l.postcode_plaats, l.land], [['T', l.telefoon], ['@', l.email]])}
       </div>
       <table class="d-lines"><thead><tr>${metFoto ? '<th class="d-fotokol"></th>' : ''}<th class="d-qty">Qty</th><th>Description</th><th class="num">Unit price${cur === 'USD' ? ' (USD)' : ''}</th><th class="num">Total price</th></tr></thead><tbody>
-      ${regels.map((r) => `<tr>${metFoto ? `<td class="d-fotokol">${r.foto_pad ? `<img class="d-img" data-path="${esc(r.foto_pad)}" alt="">` : ''}</td>` : ''}
+      ${regels.map((r) => `<tr>${metFoto ? `<td class="d-fotokol">${r.foto ? `<img class="d-img" data-path="${esc(r.foto)}" alt="">` : ''}</td>` : ''}
         <td class="d-qty">${Number(r.aantal)}</td><td><div class="d-desc">${esc(r.omschrijving || '')}</div></td>
         <td class="num">${getal(r.prijs)}</td><td class="num">${getal(r.aantal * r.prijs)}</td></tr>`).join('')}
       </tbody></table>
@@ -112,9 +114,11 @@ export async function render(el, type, id, soort, query) {
   } else {
     const t = T[taal];
     const so = check(await sb.from('verkooporders').select('*, klanten(*)').eq('id', id).single());
-    const regels = check(await sb.from('verkooporder_regels').select('*, artikelen(artikelnummer)').eq('verkooporder_id', id).order('volgorde').order('id'));
+    const regels = check(await sb.from('verkooporder_regels').select('*, artikelen(artikelnummer, foto_pad, designs(hoofdfoto_pad))').eq('verkooporder_id', id).order('volgorde').order('id'));
     const betalingen = check(await sb.from('verkoop_betalingen').select('*').eq('verkooporder_id', id).order('datum'));
     const k = so.klanten;
+    regels.forEach((r) => { r.foto = r.artikelen?.foto_pad || r.artikelen?.designs?.hoofdfoto_pad || null; });
+    const metFoto = regels.some((r) => r.foto);
     const nummer = { offerte: so.offertenummer, orderbevestiging: so.orderbev_nummer, factuur: so.factuurnummer }[soort];
     const docDatum = { offerte: so.offerte_datum, orderbevestiging: so.orderbev_datum, factuur: so.factuur_datum }[soort] || so.orderdatum;
     const som = regels.reduce((s, r) => s + r.aantal * r.prijs * (1 - r.korting_pct / 100), 0);
@@ -151,8 +155,8 @@ export async function render(el, type, id, soort, query) {
         ${adresblok(t.adres, [[k.aanhef, k.naam].filter(Boolean).join(' '), k.contactpersoon && (taal === 'en' ? 'Attn. ' : 't.a.v. ') + k.contactpersoon, k.adres, k.postcode_plaats, k.land && !/^nederland$/i.test(k.land) ? k.land : null],
           [['T', k.telefoon], ['M', k.mobiel], ['@', k.email]])}
       </div>
-      <table class="d-lines"><thead><tr><th class="d-qty">${t.aantal}</th><th>${t.oms}</th><th class="num">${t.stuks}</th><th class="num">${t.regel}</th></tr></thead><tbody>
-      ${regels.map((r) => { const lt = r.aantal * r.prijs * (1 - r.korting_pct / 100); return `<tr><td class="d-qty">${Number(r.aantal)}</td>
+      <table class="d-lines"><thead><tr>${metFoto ? '<th class="d-fotokol"></th>' : ''}<th class="d-qty">${t.aantal}</th><th>${t.oms}</th><th class="num">${t.stuks}</th><th class="num">${t.regel}</th></tr></thead><tbody>
+      ${regels.map((r) => { const lt = r.aantal * r.prijs * (1 - r.korting_pct / 100); return `<tr>${metFoto ? `<td class="d-fotokol">${r.foto ? `<img class="d-img" data-path="${esc(r.foto)}" alt="">` : ''}</td>` : ''}<td class="d-qty">${Number(r.aantal)}</td>
         <td>${r.artikelen ? `${esc(r.artikelen.artikelnummer)}<br>` : ''}<span class="d-desc">${esc(r.omschrijving || '')}</span>${Number(r.korting_pct) ? `<br><i>${Number(r.korting_pct)}% ${t.korting}</i>` : ''}</td>
         <td class="num">${getal(r.prijs)}</td><td class="num">${getal(lt)}</td></tr>`; }).join('')}
       </tbody></table>

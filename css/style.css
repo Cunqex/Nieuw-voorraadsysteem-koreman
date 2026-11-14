@@ -251,9 +251,9 @@ body.doc-mode #app, body.doc-mode #login { display: none !important; }
 .a4 table.d-lines td { padding: 1mm 2mm 4mm; vertical-align: top; }
 .a4 table.d-lines .num { text-align: right; white-space: nowrap; width: 26mm; }
 .a4 table.d-lines .d-qty { text-align: right; width: 20mm; padding-right: 12mm; }
-.a4 table.d-lines .d-fotokol { width: 26mm; padding: 1mm 2mm 4mm 0; }
+.a4 table.d-lines .d-fotokol { width: 32mm; padding: 1mm 2mm 4mm 0; }
 .a4 .d-desc { white-space: pre-line; }
-.a4 .d-img { width: 24mm; height: 24mm; object-fit: cover; display: block; }
+.a4 .d-img { max-width: 30mm; max-height: 36mm; width: auto; height: auto; display: block; }
 .a4 .d-note { margin-top: 3mm; white-space: pre-line; font-size: 9pt; }
 .a4 .d-bottom { margin-top: auto; border-top: 1.5px solid #000; padding-top: 2mm; display: flex; justify-content: space-between; align-items: flex-start; gap: 10mm; }
 .a4 .d-totals td { padding: 0 0 0 4mm; white-space: nowrap; }

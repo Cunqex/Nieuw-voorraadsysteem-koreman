@@ -1,4 +1,4 @@
-import { sb, check, $, toast, formFields, readForm, setTitle } from '../ui.js?v=20261114122451';
+import { sb, check, $, toast, formFields, readForm, setTitle } from '../ui.js?v=20261114122745';
 
 export async function render(c) {
   setTitle('Instellingen');

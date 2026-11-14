@@ -1,5 +1,5 @@
 // Rapportage: omzet per periode, vergeleken met dezelfde periode een jaar eerder.
-import { sb, esc, money, $, setTitle, alles, vandaag } from '../ui.js?v=20261114165650';
+import { sb, esc, money, $, setTitle, alles, vandaag } from '../ui.js?v=20261114165846';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

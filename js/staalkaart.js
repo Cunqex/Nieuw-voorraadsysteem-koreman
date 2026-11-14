@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261114164705';
+import { sb, check, esc, $, toast } from './ui.js?v=20261114165650';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -99,9 +99,9 @@ export const SK_CSS = `
 .sk .r{display:grid;grid-template-columns:calc(var(--u)*30) 1fr;align-items:center;height:calc(var(--u)*5);border-bottom:calc(var(--u)*.25) solid #9a9a9a;font-size:calc(var(--u)*3.4);white-space:nowrap;overflow:hidden}
 .sk .r b{font-weight:700;font-size:calc(var(--u)*3.7)}
 .sk .qr{position:absolute;left:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*15);height:calc(var(--u)*15)}
-.sk .code{position:absolute;right:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*36);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*3.2)}
-.sk .code .bc{display:block;width:100%;height:calc(var(--u)*8);margin-top:calc(var(--u)*.8)}
-.sk .site{position:absolute;left:calc(var(--u)*25);right:calc(var(--u)*46);bottom:calc(var(--u)*4.5);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6);color:#444;white-space:nowrap}`;
+.sk .code{position:absolute;right:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*24);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6)}
+.sk .code .bc{display:block;width:100%;height:calc(var(--u)*5.5);margin-top:calc(var(--u)*.6)}
+.sk .site{position:absolute;left:calc(var(--u)*25);right:calc(var(--u)*34);bottom:calc(var(--u)*4.5);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6);color:#444;white-space:nowrap}`;
 export function staalkaart(k, logoUrl, qr) {
   const rij = (l, v) => (v ? `<div class="r"><b>${l}</b><span>${esc(v)}</span></div>` : '');
   return `<div class="sk"><img class="logo" src="${logoUrl}" alt="Koreman Exclusive Carpets"><div class="titel">${esc(k.titel)}</div>
@@ -216,7 +216,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
     if (e.target.closest('#sk-vel-leeg')) { velZet([]); toonVel(); }
   });
   $('#sk-print-vel', form).onclick = () => {
-    const l = velLees(); if (!l.length) { toast('Zet eerst kaarten op het vel', 'error'); return; }
+    const l = velLees().flatMap((k) => Array(Math.max(1, Number(k.n) || 1)).fill(k)); if (!l.length) { toast('Zet eerst kaarten op het vel', 'error'); return; }
     const { w, h } = lees(); const cols = Math.max(1, Math.floor(200 / w)); const rows = Math.max(1, Math.floor(287 / h)); const n = cols * rows;
     const vellen = []; for (let i = 0; i < l.length; i += n) vellen.push(l.slice(i, i + n));
     const css = `${SK_CSS}.blad{width:210mm;height:297mm;display:grid;grid-template-columns:repeat(${cols},${w}mm);grid-auto-rows:${h}mm;justify-content:center;align-content:center}
@@ -265,8 +265,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261114164705');
-  const { printHtml } = await import('./kaarten.js?v=20261114164705');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261114165650');
+  const { printHtml } = await import('./kaarten.js?v=20261114165650');
   const logoUrl = new URL('img/logo-koreman.jpg', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({
@@ -291,13 +291,14 @@ export async function stalenVelModal(ids = []) {
       const maat = () => ({ w: Number($('#sv-w', form).value) || 100, h: Number($('#sv-h', form).value) || 90 });
       const perVel = () => { const m = maat(); return Math.max(1, Math.floor(200 / m.w)) * Math.max(1, Math.floor(287 / m.h)); };
       const toon = () => {
-        const l = velLeesG(); const n = perVel();
+        const l = velLeesG(); const n = perVel(); const tot = l.reduce((s2, k) => s2 + (Number(k.n) || 1), 0);
         $('#sv-info', form).innerHTML = l.length
-          ? `${l.length} kaart${l.length === 1 ? '' : 'en'} op het vel · ${n} per A4 · ${Math.ceil(l.length / n)} vel${Math.ceil(l.length / n) === 1 ? '' : 'len'}. Kaarten zonder QR-code zijn (nog) niet gekoppeld aan de website – open dan het artikel en kies het product bij "Staalkaart (B2B)".`
+          ? `${l.length} staal${l.length === 1 ? '' : 'en'}, samen ${tot} kaart${tot === 1 ? '' : 'en'} · ${n} per A4 · ${Math.ceil(tot / n)} vel${Math.ceil(tot / n) === 1 ? '' : 'len'}. Kaarten zonder QR-code zijn (nog) niet gekoppeld aan de website – open dan het artikel en kies het product bij "Staalkaart (B2B)".`
           : 'Nog geen stalen gekozen. Zoek hierboven een staal en klik erop.';
-        $('#sv-print', form).innerHTML = `<i data-lucide="printer"></i> Print vel (${l.length})`;
+        $('#sv-print', form).innerHTML = `<i data-lucide="printer"></i> Print (${tot} kaart${tot === 1 ? '' : 'en'})`;
         $('#sv-grid', form).innerHTML = l.map((k, i) => `<div class="sv-item"><div class="wrap"><div class="schaal">${staalkaart({ ...k }, logoUrl, qr).replace('class="sk"', 'class="sk" style="--w:100mm;--h:90mm"')}</div></div>
-          <div class="onder"><b>${esc(k.nr)}</b><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(k.titel)}</span>${k.handle ? '' : '<span class="badge orange">geen QR</span>'}<button type="button" class="btn small" data-weg="${i}">Weg</button></div></div>`).join('');
+          <div class="onder"><b>${esc(k.nr)}</b><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(k.titel)}</span>${k.handle ? '' : '<span class="badge orange">geen QR</span>'}</div>
+          <div class="onder"><label style="display:flex;gap:4px;align-items:center;margin:0">Aantal <input type="number" min="1" max="99" value="${Number(k.n) || 1}" data-n="${i}" style="width:56px;padding:2px 6px"></label><span style="flex:1"></span><button type="button" class="btn small" data-weg="${i}">Weg</button></div></div>`).join('');
         form.querySelectorAll('.sv-item').forEach((it) => { const s = $('.schaal', it); const kaart = s.firstElementChild; const f = (it.clientWidth - 12) / kaart.offsetWidth; s.style.transform = `scale(${f})`; $('.wrap', it).style.height = `${kaart.offsetHeight * f}px`; });
         window.lucide?.createIcons();
       };
@@ -307,6 +308,7 @@ export async function stalenVelModal(ids = []) {
         const k = await kaartVoorArtikel(a);
         const l = velLeesG(); l.push(k); velZetG(l); toon();
       });
+      form.addEventListener('change', (e) => { const i = e.target.dataset?.n; if (i === undefined) return; const l = velLeesG(); if (!l[i]) return; l[i].n = Math.max(1, parseInt(e.target.value, 10) || 1); velZetG(l); toon(); });
       form.addEventListener('input', (e) => { if (e.target.id === 'sv-w' || e.target.id === 'sv-h') { const m = maat(); try { localStorage.setItem('kaart-sk-w', m.w); localStorage.setItem('kaart-sk-h', m.h); } catch { /* */ } toon(); } });
       form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault(); });
       form.addEventListener('click', (e) => {
@@ -314,7 +316,7 @@ export async function stalenVelModal(ids = []) {
         if (e.target.closest('#sv-leeg')) { velZetG([]); toon(); }
       });
       $('#sv-print', form).onclick = () => {
-        const l = velLeesG(); if (!l.length) { toast('Kies eerst stalen', 'error'); return; }
+        const l = velLeesG().flatMap((k) => Array(Math.max(1, Number(k.n) || 1)).fill(k)); if (!l.length) { toast('Kies eerst stalen', 'error'); return; }
         const { w, h } = maat(); const cols = Math.max(1, Math.floor(200 / w)); const rows = Math.max(1, Math.floor(287 / h)); const n = cols * rows;
         const vellen = []; for (let i = 0; i < l.length; i += n) vellen.push(l.slice(i, i + n));
         const css = `${SK_CSS}.blad{width:210mm;height:297mm;display:grid;grid-template-columns:repeat(${cols},${w}mm);grid-auto-rows:${h}mm;justify-content:center;align-content:center}.blad .sk{outline:.2mm dashed #b5b5b5}`;
@@ -330,7 +332,7 @@ export async function stalenVelModal(ids = []) {
         for (const a of arts) {
           i++; if (al.has(String(a.artikelnummer))) continue;
           $('#sv-info', form).textContent = `Gegevens ophalen ${i} van ${arts.length}: ${a.artikelnummer} ${a.naam}…`;
-          const k = await kaartVoorArtikel(a); const l = velLeesG(); l.push(k); velZetG(l); al.add(k.nr);
+          const k = await kaartVoorArtikel(a); k.n = 1; const l = velLeesG(); l.push(k); velZetG(l); al.add(k.nr);
         }
         toon();
       })();

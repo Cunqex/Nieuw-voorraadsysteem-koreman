@@ -2,8 +2,8 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261114161541';
-import { kaartenModal } from '../kaarten.js?v=20261114161541';
+} from '../ui.js?v=20261114163134';
+import { kaartenModal } from '../kaarten.js?v=20261114163134';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -154,7 +154,7 @@ export async function renderDetail(c, [idStr], query) {
 
   let a = { soort: 'voorraad', actief: true };
   if (!isNew) {
-    a = check(await sb.from('artikelen').select('*, designs(id, naam, design_code_lev, hoofdfoto_pad), leveranciers(naam, valuta, land)').eq('id', idStr).single());
+    a = check(await sb.from('artikelen').select('*, designs(id, naam, design_code_lev, hoofdfoto_pad, website_handle), leveranciers(naam, valuta, land)').eq('id', idStr).single());
   } else if (query.design) {
     const d = designs.find((x) => String(x.id) === query.design);
     if (d) a = { ...a, design_id: d.id, leverancier_id: d.leverancier_id, naam: d.naam, soort: query.soort || 'voorraad' };
@@ -168,6 +168,7 @@ export async function renderDetail(c, [idStr], query) {
     { name: 'design_id', label: 'Design (van leverancier)', type: 'combo', empty: '– geen –', options: designs.map(designOpt) },
     { name: 'leverancier_id', label: 'Leverancier', type: 'combo', placeholder: 'Kies…', options: levs.map(levOpt) },
     { name: 'productnr_lev', label: 'Productnummer leverancier' },
+    { name: 'website_handle', label: 'Product op website (B2B)', placeholder: 'bv. terra-umber (laatste deel van de link)', hint: 'Voor de QR-code op de staalkaart. Wordt ook ingevuld als je bij "Kaarten printen" een product kiest.' },
     { name: 'actief', label: 'Actief (zichtbaar bij zoeken)', type: 'checkbox' },
     { name: 'omschrijving', label: 'Aanvullende omschrijving (komt op documenten)', type: 'textarea', placeholder: 'bv. Wool / real silk' },
   ];
@@ -237,6 +238,7 @@ export async function renderDetail(c, [idStr], query) {
     e.preventDefault();
     const v = readForm(form);
     v.design_id = v.design_id ? Number(v.design_id) : null;
+    if (v.website_handle) v.website_handle = v.website_handle.replace(/^.*\/products\//, '').replace(/[?#/].*$/, '');
     v.leverancier_id = v.leverancier_id ? Number(v.leverancier_id) : null;
     if (isNew) {
       const row = check(await sb.from('artikelen').insert(v).select('id, artikelnummer').single());
@@ -350,7 +352,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261114161541');
+      const { artikelPicker } = await import('../ui.js?v=20261114163134');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

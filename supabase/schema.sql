@@ -689,3 +689,7 @@ create trigger statusdatums before update on public.verkooporders
 drop trigger if exists statusdatums on public.inkooporders;
 create trigger statusdatums before update on public.inkooporders
   for each row execute function public.zet_statusdatums();
+
+-- Koppeling met de website (QR-code staalkaart)
+alter table public.artikelen add column if not exists website_handle text;
+alter table public.designs   add column if not exists website_handle text;

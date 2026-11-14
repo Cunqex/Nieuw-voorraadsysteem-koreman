@@ -3,7 +3,8 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261114161541';
+import { esc, $, modal, toast } from './ui.js?v=20261114163134';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261114163134';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -134,13 +135,13 @@ export async function kaartenModal(a) {
   const optCol = Object.entries(COLLECTIES).map(([g, subs]) => `<optgroup label="${esc(g)}">${subs.map((s) => `<option ${wk.collectie === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</optgroup>`).join('');
   const veld = (id, label, v, extra = '') => `<label>${label}<input id="${id}" value="${esc(v)}" ${extra}></label>`;
   const body = `
-    <style>${PK_CSS}${WK_CSS}
+    <style>${PK_CSS}${WK_CSS}${SK_CSS}
       .kt-tabs{display:flex;gap:6px;margin-bottom:14px}.kt-pane{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
       .kt-pane[hidden]{display:none}.kt-prev{background:var(--canvas);border:1px solid var(--line);border-radius:12px;padding:12px;overflow:hidden}
       .kt-prev .schaal{transform-origin:top left}.kt-form label{display:block;margin-bottom:8px;font-size:13px;color:var(--navy-500)}
       .kt-form input,.kt-form select{display:block;width:100%;margin-top:3px}.kt-row{display:flex;gap:8px;align-items:end}
       @media (max-width:760px){.kt-pane{grid-template-columns:1fr}}</style>
-    <div class="kt-tabs"><button type="button" class="btn primary" data-tab="wk">Wandkaart</button><button type="button" class="btn" data-tab="pk">Prijskaartje</button></div>
+    <div class="kt-tabs"><button type="button" class="btn primary" data-tab="wk">Wandkaart</button><button type="button" class="btn" data-tab="pk">Prijskaartje</button><button type="button" class="btn" data-tab="sk">Staalkaart (B2B)</button></div>
     <div class="kt-pane" data-pane="wk">
       <div class="kt-prev"><div class="schaal" id="wk-prev"></div></div>
       <div class="kt-form">
@@ -162,6 +163,7 @@ export async function kaartenModal(a) {
         <p class="small muted" style="margin-top:8px">Formaat 85,7 × 54 mm, opmaak "Meubelen" uit IOne. Kies de labelprinter en schaal 100%.</p>
       </div>
     </div>
+    ${staalPaneHtml()}
     <datalist id="kt-pool"><option>Hoogland wol &amp; bamboezijde</option><option>Nieuw-Zeelandse wol</option><option>Nieuw-Zeelandse wol &amp; zijde</option><option>Hoogland wol</option><option>Wol &amp; bamboezijde</option><option>Wol &amp; zijde</option><option>100% wol</option><option>Zijde</option><option>Tencel</option></datalist>
     <datalist id="kt-knoop"><option>ong. 350.000 knopen p/m²</option><option>ong. 250.000 knopen p/m²</option><option>ong. 160.000 knopen p/m²</option><option>Handgetuft</option><option>Handgeweven</option></datalist>`;
 
@@ -178,13 +180,13 @@ export async function kaartenModal(a) {
       const toonWk = () => { const el = $('#wk-prev', form); el.innerHTML = wandkaart(leesWk(), logoUrl); schaal(el, $('.kt-prev', form).clientWidth - 24); };
       const toonPk = () => { const el = $('#pk-prev', form); el.innerHTML = prijskaartje(leesPk()); schaal(el, Math.min(420, $('[data-pane=pk] .kt-prev', form).clientWidth - 24)); };
       $('#wk-collectie', form).value = wk.collectie;
-      form.addEventListener('input', (e) => { if (e.target.id?.startsWith('wk-')) toonWk(); else toonPk(); });
+      form.addEventListener('input', (e) => { if (e.target.id?.startsWith('wk-')) toonWk(); else if (e.target.id?.startsWith('pk-')) toonPk(); });
       form.addEventListener('change', (e) => { if (e.target.id?.startsWith('wk-')) toonWk(); });
       form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault(); });
       form.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
         form.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('primary', x === b));
         form.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.tab; });
-        if (b.dataset.tab === 'pk') toonPk(); else toonWk();
+        if (b.dataset.tab === 'pk') toonPk(); else if (b.dataset.tab === 'sk') toonSk(); else toonWk();
       }));
       $('#wk-print', form).onclick = () => {
         const k = leesWk();
@@ -198,8 +200,9 @@ export async function kaartenModal(a) {
         const k = leesPk();
         printHtml(Array(k.n).fill(`<div class="vel">${prijskaartje(k)}</div>`).join(''), PK_CSS, '243pt 153pt');
       };
+      const toonSk = staalPaneInit(form, a, new URL('img/logo-koreman.jpg', document.baseURI).href, onthoud, printHtml);
       window.lucide?.createIcons();
-      requestAnimationFrame(toonWk);
+      if (a.soort === 'staal') form.querySelector('[data-tab=sk]').click(); else requestAnimationFrame(toonWk);
     },
   });
 }

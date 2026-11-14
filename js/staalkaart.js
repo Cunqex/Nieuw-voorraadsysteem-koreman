@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261114163134';
+import { sb, check, esc, $, toast } from './ui.js?v=20261114163500';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -96,12 +96,12 @@ export const SK_CSS = `
 .sk .logo{position:absolute;left:50%;top:calc(var(--u)*4.5);width:calc(var(--u)*50);transform:translateX(-50%)}
 .sk .titel{position:absolute;left:calc(var(--u)*6);right:calc(var(--u)*6);top:calc(var(--u)*26.5);text-align:center;font-size:calc(var(--u)*7);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sk .rijen{position:absolute;left:calc(var(--u)*9);right:calc(var(--u)*9);top:calc(var(--u)*36.5);border-top:calc(var(--u)*.25) solid #9a9a9a}
-.sk .r{display:grid;grid-template-columns:calc(var(--u)*30) 1fr;align-items:center;height:calc(var(--u)*5.3);border-bottom:calc(var(--u)*.25) solid #9a9a9a;font-size:calc(var(--u)*3.4);white-space:nowrap;overflow:hidden}
+.sk .r{display:grid;grid-template-columns:calc(var(--u)*30) 1fr;align-items:center;height:calc(var(--u)*5);border-bottom:calc(var(--u)*.25) solid #9a9a9a;font-size:calc(var(--u)*3.4);white-space:nowrap;overflow:hidden}
 .sk .r b{font-weight:700;font-size:calc(var(--u)*3.7)}
-.sk .qr{position:absolute;left:calc(var(--u)*9);bottom:calc(var(--u)*5);width:calc(var(--u)*17);height:calc(var(--u)*17)}
-.sk .code{position:absolute;right:calc(var(--u)*9);bottom:calc(var(--u)*5);width:calc(var(--u)*36);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*3.2)}
-.sk .code .bc{display:block;width:100%;height:calc(var(--u)*9);margin-top:calc(var(--u)*.8)}
-.sk .site{position:absolute;left:calc(var(--u)*28);right:calc(var(--u)*47);bottom:calc(var(--u)*5);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6);color:#444;white-space:nowrap}`;
+.sk .qr{position:absolute;left:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*15);height:calc(var(--u)*15)}
+.sk .code{position:absolute;right:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*36);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*3.2)}
+.sk .code .bc{display:block;width:100%;height:calc(var(--u)*8);margin-top:calc(var(--u)*.8)}
+.sk .site{position:absolute;left:calc(var(--u)*25);right:calc(var(--u)*46);bottom:calc(var(--u)*4.5);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6);color:#444;white-space:nowrap}`;
 export function staalkaart(k, logoUrl, qr) {
   const rij = (l, v) => (v ? `<div class="r"><b>${l}</b><span>${esc(v)}</span></div>` : '');
   return `<div class="sk"><img class="logo" src="${logoUrl}" alt="Koreman Exclusive Carpets"><div class="titel">${esc(k.titel)}</div>

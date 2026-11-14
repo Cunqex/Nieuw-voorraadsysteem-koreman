@@ -1,16 +1,16 @@
-import { sb, $, $$, toast, esc, comboSet } from './ui.js?v=20261114163134';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114163134';
-import * as dashboard from './pages/dashboard.js?v=20261114163134';
-import * as artikelen from './pages/artikelen.js?v=20261114163134';
-import * as designs from './pages/designs.js?v=20261114163134';
-import * as relaties from './pages/relaties.js?v=20261114163134';
-import * as inkoop from './pages/inkoop.js?v=20261114163134';
-import * as verkoop from './pages/verkoop.js?v=20261114163134';
-import * as stalen from './pages/stalen.js?v=20261114163134';
-import * as instellingen from './pages/instellingen.js?v=20261114163134';
-import * as importeren from './pages/importeren.js?v=20261114163134';
-import * as rapportage from './pages/rapportage.js?v=20261114163134';
-import * as docs from './docs.js?v=20261114163134';
+import { sb, $, $$, toast, esc, comboSet } from './ui.js?v=20261114163500';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114163500';
+import * as dashboard from './pages/dashboard.js?v=20261114163500';
+import * as artikelen from './pages/artikelen.js?v=20261114163500';
+import * as designs from './pages/designs.js?v=20261114163500';
+import * as relaties from './pages/relaties.js?v=20261114163500';
+import * as inkoop from './pages/inkoop.js?v=20261114163500';
+import * as verkoop from './pages/verkoop.js?v=20261114163500';
+import * as stalen from './pages/stalen.js?v=20261114163500';
+import * as instellingen from './pages/instellingen.js?v=20261114163500';
+import * as importeren from './pages/importeren.js?v=20261114163500';
+import * as rapportage from './pages/rapportage.js?v=20261114163500';
+import * as docs from './docs.js?v=20261114163500';
 
 // route-patroon → handler(container, params)
 const routes = [

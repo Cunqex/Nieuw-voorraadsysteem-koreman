@@ -1,7 +1,6 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml,
-} from '../ui.js?v=20261114113126';
+  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114114234';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -149,8 +148,8 @@ export async function renderDetail(c, [id]) {
         </div>
         <div class="line-side">
           ${rest <= 0 ? '<span class="badge green">Ontvangen</span>' : r.aantal_ontvangen > 0 ? `<span class="badge orange">${num(r.aantal_ontvangen)} van ${num(r.aantal)} ontvangen</span>` : '<span class="badge">Nog niet ontvangen</span>'}
-          ${rest > 0 && po.status !== 'geannuleerd' ? `<button class="btn small ok" data-ontvang="${r.id}" data-rest="${rest}"><i data-lucide="package-check"></i> Ontvangst boeken</button>` : ''}
-          ${r.aantal_ontvangen > 0 ? '' : `<button class="btn small danger" data-delregel="${r.id}" title="Regel verwijderen"><i data-lucide="trash-2"></i></button>`}
+          ${rest > 0 && po.status !== 'geannuleerd' ? `<button class="btn small ok-soft" data-ontvang="${r.id}" data-rest="${rest}"><i data-lucide="package-check"></i> Ontvangst boeken</button>` : ''}
+          ${r.aantal_ontvangen > 0 ? '' : `<button class="line-del" data-delregel="${r.id}" title="Regel verwijderen" aria-label="Regel verwijderen"><i data-lucide="trash-2"></i></button>`}
         </div></div>`; }).join('') : '<p class="empty">Nog geen regels. Zoek hieronder een artikel om toe te voegen.</p>'}
       </div>
       <div class="add-line">
@@ -244,11 +243,10 @@ export async function renderDetail(c, [id]) {
     const soId = await modal({
       title: 'Verkooporder maken van deze inkooporder',
       body: `<p>De ${regels.length} regel${regels.length === 1 ? '' : 's'} worden overgenomen op een nieuwe verkooporder en aan deze inkooporder gekoppeld.
-        De verkoopprijs komt van het artikel; je kunt hem daarna aanpassen.</p>` + formFields([
-        { name: 'klant_id', label: 'Klant / architect *', type: 'combo', required: true, placeholder: 'Kies…', options: actief.map(klantOpt), default: po.klant_id, full: true },
-      ]) + '<p class="small muted">De leverancier ziet de klantnaam niet; die staat nooit op de inkooporder.</p>',
+        De verkoopprijs komt van het artikel; je kunt hem daarna aanpassen.</p>` + klantKiezerHtml(actief, po.klant_id) + '<p class="small muted">De leverancier ziet de klantnaam niet; die staat nooit op de inkooporder.</p>',
       submitLabel: 'Verkooporder maken',
-      onSubmit: async (v) => check(await sb.rpc('maak_verkooporder_voor_inkoop', { p_po: po.id, p_klant: Number(v.klant_id) })),
+      onOpen: klantKiezerInit,
+      onSubmit: async (v, form) => { const k = await klantKiezerWaarde(v, form, actief); return check(await sb.rpc('maak_verkooporder_voor_inkoop', { p_po: po.id, p_klant: k.id })); },
     });
     if (soId) { toast('Verkooporder aangemaakt', 'ok'); location.hash = '#/verkoop/' + soId; }
   });

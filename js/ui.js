@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114113126';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114114234';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -343,3 +343,49 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault(); comboClose(); $('.combo-btn', combo).focus();
   } else if (e.key === 'Tab') comboClose();
 });
+
+// ---------- Klant kiezen óf direct intypen (in een modal) ----------
+// Geeft HTML met een schakelaar "Bestaande klant" / "Nieuwe klant".
+export function klantKiezerHtml(klanten, def) {
+  const heeft = klanten.length > 0;
+  return `<div class="klantkiezer" data-modus="${heeft ? 'bestaand' : 'nieuw'}">
+    <div class="segmented" style="margin-bottom:12px">
+      <button type="button" class="btn ${heeft ? 'primary' : ''}" data-kk="bestaand">Bestaande klant</button>
+      <button type="button" class="btn ${heeft ? '' : 'primary'}" data-kk="nieuw"><i data-lucide="user-plus"></i> Nieuwe klant intypen</button>
+    </div>
+    <div data-kk-deel="bestaand" ${heeft ? '' : 'hidden'}>${formFields([
+      { name: 'klant_id', label: 'Klant / architect', type: 'combo', required: heeft, placeholder: 'Zoek op naam, nummer of plaats…', options: klanten.map(klantOpt), default: def, full: true },
+    ])}</div>
+    <div data-kk-deel="nieuw" ${heeft ? 'hidden' : ''}>${formFields([
+      { name: 'nk_naam', label: 'Naam *', required: !heeft, full: true, placeholder: 'Naam klant of bedrijf' },
+      { name: 'nk_email', label: 'E-mailadres', type: 'email' },
+      { name: 'nk_telefoon', label: 'Telefoonnummer' },
+      { name: 'nk_adres', label: 'Adres', placeholder: 'Straat en huisnummer' },
+      { name: 'nk_postcode_plaats', label: 'Postcode en plaats' },
+      { name: 'nk_land', label: 'Land', default: 'Nederland' },
+      { name: 'nk_soort', label: 'Soort', type: 'select', options: SOORT_KLANT },
+    ])}<p class="small muted" style="margin-top:8px">Deze klant wordt meteen bewaard in je klantenlijst, zodat je hem de volgende keer kunt kiezen.</p></div>
+  </div>`;
+}
+export function klantKiezerInit(form) {
+  const kk = $('.klantkiezer', form);
+  $$('[data-kk]', kk).forEach((b) => b.addEventListener('click', () => {
+    const m = b.dataset.kk;
+    kk.dataset.modus = m;
+    $$('[data-kk]', kk).forEach((x) => x.classList.toggle('primary', x === b));
+    $$('[data-kk-deel]', kk).forEach((d) => { d.hidden = d.dataset.kkDeel !== m; });
+    $('[name=klant_id]', kk).required = m === 'bestaand';
+    $('[name=nk_naam]', kk).required = m === 'nieuw';
+    if (m === 'nieuw') $('[name=nk_naam]', kk).focus();
+  }));
+}
+// Geeft de gekozen klant terug; maakt hem eerst aan als hij is ingetypt.
+export async function klantKiezerWaarde(v, form, klanten) {
+  if ($('.klantkiezer', form).dataset.modus === 'bestaand') return klanten.find((k) => String(k.id) === String(v.klant_id));
+  const land = v.nk_land || 'Nederland';
+  const nl = /^(nederland|nl|the netherlands|netherlands)$/i.test(land);
+  return check(await sb.from('klanten').insert({
+    naam: v.nk_naam, email: v.nk_email, telefoon: v.nk_telefoon, adres: v.nk_adres, postcode_plaats: v.nk_postcode_plaats,
+    land, soort: v.nk_soort, taal: nl || /^(belgi|belgium)/i.test(land) ? 'nl' : 'en',
+  }).select('id, naam, nummer, postcode_plaats, taal, btw_regeling, soort').single());
+}

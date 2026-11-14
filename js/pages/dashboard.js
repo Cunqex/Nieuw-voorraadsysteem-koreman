@@ -1,4 +1,4 @@
-import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, vandaag, withTotals } from '../ui.js?v=20261114113126';
+import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, vandaag, withTotals } from '../ui.js?v=20261114114234';
 
 export async function render(c) {
   setTitle('Overzicht');

@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages,
-} from '../ui.js?v=20261114113126';
+  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
+} from '../ui.js?v=20261114114234';
 
 const nrLabel = (s) => s.factuurnummer ? `Factuur ${s.factuurnummer}` : s.orderbev_nummer ? `Orderbevestiging ${s.orderbev_nummer}` : s.offertenummer ? `Offerte ${s.offertenummer}` : `Verkooporder (concept #${s.id})`;
 
@@ -35,16 +35,15 @@ export async function renderList(c, _p, query) {
   };
   const nieuw = async () => {
     const klanten = check(await sb.from('klanten').select('id, naam, nummer, postcode_plaats, taal, btw_regeling, soort').eq('actief', true).order('naam'));
-    if (!klanten.length) { toast('Maak eerst een klant aan bij "Klanten & architecten"', 'error'); return; }
     const id = await modal({
       title: 'Nieuwe verkooporder',
-      body: formFields([
-        { name: 'klant_id', label: 'Klant / architect *', type: 'combo', required: true, placeholder: 'Kies…', options: klanten.map(klantOpt), default: query.klant },
-        { name: 'klant_referentie', label: 'Referentie klant (optioneel)', placeholder: 'bv. LVM-06032026-KEEMAN' },
-      ]) + '<p class="small"><a href="#/klanten">Klant staat er niet tussen? Maak hem eerst aan.</a></p>',
+      body: klantKiezerHtml(klanten, query.klant) + formFields([
+        { name: 'klant_referentie', label: 'Referentie klant (optioneel)', placeholder: 'bv. LVM-06032026-KEEMAN', full: true },
+      ]),
       submitLabel: 'Aanmaken',
-      onSubmit: async (v) => {
-        const k = klanten.find((x) => String(x.id) === v.klant_id);
+      onOpen: klantKiezerInit,
+      onSubmit: async (v, form) => {
+        const k = await klantKiezerWaarde(v, form, klanten);
         const pct = k.soort === 'particulier' ? 100 : 50;
         return check(await sb.from('verkooporders').insert({
           klant_id: k.id, klant_referentie: v.klant_referentie, taal: k.taal, btw_regeling: k.btw_regeling, aanbetaling_pct: pct,
@@ -132,7 +131,7 @@ export async function renderDetail(c, [id]) {
           ${r.geleverd ? '<span class="badge green">Geleverd</span>' : fysiek ? `<span class="badge ${Number(v?.in_showroom ?? 0) >= r.aantal ? 'green' : ''}">${num(v?.in_showroom ?? 0)} in showroom</span>` : ''}
           ${po ? `<a class="badge blue" href="#/inkoop/${po.id}">Inkooporder ${po.ordernummer} · ${esc(PO_STATUS[po.status][0])}</a>`
             : fysiek && !r.geleverd ? `<label class="check small"><input type="checkbox" data-f="bestellen" ${r.bestellen ? 'checked' : ''}> Bestellen bij leverancier</label>` : ''}
-          ${r.geleverd || r.inkoopregel_id ? '' : `<button class="btn small danger" data-delregel="${r.id}" title="Regel verwijderen"><i data-lucide="trash-2"></i></button>`}
+          ${r.geleverd || r.inkoopregel_id ? '' : `<button class="line-del" data-delregel="${r.id}" title="Regel verwijderen" aria-label="Regel verwijderen"><i data-lucide="trash-2"></i></button>`}
         </div></div>`; }).join('') : '<p class="empty">Nog geen regels. Zoek hieronder een artikel om toe te voegen.</p>'}
       </div>
       <div class="add-line">
@@ -147,6 +146,15 @@ export async function renderDetail(c, [id]) {
         <div><span>Aanbetaling ${num(so.aanbetaling_pct)}%</span><span>${money(aanbetaling)}</span></div>
         <div><span>Betaald</span><span>${money(betaald)}</span></div>
         <div class="strong"><span>Nog te voldoen</span><span>${money(totaal - betaald)}</span></div>
+      </div>
+    </div>
+
+    <div class="card"><h2>Klant<span class="spacer"></span><button class="btn small" id="klantbewerk"><i data-lucide="pencil"></i> Gegevens wijzigen</button></h2>
+      <div class="klantblok">
+        <div><span class="kb-l">Naam</span><b>${esc(so.klanten?.naam || '')}</b><span class="muted small">Klantnr. ${so.klanten?.nummer ?? ''}</span></div>
+        <div><span class="kb-l">E-mail</span>${so.klanten?.email ? `<a href="mailto:${esc(so.klanten.email)}">${esc(so.klanten.email)}</a>` : '<span class="muted">Niet ingevuld</span>'}</div>
+        <div><span class="kb-l">Telefoon</span>${esc([so.klanten?.telefoon, so.klanten?.mobiel].filter(Boolean).join(' / ')) || '<span class="muted">Niet ingevuld</span>'}</div>
+        <div><span class="kb-l">Adres</span>${esc([so.klanten?.adres, so.klanten?.postcode_plaats, so.klanten?.land].filter(Boolean).join(', ')) || '<span class="muted">Niet ingevuld</span>'}</div>
       </div>
     </div>
 
@@ -254,6 +262,24 @@ export async function renderDetail(c, [id]) {
     if (!await confirmBox('Betaling verwijderen?', 'Verwijderen')) return;
     check(await sb.from('verkoop_betalingen').delete().eq('id', b.dataset.delbet)); reload();
   });
+
+  // ---- klantgegevens direct op de order aanpassen ----
+  $('#klantbewerk', c).onclick = async () => {
+    const ok = await modal({
+      title: 'Klantgegevens wijzigen',
+      body: formFields([
+        { name: 'naam', label: 'Naam *', required: true, full: true },
+        { name: 'email', label: 'E-mailadres', type: 'email' },
+        { name: 'telefoon', label: 'Telefoonnummer' },
+        { name: 'adres', label: 'Adres' },
+        { name: 'postcode_plaats', label: 'Postcode en plaats' },
+        { name: 'land', label: 'Land' },
+        { name: 'btw_nummer', label: 'Btw-nummer' },
+      ], so.klanten) + '<p class="small muted" style="margin-top:8px">Je past hiermee de klant zelf aan; de wijziging geldt ook voor zijn andere orders.</p>',
+      onSubmit: async (v) => { check(await sb.from('klanten').update(v).eq('id', so.klant_id)); },
+    });
+    if (ok) { toast('Klantgegevens opgeslagen', 'ok'); reload(); }
+  };
 
   // ---- kop ----
   $('#kop', c).onsubmit = async (e) => {

@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SOORT_KLANT, BTW, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, vandaag, refresh,
-} from '../ui.js?v=20261114115559';
+  SOORT_KLANT, BTW, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles, vandaag, refresh,
+} from '../ui.js?v=20261114121200';
 
 const KLANT_FIELDS = [
   { name: 'aanhef', label: 'Aanhef', placeholder: 'bv. Familie, De heer, Mevrouw' },
@@ -84,10 +84,12 @@ export async function renderList(c, table) {
   });
   const load = async () => {
     const q = $('#q', c).value.trim().replace(/[%,()]/g, '');
-    let query = sb.from(table).select('*').order('naam').limit(1000);
-    if (q) query = query.or(`naam.ilike.%${q}%,contactpersoon.ilike.%${q}%,email.ilike.%${q}%`);
-    if ($('#soort', c)?.value) query = query.eq('soort', $('#soort', c).value);
-    const rows = check(await query);
+    const rows = await alles(() => {
+      let query = sb.from(table).select('*').order('naam').order('id');
+      if (q) query = query.or(`naam.ilike.%${q}%,contactpersoon.ilike.%${q}%,email.ilike.%${q}%`);
+      if ($('#soort', c)?.value) query = query.eq('soort', $('#soort', c).value);
+      return query;
+    });
     const el = $('#tbl', c);
     $('#tbl-card', c).style.display = view === 'kaart' ? 'none' : '';
     $('#kaarten', c).style.display = view === 'kaart' ? '' : 'none';

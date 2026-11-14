@@ -1,4 +1,4 @@
-import { sb, check, $, toast, formFields, readForm, setTitle } from '../ui.js?v=20261114115559';
+import { sb, check, $, toast, formFields, readForm, setTitle } from '../ui.js?v=20261114121200';
 
 export async function render(c) {
   setTitle('Instellingen');
@@ -22,9 +22,12 @@ export async function render(c) {
       ], s)}</div>
       <button class="btn primary">Opslaan</button>
     </form>
-    <div class="card" style="margin-top:16px"><h2>Nummering</h2>
-      <p class="small">Artikelen, inkooporders, offertes, orderbevestigingen en facturen beginnen voorlopig bij <b>9000</b>.
-      Zodra de IOne-export klaar is, passen we de nummers aan zodat ze aansluiten op de oude reeksen.</p></div>`;
+    <div class="card" style="margin-top:16px"><h2>Gegevens uit IOne</h2>
+      <p class="small" style="margin-bottom:12px">Zet artikelen, voorraad, foto's en de orderhistorie uit IOne in deze app. Je kiest de bestanden, de app controleert ze eerst en laat zien wat er gaat gebeuren.</p>
+      <a class="btn" href="#/importeren"><i data-lucide="upload"></i> IOne-bestanden importeren</a></div>
+    <div class="card"><h2>Nummering</h2>
+      <p class="small">Nieuwe artikelen, inkooporders, offertes, orderbevestigingen en facturen beginnen voorlopig bij <b>9000</b>.
+      Wat uit IOne komt, houdt zijn eigen IOne-nummer.</p></div>`;
   $('#f', c).onsubmit = async (e) => {
     e.preventDefault();
     check(await sb.from('instellingen').update({ ...readForm(e.target), bijgewerkt_op: new Date().toISOString() }).eq('id', 1));

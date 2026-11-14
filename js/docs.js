@@ -1,4 +1,4 @@
-import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261114115559';
+import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261114121200';
 
 const T = {
   nl: {
@@ -106,10 +106,13 @@ export async function render(el, type, id, soort, query) {
     const k = so.klanten;
     const nummer = { offerte: so.offertenummer, orderbevestiging: so.orderbev_nummer, factuur: so.factuurnummer }[soort];
     const docDatum = { offerte: so.offerte_datum, orderbevestiging: so.orderbev_datum, factuur: so.factuur_datum }[soort] || so.orderdatum;
-    const netto = regels.reduce((s, r) => s + r.aantal * r.prijs * (1 - r.korting_pct / 100), 0);
+    const som = regels.reduce((s, r) => s + r.aantal * r.prijs * (1 - r.korting_pct / 100), 0);
     const btwPct = so.btw_regeling === 'nl21' ? 21 : 0;
-    const btw = Math.round(netto * btwPct) / 100;
-    const totaal = Math.round((netto + btw) * 100) / 100;
+    const r2 = (x) => Math.round(x * 100) / 100;
+    // orders uit IOne: regelprijzen zijn inclusief btw
+    const totaal = r2(btwPct && !so.prijzen_incl_btw ? som * 1.21 : som);
+    const netto = r2(btwPct && so.prijzen_incl_btw ? som / 1.21 : som);
+    const btw = r2(totaal - netto);
     const betaald = betalingen.reduce((s, b) => s + Number(b.bedrag), 0);
     const aanbet = Math.round(totaal * so.aanbetaling_pct) / 100;
     const laatsteBet = betalingen.at(-1);

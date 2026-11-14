@@ -1,7 +1,8 @@
 import {
+  alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261114115559';
+} from '../ui.js?v=20261114121200';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -26,7 +27,8 @@ export async function renderList(c, _p, query) {
       <span class="muted small" id="aantal"></span>
     </div>
     <div class="art-grid" id="kaarten"></div>
-    <div class="card flush" id="tbl-card"><div class="table-wrap" id="tbl"></div></div>`;
+    <div class="card flush" id="tbl-card"><div class="table-wrap" id="tbl"></div></div>
+    <div id="meer" class="meer" hidden><button class="btn"></button></div>`;
 
   let view = 'kaart';
   try { view = localStorage.getItem('artikel-weergave') || 'kaart'; } catch { /* geen opslag */ }
@@ -40,21 +42,31 @@ export async function renderList(c, _p, query) {
     return `<span class="badge green">${num(n)} op voorraad</span>${uit ? ` <span class="badge orange">${num(uit)} uitgeleend</span>` : ''}`;
   };
 
-  let seq = 0;
+  let seq = 0; let toon = 120;
   const load = async () => {
     const mine = ++seq;
     const q = $('#q', c).value.trim().replace(/[%,()]/g, '');
-    let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, actief, foto_pad, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
-      .order('artikelnummer', { ascending: false }).limit(500);
-    if (q) query = /^\d+$/.test(q) ? query.eq('artikelnummer', Number(q)) : query.or(`naam.ilike.%${q}%,omschrijving.ilike.%${q}%,productnr_lev.ilike.%${q}%`);
-    if ($('#soort', c).value) query = query.eq('soort', $('#soort', c).value);
-    if ($('#lev input', c).value) query = query.eq('leverancier_id', $('#lev input', c).value);
-    if (!$('#inactief', c).checked) query = query.eq('actief', true);
-    let rows = check(await query);
+    let ids = null;
+    if ($('#opvoorraad', c).checked) ids = (await alles(() => sb.from('v_voorraad').select('artikel_id').gt('voorraad_totaal', 0))).map((v) => v.artikel_id);
+    const maak = () => {
+      let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, actief, foto_pad, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
+        .order('artikelnummer', { ascending: false }).order('id');
+      if (q) query = /^\d+$/.test(q) ? query.or(`artikelnummer.ilike.${q}%,productnr_lev.ilike.%${q}%`) : query.or(`naam.ilike.%${q}%,omschrijving.ilike.%${q}%,productnr_lev.ilike.%${q}%`);
+      if ($('#soort', c).value) query = query.eq('soort', $('#soort', c).value);
+      if ($('#lev input', c).value) query = query.eq('leverancier_id', $('#lev input', c).value);
+      if (!$('#inactief', c).checked) query = query.eq('actief', true);
+      return query;
+    };
+    let alle = ids && !ids.length ? [] : await alles(maak);
+    if (ids) { const set = new Set(ids); alle = alle.filter((r) => set.has(r.id)); }
+    if (mine !== seq) return; // er is intussen opnieuw gezocht
+    const totaalAantal = alle.length;
+    const rows = alle.slice(0, toon);
     await withTotals(rows, 'v_voorraad', 'artikel_id');
     if (mine !== seq) return; // er is intussen opnieuw gezocht
-    if ($('#opvoorraad', c).checked) rows = rows.filter((r) => Number(r._t.voorraad_totaal) > 0);
-    $('#aantal', c).textContent = `${rows.length} artikel${rows.length === 1 ? '' : 'en'}`;
+    $('#aantal', c).textContent = `${totaalAantal} artikel${totaalAantal === 1 ? '' : 'en'}`;
+    $('#meer', c).hidden = totaalAantal <= rows.length;
+    $('#meer button', c).textContent = `Toon meer (${rows.length} van ${totaalAantal})`;
     const kaart = view === 'kaart';
     $('#kaarten', c).style.display = kaart && rows.length ? '' : 'none';
     $('#tbl-card', c).style.display = kaart && rows.length ? 'none' : '';
@@ -95,8 +107,10 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  let t; $('#q', c).addEventListener('input', () => { clearTimeout(t); t = setTimeout(load, 250); });
-  ['#soort', '#lev', '#opvoorraad', '#inactief'].forEach((s) => $(s, c).addEventListener('change', load));
+  const opnieuw = () => { toon = 120; load(); };
+  let t; $('#q', c).addEventListener('input', () => { clearTimeout(t); t = setTimeout(opnieuw, 250); });
+  ['#soort', '#lev', '#opvoorraad', '#inactief'].forEach((s) => $(s, c).addEventListener('change', opnieuw));
+  $('#meer button', c).onclick = () => { toon += 240; load(); };
   await load();
 }
 
@@ -152,7 +166,7 @@ export async function renderDetail(c, [idStr], query) {
       <h1>${isNew ? 'Nieuw artikel' : `Artikel ${a.artikelnummer} – ${esc(a.naam)}`}</h1><span class="spacer"></span>
       ${isNew ? '' : `<button class="btn" id="kopie">Kopiëren</button><button class="btn danger" id="del">Verwijderen</button>`}
     </div>
-    ${isNew ? '<div class="help">Het artikelnummer wordt automatisch toegekend bij opslaan (nieuwe reeks vanaf 9000).</div>' : ''}
+    ${isNew ? '<div class="help">Het artikelnummer wordt automatisch toegekend bij opslaan (nieuwe reeks vanaf 9000; artikelen uit IOne houden hun eigen nummer).</div>' : ''}
     <form id="f">
       <div class="card"><h2>Algemeen</h2>
         <div style="display:flex;gap:20px;flex-wrap:wrap">
@@ -305,7 +319,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261114115559');
+      const { artikelPicker } = await import('../ui.js?v=20261114121200');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

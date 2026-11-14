@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261114115559';
+  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
+} from '../ui.js?v=20261114121200';
 
 const nrLabel = (s) => s.factuurnummer ? `Factuur ${s.factuurnummer}` : s.orderbev_nummer ? `Orderbevestiging ${s.orderbev_nummer}` : s.offertenummer ? `Offerte ${s.offertenummer}` : `Verkooporder (concept #${s.id})`;
 
@@ -20,18 +20,22 @@ export async function renderList(c, _p, query) {
     </div>
     <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
   const load = async () => {
-    let q = sb.from('verkooporders').select('id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klant_referentie, klanten(naam)').order('id', { ascending: false }).limit(500);
     const st = $('#status', c).value;
-    if (st === 'open') q = q.not('status', 'in', '(betaald,geannuleerd)'); else if (st) q = q.eq('status', st);
-    let rows = check(await q);
+    let rows = await alles(() => {
+      let q = sb.from('verkooporders').select('id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klant_referentie, klanten(naam)').order('orderdatum', { ascending: false }).order('id', { ascending: false });
+      if (st === 'open') q = q.not('status', 'in', '(betaald,geannuleerd)'); else if (st) q = q.eq('status', st);
+      return q;
+    });
     const s = $('#q', c).value.trim().toLowerCase();
     if (s) rows = rows.filter((r) => `${r.offertenummer} ${r.orderbev_nummer} ${r.factuurnummer} ${r.klanten?.naam} ${r.klant_referentie}`.toLowerCase().includes(s));
+    const aantal = rows.length;
+    rows = rows.slice(0, 400);
     await withTotals(rows, 'v_verkooporder_totalen', 'verkooporder_id');
     $('#tbl', c).innerHTML = rows.length ? `<table class="list"><thead><tr><th>Offerte</th><th>Orderbev.</th><th>Factuur</th><th>Klant</th><th>Referentie</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th></tr></thead><tbody>
       ${rows.map((r) => `<tr class="click" onclick="location.hash='#/verkoop/${r.id}'"><td>${r.offertenummer || '–'}</td><td>${r.orderbev_nummer || '–'}</td><td>${r.factuurnummer || '–'}</td>
         <td><b>${esc(r.klanten?.naam)}</b></td><td>${esc(r.klant_referentie || '')}</td><td>${datum(r.orderdatum)}</td><td>${badge(SO_STATUS, r.status)}</td>
         <td class="num">${money(r._t.totaal)}</td><td class="num">${money(r._t.betaald)}</td></tr>`).join('')}
-    </tbody></table>` : '<p class="empty">Geen verkooporders gevonden.</p>';
+    </tbody></table>${aantal > rows.length ? `<p class="small muted" style="padding:12px 16px">De nieuwste ${rows.length} van ${aantal} orders. Zoek op nummer of klant om een oudere order te vinden.</p>` : ''}` : '<p class="empty">Geen verkooporders gevonden.</p>';
   };
   const nieuw = async () => {
     const klanten = check(await sb.from('klanten').select('id, naam, nummer, postcode_plaats, taal, btw_regeling, soort').eq('actief', true).order('naam'));
@@ -74,10 +78,13 @@ export async function renderDetail(c, [id]) {
   const vrd = artIds.length ? check(await sb.from('v_voorraad').select('artikel_id, in_showroom, voorraad_totaal').in('artikel_id', artIds)) : [];
   const vmap = new Map(vrd.map((v) => [v.artikel_id, v]));
 
-  const netto = regels.reduce((s, r) => s + r.aantal * r.prijs * (1 - r.korting_pct / 100), 0);
-  const btwPct = so.btw_regeling === 'nl21' ? 0.21 : 0;
-  const btw = Math.round(netto * btwPct * 100) / 100;
-  const totaal = Math.round((netto + btw) * 100) / 100;
+  const som = regels.reduce((s, r) => s + r.aantal * r.prijs * (1 - r.korting_pct / 100), 0);
+  const r2 = (x) => Math.round(x * 100) / 100;
+  const nl21 = so.btw_regeling === 'nl21';
+  const incl = so.prijzen_incl_btw; // orders uit IOne: regelprijzen zijn inclusief btw
+  const totaal = r2(nl21 && !incl ? som * 1.21 : som);
+  const netto = r2(nl21 && incl ? som / 1.21 : som);
+  const btw = r2(totaal - netto);
   const betaald = betalingen.reduce((s, b) => s + Number(b.bedrag), 0);
   const aanbetaling = Math.round(totaal * so.aanbetaling_pct) / 100;
   const nogBestellen = regels.filter((r) => r.bestellen && !r.inkoopregel_id);
@@ -156,10 +163,11 @@ export async function renderDetail(c, [id]) {
         <div class="line-main">
           <div class="line-kop">${a ? `<a href="#/artikel/${a.id}" class="line-nr">${a.artikelnummer}</a><span class="line-naam">${esc(a.naam)}</span><span class="badge">${esc(SOORT_ARTIKEL[a.soort])}</span>` : '<span class="line-naam muted">Vrije regel</span>'}</div>
           <label class="line-lbl">Omschrijving op documenten<textarea data-f="omschrijving" rows="2">${esc(r.omschrijving || '')}</textarea></label>
+          ${r.notitie ? `<p class="line-notitie"><i data-lucide="sticky-note"></i> ${esc(r.notitie)}</p>` : ''}
         </div>
         <div class="line-nums">
           <label class="line-lbl">Aantal<input type="number" step="any" data-f="aantal" value="${r.aantal}"></label>
-          <label class="line-lbl">Prijs excl. btw<input type="number" step="0.01" data-f="prijs" value="${r.prijs}"></label>
+          <label class="line-lbl">Prijs ${incl ? 'incl.' : 'excl.'} btw<input type="number" step="0.01" data-f="prijs" value="${r.prijs}"></label>
           <label class="line-lbl">Korting %<input type="number" step="0.01" data-f="korting_pct" value="${r.korting_pct}"></label>
           <div class="line-lbl">Totaal<b class="line-tot">${money(r.aantal * r.prijs * (1 - r.korting_pct / 100))}</b></div>
         </div>
@@ -175,7 +183,7 @@ export async function renderDetail(c, [id]) {
         <button class="btn" id="vrij"><i data-lucide="plus"></i> Vrije regel</button>
       </div>
       <div class="regel-voet">
-        <p class="small muted">De prijs komt van het artikel (verkoopprijs incl. btw ÷ 1,21) en kun je per regel aanpassen. "Bestellen bij leverancier" staat automatisch aan voor maatwerk en als er te weinig in de showroom ligt.</p>
+        <p class="small muted">${incl ? 'Deze order komt uit IOne: de regelprijzen zijn inclusief btw.' : 'De prijs komt van het artikel (verkoopprijs incl. btw ÷ 1,21) en kun je per regel aanpassen.'} "Bestellen bij leverancier" staat automatisch aan voor maatwerk en als er te weinig in de showroom ligt.</p>
         <div class="totals">
           <div><span>Netto</span><span>${money(netto)}</span></div>
           <div><span>${esc(BTW[so.btw_regeling])}</span><span>${money(btw)}</span></div>
@@ -353,7 +361,7 @@ export async function renderDetail(c, [id]) {
   artikelPicker($('#zoek', c), async (a) => {
     const v = check(await sb.from('v_voorraad').select('in_showroom').eq('artikel_id', a.id).maybeSingle());
     const bestellen = a.soort === 'maatwerk' || ((a.soort === 'voorraad') && Number(v?.in_showroom || 0) < 1);
-    const prijsExcl = a.verkoopprijs ? Math.round((a.verkoopprijs / 1.21) * 100) / 100 : 0;
+    const prijsExcl = a.verkoopprijs ? (incl ? Number(a.verkoopprijs) : Math.round((a.verkoopprijs / 1.21) * 100) / 100) : 0;
     check(await sb.from('verkooporder_regels').insert({
       verkooporder_id: so.id, artikel_id: a.id, omschrijving: [a.naam, a.omschrijving].filter(Boolean).join('\n'),
       aantal: 1, prijs: prijsExcl, bestellen, volgorde: regels.length,

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114115559';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114121200';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -201,7 +201,7 @@ export function artikelPicker(input, onPick, { filter } = {}) {
       const q = input.value.trim();
       if (q.length < 1) return close();
       let query = sb.from('artikelen').select('id, artikelnummer, naam, omschrijving, soort, leverancier_id, inkoopprijs, verkoopprijs, breedte_cm, lengte_cm, foto_pad, design_id, designs(hoofdfoto_pad, design_code_lev)').eq('actief', true).limit(15);
-      if (/^\d+$/.test(q)) query = query.eq('artikelnummer', Number(q));
+      if (/^\d+$/.test(q)) query = query.ilike('artikelnummer', `${q}%`).order('artikelnummer');
       else query = query.or(`naam.ilike.%${q.replace(/[%,()]/g, '')}%,omschrijving.ilike.%${q.replace(/[%,()]/g, '')}%`);
       if (filter) query = filter(query);
       const rows = check(await query);
@@ -229,13 +229,23 @@ export function artikelPicker(input, onPick, { filter } = {}) {
 export async function withTotals(rows, view, key, select = '*') {
   if (!rows.length) return rows;
   const ids = rows.map((r) => r.id);
-  const out = [];
-  for (let i = 0; i < ids.length; i += 200) {
-    out.push(...check(await sb.from(view).select(select).in(key, ids.slice(i, i + 200))));
-  }
+  const delen = [];
+  for (let i = 0; i < ids.length; i += 200) delen.push(ids.slice(i, i + 200));
+  const out = (await Promise.all(delen.map((d) => sb.from(view).select(select).in(key, d)))).flatMap(check);
   const map = new Map(out.map((t) => [t[key], t]));
   rows.forEach((r) => { r._t = map.get(r.id) || {}; });
   return rows;
+}
+
+// Haalt alle rijen op, ook als het er meer dan 1000 zijn. maak() geeft telkens een verse query.
+export async function alles(maak, max = 20000) {
+  const out = [];
+  for (let van = 0; van < max; van += 1000) {
+    const deel = check(await maak().range(van, van + 999));
+    out.push(...deel);
+    if (deel.length < 1000) break;
+  }
+  return out;
 }
 
 // Opties voor de zoekbare keuzelijsten

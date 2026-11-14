@@ -1,6 +1,6 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114115559';
+  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114121200';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -18,13 +18,15 @@ export async function renderList(c, _p, query) {
     <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
 
   const load = async () => {
-    let q = sb.from('inkooporders').select('id, ordernummer, status, orderdatum, voor_wie, referentie, valuta, leveranciers(naam), klanten(naam)').order('ordernummer', { ascending: false }).limit(500);
     const st = $('#status', c).value;
-    if (st === 'open') q = q.not('status', 'in', '(ontvangen,geannuleerd)'); else if (st) q = q.eq('status', st);
-    if ($('#lev input', c).value) q = q.eq('leverancier_id', $('#lev input', c).value);
     const s = $('#q', c).value.trim().replace(/[%,()]/g, '');
-    if (s) q = /^\d+$/.test(s) ? q.eq('ordernummer', Number(s)) : q.ilike('referentie', `%${s}%`);
-    const rows = check(await q);
+    const rows = await alles(() => {
+      let q = sb.from('inkooporders').select('id, ordernummer, status, orderdatum, voor_wie, referentie, valuta, leveranciers(naam), klanten(naam)').order('orderdatum', { ascending: false }).order('ordernummer', { ascending: false });
+      if (st === 'open') q = q.not('status', 'in', '(ontvangen,geannuleerd)'); else if (st) q = q.eq('status', st);
+      if ($('#lev input', c).value) q = q.eq('leverancier_id', $('#lev input', c).value);
+      if (s) q = /^\d+$/.test(s) ? q.eq('ordernummer', Number(s)) : q.ilike('referentie', `%${s}%`);
+      return q;
+    });
     await withTotals(rows, 'v_inkooporder_totalen', 'inkooporder_id');
     $('#tbl', c).innerHTML = rows.length ? `<table class="list"><thead><tr><th>Nr.</th><th>Leverancier</th><th>Voor</th><th>Referentie</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th></tr></thead><tbody>
       ${rows.map((r) => `<tr class="click" onclick="location.hash='#/inkoop/${r.id}'"><td><b>${r.ordernummer}</b></td><td>${esc(r.leveranciers?.naam)}</td>
@@ -140,6 +142,7 @@ export async function renderDetail(c, [id]) {
         <div class="line-main">
           <div class="line-kop">${r.artikelen ? `<a href="#/artikel/${r.artikelen.id}" class="line-nr">${r.artikelen.artikelnummer}</a><span class="line-naam">${esc(r.artikelen.naam)}</span>${r.artikelen.designs?.design_code_lev ? `<span class="badge blue">Design ${esc(r.artikelen.designs.design_code_lev)}</span>` : ''}` : '<span class="line-naam muted">Vrije regel</span>'}</div>
           <label class="line-lbl">Omschrijving op de inkooporder (Engels)<textarea data-f="omschrijving" rows="2">${esc(r.omschrijving || '')}</textarea></label>
+          ${r.notitie ? `<p class="line-notitie" title="Interne notitie, staat niet op de inkooporder"><i data-lucide="sticky-note"></i> ${esc(r.notitie)}</p>` : ''}
         </div>
         <div class="line-nums">
           <label class="line-lbl">Aantal<input type="number" step="any" data-f="aantal" value="${r.aantal}"></label>

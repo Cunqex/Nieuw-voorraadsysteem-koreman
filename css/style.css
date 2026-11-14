@@ -443,3 +443,19 @@ select:hover { border-color: var(--navy-200); }
   .line-nums { flex-wrap: wrap; }
   .line-nums .line-lbl:last-child { margin-left: auto; }
 }
+
+/* meer laden, interne notitie op een regel, importpagina */
+.meer { display: flex; justify-content: center; margin: 16px 0; }
+.line-notitie { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: 12.5px; color: var(--navy-500); }
+.line-notitie svg.lucide { width: 14px; height: 14px; flex: none; margin-top: 2px; color: var(--navy-300); }
+.imp-files { display: grid; gap: 8px; margin: 16px 0; }
+.imp-file { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
+.imp-file.ok { border-color: #BFE8CD; background: var(--green-bg); }
+.imp-file b { min-width: 220px; }
+.imp-file svg.lucide { width: 18px; height: 18px; color: var(--navy-300); flex: none; }
+.imp-file.ok svg.lucide { color: var(--green-fg); }
+.imp-tbl td:last-child, .imp-tbl th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.imp-log { margin: 12px 0 0; padding: 12px 14px; background: var(--navy-50); border-radius: 10px; font-size: 13px; line-height: 1.6; max-height: 320px; overflow: auto; }
+.imp-log div.fout { color: var(--red-fg); font-weight: 600; }
+.imp-balk { height: 8px; border-radius: 99px; background: var(--navy-100); overflow: hidden; margin-top: 12px; }
+.imp-balk > i { display: block; height: 100%; width: 0; background: var(--green); transition: width .2s; }

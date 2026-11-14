@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261114121200';
+} from '../ui.js?v=20261114121927';
 
 const nrLabel = (s) => s.factuurnummer ? `Factuur ${s.factuurnummer}` : s.orderbev_nummer ? `Orderbevestiging ${s.orderbev_nummer}` : s.offertenummer ? `Offerte ${s.offertenummer}` : `Verkooporder (concept #${s.id})`;
 
@@ -72,7 +72,7 @@ export async function renderDetail(c, [id]) {
     sb.from('klanten').select('id, naam, nummer, postcode_plaats').order('naam'),
     sb.from('verkooporder_regels').select('*, artikelen(id, artikelnummer, naam, soort, leverancier_id, foto_pad, designs(hoofdfoto_pad, design_code_lev)), inkooporder_regels(id, inkooporders(id, ordernummer, status))').eq('verkooporder_id', id).order('volgorde').order('id'),
     sb.from('verkoop_betalingen').select('*').eq('verkooporder_id', id).order('datum'),
-    sb.from('inkooporders').select('id, ordernummer, status, leveranciers(naam)').eq('verkooporder_id', id),
+    sb.from('inkooporders').select('id, ordernummer, status, aangemaakt_op, verstuurd_op, ontvangen_op, leveranciers(naam)').eq('verkooporder_id', id),
   ]).then((r) => r.map(check));
   const artIds = regels.map((r) => r.artikel_id).filter(Boolean);
   const vrd = artIds.length ? check(await sb.from('v_voorraad').select('artikel_id, in_showroom, voorraad_totaal').in('artikel_id', artIds)) : [];
@@ -119,6 +119,35 @@ export async function renderDetail(c, [id]) {
     lever: ['Leveren', 'Het tapijt gaat naar de klant; de voorraad wordt afgeboekt.'],
     factuur: ['Factuur maken', 'Er wordt een definitief factuurnummer toegekend.'],
   };
+  // ---- documenten die al bestaan: altijd te openen ----
+  const documenten = [
+    so.offertenummer && ['offerte', `Offerte ${so.offertenummer}`],
+    so.orderbev_nummer && ['orderbevestiging', `Orderbevestiging ${so.orderbev_nummer}`],
+    so.factuurnummer && ['factuur', `Factuur ${so.factuurnummer}`],
+  ].filter(Boolean);
+
+  // ---- tijdlijn: wat is wanneer gebeurd ----
+  const tijdlijn = [];
+  const gebeurd = (d, tekst, icoon = 'circle') => { if (d) tijdlijn.push({ d: String(d).slice(0, 10), tekst, icoon }); };
+  gebeurd(so.aangemaakt_op, so.bron === 'ione' ? 'Overgenomen uit IOne' : 'Order aangemaakt', 'plus');
+  gebeurd(so.offerte_datum, `Offerte ${so.offertenummer ?? ''} gemaakt`, 'file-text');
+  gebeurd(so.orderbev_datum, `Order bevestigd (orderbevestiging ${so.orderbev_nummer ?? ''})`, 'check');
+  let loop = 0; let volOp = null;
+  betalingen.forEach((b) => {
+    loop += Number(b.bedrag);
+    gebeurd(b.datum, `${b.soort === 'aanbetaling' ? 'Aanbetaling' : b.soort === 'restbetaling' ? 'Restbetaling' : 'Betaling'} ontvangen: ${money(b.bedrag)}`, 'banknote');
+    if (!volOp && totaal > 0 && loop >= totaal - 0.005) { volOp = b.datum; gebeurd(b.datum, 'Volledig betaald', 'badge-check'); }
+  });
+  pos.forEach((p) => {
+    gebeurd(p.aangemaakt_op, `Inkooporder ${p.ordernummer} aangemaakt`, 'shopping-cart');
+    gebeurd(p.verstuurd_op, `Inkooporder ${p.ordernummer} verstuurd naar leverancier`, 'send');
+    gebeurd(p.ontvangen_op, `Inkooporder ${p.ordernummer} ontvangen`, 'package-check');
+  });
+  gebeurd(so.geleverd_op, 'Geleverd aan klant', 'truck');
+  gebeurd(so.factuur_datum, `Factuur ${so.factuurnummer ?? ''} gemaakt`, 'receipt');
+  gebeurd(so.betaald_op, 'Order afgerond (als betaald gemarkeerd)', 'badge-check');
+  tijdlijn.sort((x, y) => x.d.localeCompare(y.d));
+
   const kId = { offerte: '[data-doc=offerte]', bevestig: '#bevestig', betaling: '#betaling', lever: '#lever', factuur: '[data-doc=factuur]' };
   const k = so.klanten || {};
 
@@ -150,7 +179,11 @@ export async function renderDetail(c, [id]) {
             <button class="btn primary" data-klik="${kId[nu.k]}">${VOLGENDE[nu.k][0]} <i data-lucide="arrow-right"></i></button></div>`
         : st === 'gefactureerd' ? '<div class="volgende"><div><span class="kb-l">Volgende stap</span><b>Order afronden</b><span class="small muted">Alles is betaald en gefactureerd.</span></div><span class="spacer"></span><button class="btn primary" id="betaald">Markeer als betaald</button></div>'
         : '<div class="volgende klaar"><div><b>Deze order is afgerond.</b><span class="small muted">Klik op een stap om het document nog eens te openen.</span></div></div>'}
-      <p class="small muted" style="margin-top:12px">Klik op een afgeronde stap om het document te bekijken. Documenten zijn in het ${taal === 'en' ? 'Engels' : 'Nederlands'}.</p>
+      <div class="docs-rij"><span class="kb-l">Documenten</span>
+        ${documenten.length ? documenten.map(([soort, lbl]) => `<a class="btn small" href="${docLink(soort)}" target="_blank"><i data-lucide="file-text"></i> ${esc(lbl)}</a>`).join('')
+          : '<span class="small muted">Nog geen documenten. Maak eerst een offerte of bevestig de order.</span>'}
+        ${documenten.length ? `<span class="small muted">in het ${taal === 'en' ? 'Engels' : 'Nederlands'}</span>` : ''}
+      </div>
       ${nogBestellen.length && so.orderbev_nummer ? `<div class="warnbox">${nogBestellen.length} regel(s) moeten nog besteld worden. <button class="btn small" id="maakpo">Inkooporder(s) aanmaken</button></div>` : ''}
       ${zonderLev.length ? `<div class="warnbox">Let op: ${zonderLev.length} te bestellen artikel(en) hebben geen leverancier. Vul die in bij het artikel, anders kan er geen inkooporder gemaakt worden.</div>` : ''}
     </div>
@@ -214,6 +247,11 @@ export async function renderDetail(c, [id]) {
     </div>
     </div>
 
+    <div class="card"><h2>Tijdlijn</h2>
+      ${tijdlijn.length ? `<ol class="tijdlijn">${tijdlijn.map((t) => `<li><span class="tl-ic"><i data-lucide="${t.icoon}"></i></span><span class="tl-d">${datum(t.d)}</span><span>${esc(t.tekst)}</span></li>`).join('')}</ol>` : '<p class="muted">Nog niets vastgelegd.</p>'}
+      <p class="small muted" style="margin-top:12px">Datums worden automatisch ingevuld. Klopt er een niet, of wil je er een toevoegen? Pas hem aan bij Ordergegevens.</p>
+    </div>
+
     <form class="card" id="kop"><h2>Ordergegevens</h2>
       ${formFields([
         { name: 'klant_referentie', label: 'Referentie klant' },
@@ -223,6 +261,14 @@ export async function renderDetail(c, [id]) {
         { name: 'aanbetaling_pct', label: 'Aanbetaling (%)', type: 'number', hint: 'bv. 50 of 100; 0 = geen aanbetaling' },
         { name: 'levermethode', label: 'Levermethode', placeholder: 'bv. Afhalen / Bezorgen / Verzenden' },
         { name: 'betaalvoorwaarden', label: 'Betaalvoorwaarden (op document)', placeholder: 'bv. 50% bij bestelling, 50% na levering', full: true },
+      ], so)}
+      <h3 class="sub">Datums</h3>
+      ${formFields([
+        { name: 'offerte_datum', label: 'Offerte gemaakt', type: 'date' },
+        { name: 'orderbev_datum', label: 'Order bevestigd', type: 'date' },
+        { name: 'geleverd_op', label: 'Geleverd', type: 'date' },
+        { name: 'factuur_datum', label: 'Factuur gemaakt', type: 'date' },
+        { name: 'betaald_op', label: 'Afgerond / betaald gezet', type: 'date' },
       ], so)}
       <div class="g3">${formFields([
         { name: 'afleveradres', label: 'Afleveradres', type: 'textarea', narrow: true, hint: 'Alleen als het afwijkt van het klantadres' },
@@ -277,6 +323,7 @@ export async function renderDetail(c, [id]) {
       : 'Order als geleverd markeren? De artikelen worden van de voorraad afgeboekt.';
     if (!await confirmBox(msg, 'Leveren')) return;
     check(await sb.rpc('lever_verkooporder', { p_order: so.id }));
+    check(await sb.from('verkooporders').update({ geleverd_op: vandaag() }).eq('id', so.id).is('geleverd_op', null));
     toast('Geleverd, voorraad bijgewerkt', 'ok'); reload();
   };
   $('#betaald', c)?.addEventListener('click', async () => {

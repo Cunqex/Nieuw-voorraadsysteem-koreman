@@ -1,6 +1,6 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114121200';
+  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114121927';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -111,6 +111,21 @@ export async function renderDetail(c, [id]) {
   const totaal = regels.reduce((s, r) => s + r.aantal * r.prijs, 0);
   const betaald = betalingen.reduce((s, b) => s + Number(b.bedrag), 0);
   const betaaldEur = betalingen.reduce((s, b) => s + Number(b.bedrag_eur), 0);
+
+  // ---- tijdlijn: wat is wanneer gebeurd ----
+  const tijdlijn = [];
+  const gebeurd = (d, tekst, icoon = 'circle') => { if (d) tijdlijn.push({ d: String(d).slice(0, 10), tekst, icoon }); };
+  gebeurd(po.aangemaakt_op, po.bron === 'ione' ? 'Overgenomen uit IOne' : 'Inkooporder aangemaakt', 'plus');
+  gebeurd(po.verstuurd_op, 'Verstuurd naar leverancier', 'send');
+  gebeurd(po.bevestigd_op, 'Bevestigd door leverancier', 'check');
+  let loopBet = 0; let volBet = false;
+  [...betalingen].sort((x, y) => String(x.datum).localeCompare(String(y.datum))).forEach((b) => {
+    loopBet += Number(b.bedrag);
+    gebeurd(b.datum, `Betaald aan leverancier: ${money(b.bedrag, po.valuta)}`, 'banknote');
+    if (!volBet && totaal > 0 && loopBet >= totaal - 0.005) { volBet = true; gebeurd(b.datum, 'Volledig betaald', 'badge-check'); }
+  });
+  gebeurd(po.ontvangen_op, 'Alles ontvangen', 'package-check');
+  tijdlijn.sort((x, y) => x.d.localeCompare(y.d));
   const kostenEur = kosten.reduce((s, k) => s + Number(k.bedrag_eur), 0);
   const isConcept = po.status === 'concept';
   const geenAanbetaling = po.verkooporder_id && !aanbetaald;
@@ -131,7 +146,7 @@ export async function renderDetail(c, [id]) {
         ${isConcept && !betalingen.length ? '<button class="btn small danger" id="del"><i data-lucide="trash-2"></i> Verwijderen</button>' : ''}</h2>
       <div class="stepper">${STAPPEN.map((k, i) => { const nu = STAPPEN.indexOf(po.status); const cls = nu < 0 ? 'todo' : i < nu ? 'done' : i === nu ? 'cur' : 'todo';
         return `<button class="stp ${cls}" data-status="${k}" title="Zet status op: ${PO_STATUS[k][0]}"><span class="stp-dot">${cls === 'done' ? '<i data-lucide="check"></i>' : i + 1}</span><span class="stp-lbl">${PO_STATUS[k][0]}</span></button>`; }).join('')}</div>
-      <p class="small muted" style="margin-top:12px">Klik op een stap om de status te wijzigen.${po.verstuurd_op ? ` Verstuurd op ${datum(po.verstuurd_op)}.` : ''}</p>
+      <p class="small muted" style="margin-top:12px">Klik op een stap om de status te wijzigen. De datum wordt vastgelegd in de tijdlijn.</p>
     </div>
 
     <div class="card"><h2>Regels</h2>
@@ -186,6 +201,11 @@ export async function renderDetail(c, [id]) {
     </div>
     </div>
 
+    <div class="card"><h2>Tijdlijn</h2>
+      ${tijdlijn.length ? `<ol class="tijdlijn">${tijdlijn.map((t) => `<li><span class="tl-ic"><i data-lucide="${t.icoon}"></i></span><span class="tl-d">${datum(t.d)}</span><span>${esc(t.tekst)}</span></li>`).join('')}</ol>` : '<p class="muted">Nog niets vastgelegd.</p>'}
+      <p class="small muted" style="margin-top:12px">Datums worden automatisch ingevuld als je de status wijzigt. Aanpassen of toevoegen kan bij Gegevens.</p>
+    </div>
+
     <form class="card" id="kop"><h2>Gegevens</h2>
       ${formFields([
         { name: 'leverancier_id', label: 'Leverancier', type: 'combo', options: levs.map(levOpt) },
@@ -196,10 +216,13 @@ export async function renderDetail(c, [id]) {
         { name: 'referentie', label: 'Referentie (staat op PO)', hint: 'Leverancier ziet nooit de klantnaam' },
         { name: 'valuta', label: 'Valuta', type: 'select', options: { EUR: 'Euro (€)', USD: 'Dollar ($)' } },
         ...(cur === 'USD' ? [{ name: 'koers_schatting', label: 'Schattingskoers (€ per $1)', type: 'number', step: '0.000001', hint: 'Alleen voor voorraadwaarde tot er betaald is' }] : []),
+        { name: 'verstuurd_op', label: 'Verstuurd op', type: 'date' },
+        { name: 'bevestigd_op', label: 'Bevestigd op', type: 'date' },
+        { name: 'ontvangen_op', label: 'Ontvangen op', type: 'date' },
         { name: 'afleveradres', label: 'Afleveradres (op PO)', type: 'textarea' },
         { name: 'opmerking_lev', label: 'Opmerking voor leverancier (op PO, Engels)', type: 'textarea' },
         { name: 'notities_intern', label: 'Interne notities (niet op PO)', type: 'textarea' },
-      ], po)}
+      ], { ...po, verstuurd_op: po.verstuurd_op ? String(po.verstuurd_op).slice(0, 10) : '' })}
       <div class="btn-row" style="margin-top:12px"><button class="btn primary">Opslaan</button>
         ${cur === 'USD' ? '<button class="btn" type="button" id="ecb">ECB-dagkoers ophalen</button>' : ''}</div>
     </form>`;

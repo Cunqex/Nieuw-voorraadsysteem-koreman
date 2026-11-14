@@ -2,7 +2,7 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261114121200';
+} from '../ui.js?v=20261114121927';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -12,6 +12,7 @@ export async function renderList(c, _p, query) {
   const levs = check(await sb.from('leveranciers').select('id, naam, nummer, land, valuta').order('naam'));
   c.innerHTML = `
     <div class="page-head"><h1>Artikelen</h1><span class="spacer"></span>
+      <button class="btn" id="voorraadlijst" title="Download een overzicht van alles wat op voorraad ligt"><i data-lucide="download"></i> Voorraadlijst</button>
       <div class="segmented" id="view">
         <button class="btn small" data-view="kaart" title="Kaartjes"><i data-lucide="layout-grid"></i></button>
         <button class="btn small" data-view="lijst" title="Lijst"><i data-lucide="list"></i></button>
@@ -107,6 +108,34 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
+  // ---- voorraadlijst als bestand (opent in Excel) ----
+  $('#voorraadlijst', c).onclick = async (e) => {
+    const knop = e.currentTarget; knop.disabled = true;
+    try {
+      const vrd = (await alles(() => sb.from('v_voorraad').select('*').order('artikel_id'))).filter((v) => Number(v.voorraad_totaal) !== 0 || Number(v.uitgeleend) !== 0);
+      if (!vrd.length) { toast('Er ligt nog niets op voorraad', 'error'); return; }
+      const ids = vrd.map((v) => v.artikel_id); const arts = [];
+      for (let i = 0; i < ids.length; i += 200) {
+        arts.push(...check(await sb.from('artikelen').select('id, artikelnummer, naam, omschrijving, soort, omzetgroep, breedte_cm, lengte_cm, inkoopprijs, verkoopprijs, leveranciers(naam), designs(design_code_lev)').in('id', ids.slice(i, i + 200))));
+      }
+      const amap = new Map(arts.map((a) => [a.id, a]));
+      const g = (x) => (x === null || x === undefined || x === '' ? '' : String(Number(x)).replace('.', ','));
+      const cel = (x) => { const t = String(x ?? '').replace(/\r?\n/g, ' '); return /[;"]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+      const kop = ['Artikelnummer', 'Naam', 'Omschrijving', 'Soort', 'Omzetgroep', 'Lengte (cm)', 'Breedte (cm)', 'Leverancier', 'Design', 'Voorraad totaal', 'Uitgeleend / op zicht', 'In showroom', 'Kostprijs per stuk (EUR)', 'Voorraadwaarde (EUR)', 'Verkoopprijs incl. btw (EUR)'];
+      const rijen = vrd.map((v) => ({ v, a: amap.get(v.artikel_id) })).filter((x) => x.a)
+        .sort((x, y) => String(x.a.artikelnummer).localeCompare(String(y.a.artikelnummer), 'nl', { numeric: true }))
+        .map(({ v, a }) => [`="${a.artikelnummer}"`, a.naam, a.omschrijving, SOORT_ARTIKEL[a.soort], a.omzetgroep, g(a.lengte_cm), g(a.breedte_cm), a.leveranciers?.naam, a.designs?.design_code_lev,
+          g(v.voorraad_totaal), g(v.uitgeleend), g(v.in_showroom), g(v.gem_kostprijs_eur), g(v.voorraadwaarde_eur), g(a.verkoopprijs)]);
+      const som = (k) => g(Math.round(vrd.reduce((s2, v) => s2 + Number(v[k] || 0), 0) * 100) / 100);
+      const totaal = ['Totaal', '', '', '', '', '', '', '', '', som('voorraad_totaal'), som('uitgeleend'), som('in_showroom'), '', som('voorraadwaarde_eur'), ''];
+      const csv = '\uFEFF' + [kop, ...rijen, totaal].map((r) => r.map(cel).join(';')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a'); a.href = url; a.download = `voorraad-koreman-${vandaag()}.csv`; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast(`Voorraadlijst met ${rijen.length} artikelen gedownload`, 'ok');
+    } finally { knop.disabled = false; }
+  };
+
   const opnieuw = () => { toon = 120; load(); };
   let t; $('#q', c).addEventListener('input', () => { clearTimeout(t); t = setTimeout(opnieuw, 250); });
   ['#soort', '#lev', '#opvoorraad', '#inactief'].forEach((s) => $(s, c).addEventListener('change', opnieuw));
@@ -319,7 +348,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261114121200');
+      const { artikelPicker } = await import('../ui.js?v=20261114121927');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

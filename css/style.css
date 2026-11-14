@@ -459,3 +459,16 @@ select:hover { border-color: var(--navy-200); }
 .imp-log div.fout { color: var(--red-fg); font-weight: 600; }
 .imp-balk { height: 8px; border-radius: 99px; background: var(--navy-100); overflow: hidden; margin-top: 12px; }
 .imp-balk > i { display: block; height: 100%; width: 0; background: var(--green); transition: width .2s; }
+
+/* documenten-rij, tijdlijn, tussenkop in formulier */
+.docs-rij { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.docs-rij .kb-l { margin-right: 4px; }
+.tijdlijn { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.tijdlijn li { position: relative; display: grid; grid-template-columns: 28px 96px minmax(0, 1fr); gap: 12px; align-items: center; padding: 7px 0; font-size: 14px; }
+.tijdlijn li::before { content: ''; position: absolute; left: 13px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.tijdlijn li:first-child::before { top: 50%; }
+.tijdlijn li:last-child::before { bottom: 50%; }
+.tl-ic { position: relative; z-index: 1; width: 28px; height: 28px; border-radius: 50%; background: var(--navy-50); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--navy-500); }
+.tl-ic svg.lucide { width: 14px; height: 14px; }
+.tl-d { color: var(--navy-400); font-variant-numeric: tabular-nums; font-size: 13px; }
+h3.sub { font-size: 13px; font-weight: 600; color: var(--navy-500); margin: 20px 0 10px; text-transform: uppercase; letter-spacing: .05em; }

@@ -2,7 +2,8 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261114123054';
+} from '../ui.js?v=20261114155727';
+import { kaartenModal } from '../kaarten.js?v=20261114155727';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -153,7 +154,7 @@ export async function renderDetail(c, [idStr], query) {
 
   let a = { soort: 'voorraad', actief: true };
   if (!isNew) {
-    a = check(await sb.from('artikelen').select('*, designs(id, naam, design_code_lev, hoofdfoto_pad), leveranciers(naam, valuta)').eq('id', idStr).single());
+    a = check(await sb.from('artikelen').select('*, designs(id, naam, design_code_lev, hoofdfoto_pad), leveranciers(naam, valuta, land)').eq('id', idStr).single());
   } else if (query.design) {
     const d = designs.find((x) => String(x.id) === query.design);
     if (d) a = { ...a, design_id: d.id, leverancier_id: d.leverancier_id, naam: d.naam, soort: query.soort || 'voorraad' };
@@ -193,7 +194,7 @@ export async function renderDetail(c, [idStr], query) {
     <div class="page-head">
       <a class="btn small" href="#/artikelen"><i data-lucide="arrow-left"></i> Artikelen</a>
       <h1>${isNew ? 'Nieuw artikel' : `Artikel ${a.artikelnummer} – ${esc(a.naam)}`}</h1><span class="spacer"></span>
-      ${isNew ? '' : `<button class="btn" id="kopie">Kopiëren</button><button class="btn danger" id="del">Verwijderen</button>`}
+      ${isNew ? '' : `<button class="btn" id="print-kaarten" title="Wandkaart of prijskaartje voor dit artikel printen"><i data-lucide="printer"></i> Kaarten printen</button><button class="btn" id="kopie">Kopiëren</button><button class="btn danger" id="del">Verwijderen</button>`}
     </div>
     ${isNew ? '<div class="help">Het artikelnummer wordt automatisch toegekend bij opslaan (nieuwe reeks vanaf 9000; artikelen uit IOne houden hun eigen nummer).</div>' : ''}
     <form id="f">
@@ -261,6 +262,7 @@ export async function renderDetail(c, [idStr], query) {
     if (error) return toast('Kan niet verwijderen (al gebruikt). Zet het artikel op inactief.', 'error');
     location.hash = '#/artikelen';
   };
+  $("#print-kaarten", c).onclick = () => kaartenModal(a);
   $('#kopie', c).onclick = async () => {
     const { id, artikelnummer, aangemaakt_op, designs: _d, leveranciers: _l, ...rest } = a;
     const row = check(await sb.from('artikelen').insert({ ...rest, naam: rest.naam + ' (kopie)' }).select('id, artikelnummer').single());
@@ -348,7 +350,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261114123054');
+      const { artikelPicker } = await import('../ui.js?v=20261114155727');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

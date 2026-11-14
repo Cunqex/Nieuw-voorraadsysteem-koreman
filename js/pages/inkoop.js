@@ -1,6 +1,6 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114123054';
+  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261114155727';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {

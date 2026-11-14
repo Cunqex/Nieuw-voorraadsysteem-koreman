@@ -3,7 +3,7 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261114155727';
+import { esc, $, modal, toast } from './ui.js?v=20261114161316';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -80,6 +80,7 @@ const WK_CSS = `
 .wk .titel{position:absolute;left:calc(var(--u)*26);top:calc(var(--u)*35);font-size:calc(var(--u)*9.4);font-weight:600;white-space:nowrap;max-width:calc(var(--u)*170);overflow:hidden;text-overflow:ellipsis}
 .wk .rijen{position:absolute;left:calc(var(--u)*24);top:calc(var(--u)*53);right:calc(var(--u)*24)}
 .wk .r{display:grid;grid-template-columns:calc(var(--u)*72) 1fr;height:calc(var(--u)*16);align-items:center;font-size:calc(var(--u)*6.4);white-space:nowrap}
+.wk .kruis{position:absolute;left:calc(var(--u)*43);top:calc(var(--u)*47);width:calc(var(--u)*120);height:calc(var(--u)*60)}
 .wk .logo{position:absolute;right:calc(var(--u)*8);bottom:calc(var(--u)*7);width:calc(var(--u)*30);height:auto}`;
 function collectieLogo(col) {
   if (!col) return '';
@@ -89,9 +90,12 @@ function collectieLogo(col) {
     <text x="100" y="54" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="${fs}" letter-spacing="1.6" fill="#fff">${esc(col.toUpperCase())}</text>
     <text x="100" y="69" text-anchor="middle" font-family="Georgia,serif" font-size="7.5" letter-spacing="2.4" fill="#fff">COLLECTIE</text></svg>`;
 }
+// Het kruisjespatroon uit het Koreman-logo, groot en licht op de achtergrond (zoals op de bestaande wandkaarten)
+const KRUISJES = `<svg class="kruis" viewBox="0 0 676 230" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#8fb0a4" stroke-opacity=".55" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="miter">
+  <polyline points="0,2 338,228 676,2"/><polyline points="0,152 226,2 563,228"/><polyline points="113,228 450,2 676,152"/></g></svg>`;
 function wandkaart(k, logoUrl) {
   const rij = (l, v) => (v ? `<div class="r"><span>${l}</span><span>${esc(v)}</span></div>` : '');
-  return `<div class="wk">${collectieLogo(k.collectie)}<div class="titel">${esc(k.titel)}</div><div class="rijen">${rij('Afmeting:', k.maat)}${rij('Poolmateriaal:', k.pool)}${rij('Knoopdichtheid:', k.knoop)}${rij('Herkomst:', k.herkomst)}${rij('Prijs:', k.prijs)}</div><img class="logo" src="${logoUrl}" alt="Koreman Maastricht"></div>`;
+  return `<div class="wk">${KRUISJES}${collectieLogo(k.collectie)}<div class="titel">${esc(k.titel)}</div><div class="rijen">${rij('Afmeting:', k.maat)}${rij('Poolmateriaal:', k.pool)}${rij('Knoopdichtheid:', k.knoop)}${rij('Herkomst:', k.herkomst)}${rij('Prijs:', k.prijs)}</div><img class="logo" src="${logoUrl}" alt="Koreman Maastricht"></div>`;
 }
 
 // ---------- Printen in een verborgen frame (eigen papierformaat per soort kaart) ----------

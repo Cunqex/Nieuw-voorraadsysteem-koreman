@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag,
-} from '../ui.js?v=20261113163017';
+  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt,
+} from '../ui.js?v=20261114112056';
 
 const nrLabel = (s) => s.factuurnummer ? `Factuur ${s.factuurnummer}` : s.orderbev_nummer ? `Orderbevestiging ${s.orderbev_nummer}` : s.offertenummer ? `Offerte ${s.offertenummer}` : `Verkooporder (concept #${s.id})`;
 
@@ -34,12 +34,12 @@ export async function renderList(c, _p, query) {
     </tbody></table>` : '<p class="empty">Geen verkooporders gevonden.</p>';
   };
   const nieuw = async () => {
-    const klanten = check(await sb.from('klanten').select('id, naam, taal, btw_regeling, soort').eq('actief', true).order('naam'));
+    const klanten = check(await sb.from('klanten').select('id, naam, nummer, postcode_plaats, taal, btw_regeling, soort').eq('actief', true).order('naam'));
     if (!klanten.length) { toast('Maak eerst een klant aan bij "Klanten & architecten"', 'error'); return; }
     const id = await modal({
       title: 'Nieuwe verkooporder',
       body: formFields([
-        { name: 'klant_id', label: 'Klant / architect *', type: 'select', required: true, empty: '– kies –', options: klanten.map((k) => [k.id, k.naam]), default: query.klant },
+        { name: 'klant_id', label: 'Klant / architect *', type: 'combo', required: true, placeholder: 'Kies…', options: klanten.map(klantOpt), default: query.klant },
         { name: 'klant_referentie', label: 'Referentie klant (optioneel)', placeholder: 'bv. LVM-06032026-KEEMAN' },
       ]) + '<p class="small"><a href="#/klanten">Klant staat er niet tussen? Maak hem eerst aan.</a></p>',
       submitLabel: 'Aanmaken',
@@ -62,11 +62,11 @@ export async function renderList(c, _p, query) {
 
 // =============================== DETAIL ===============================
 export async function renderDetail(c, [id]) {
-  const reload = () => renderDetail(c, [id]);
+  const reload = refresh;
   const so = check(await sb.from('verkooporders').select('*, klanten(*)').eq('id', id).single());
   setTitle(nrLabel(so));
   const [klanten, regels, betalingen, pos] = await Promise.all([
-    sb.from('klanten').select('id, naam').order('naam'),
+    sb.from('klanten').select('id, naam, nummer, postcode_plaats').order('naam'),
     sb.from('verkooporder_regels').select('*, artikelen(id, artikelnummer, naam, soort, leverancier_id), inkooporder_regels(id, inkooporders(id, ordernummer, status))').eq('verkooporder_id', id).order('volgorde').order('id'),
     sb.from('verkoop_betalingen').select('*').eq('verkooporder_id', id).order('datum'),
     sb.from('inkooporders').select('id, ordernummer, status, leveranciers(naam)').eq('verkooporder_id', id),
@@ -127,9 +127,9 @@ export async function renderDetail(c, [id]) {
         <td>${po ? `<a href="#/inkoop/${po.id}">${po.ordernummer}</a><br>${badge(PO_STATUS, po.status)}` : ''}</td>
         <td>${r.geleverd || r.inkoopregel_id ? '' : `<button class="btn small danger" data-delregel="${r.id}"><i data-lucide="trash-2"></i></button>`}</td></tr>`; }).join('')}
       </tbody></table></div>
-      <div class="toolbar" style="margin-top:12px">
-        <div style="flex:1;min-width:260px"><input id="zoek" placeholder="+ Artikel toevoegen: typ artikelnummer of naam…"></div>
-        <button class="btn" id="vrij">+ Vrije regel</button>
+      <div class="add-line">
+        <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: typ artikelnummer of naam…" autocomplete="off"></div>
+        <button class="btn" id="vrij"><i data-lucide="plus"></i> Vrije regel</button>
       </div>
       <p class="small muted" style="margin-bottom:16px">De prijs wordt overgenomen van het artikel (verkoopprijs incl. btw ÷ 1,21). "Bestellen?" staat automatisch aan voor maatwerk en als er te weinig in de showroom ligt.</p>
       <div class="totals">
@@ -144,7 +144,7 @@ export async function renderDetail(c, [id]) {
 
     <form class="card" id="kop"><h2>Gegevens</h2>
       ${formFields([
-        { name: 'klant_id', label: 'Klant', type: 'select', options: klanten.map((k) => [k.id, k.naam]) },
+        { name: 'klant_id', label: 'Klant', type: 'combo', options: klanten.map(klantOpt) },
         { name: 'klant_referentie', label: 'Referentie klant' },
         { name: 'orderdatum', label: 'Orderdatum', type: 'date' },
         { name: 'taal', label: 'Taal documenten', type: 'select', options: { nl: 'Nederlands', en: 'Engels' } },

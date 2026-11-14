@@ -1,51 +1,99 @@
 import {
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
-  SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag,
-} from '../ui.js?v=20261113163017';
+  SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
+} from '../ui.js?v=20261114112056';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
   setTitle('Artikelen');
-  const levs = check(await sb.from('leveranciers').select('id, naam').order('naam'));
+  const levs = check(await sb.from('leveranciers').select('id, naam, nummer, land, valuta').order('naam'));
   c.innerHTML = `
     <div class="page-head"><h1>Artikelen</h1><span class="spacer"></span>
+      <div class="segmented" id="view">
+        <button class="btn small" data-view="kaart" title="Kaartjes"><i data-lucide="layout-grid"></i></button>
+        <button class="btn small" data-view="lijst" title="Lijst"><i data-lucide="list"></i></button>
+      </div>
       <a class="btn primary" href="#/artikel/new"><i data-lucide="plus"></i> Nieuw artikel</a></div>
-    <div class="help">Een artikel is iets dat je inkoopt of verkoopt: een tapijt in een bepaalde maat, een staal of een dienst.
-      Hoort het bij een design van de leverancier (met foto's en designcode)? Koppel het dan aan dat design.</div>
     <div class="toolbar">
-      <input type="search" id="q" placeholder="Zoek op nummer, naam of omschrijving…" value="${esc(query.q || '')}">
+      <div class="search"><i data-lucide="search"></i><input type="search" id="q" placeholder="Zoek op nummer, naam of omschrijving…" value="${esc(query.q || '')}"></div>
       <select id="soort"><option value="">Alle soorten</option>${Object.entries(SOORT_ARTIKEL).map(([k, v]) => `<option value="${k}" ${query.soort === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
-      <select id="lev"><option value="">Alle leveranciers</option>${levs.map((l) => `<option value="${l.id}">${esc(l.naam)}</option>`).join('')}</select>
-      <label class="check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="opvoorraad" style="width:auto" ${query.voorraad ? 'checked' : ''}> Alleen op voorraad</label>
-      <label class="check" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="inactief" style="width:auto"> Ook inactieve</label>
+      ${comboHtml({ name: 'lev', id: 'lev', options: levs.map(levOpt), empty: 'Alle leveranciers' })}
+      <label class="check"><input type="checkbox" id="opvoorraad" ${query.voorraad ? 'checked' : ''}> Alleen op voorraad</label>
+      <label class="check"><input type="checkbox" id="inactief"> Ook inactieve</label>
+      <span class="spacer"></span>
+      <span class="muted small" id="aantal"></span>
     </div>
-    <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
+    <div class="art-grid" id="kaarten"></div>
+    <div class="card flush" id="tbl-card"><div class="table-wrap" id="tbl"></div></div>`;
 
+  let view = 'kaart';
+  try { view = localStorage.getItem('artikel-weergave') || 'kaart'; } catch { /* geen opslag */ }
+  const zetView = () => c.querySelectorAll('#view [data-view]').forEach((b) => b.classList.toggle('primary', b.dataset.view === view));
+  zetView();
+
+  const voorraadBadge = (r) => {
+    if (r.soort === 'dienst') return '';
+    const n = Number(r._t.voorraad_totaal || 0), uit = Number(r._t.uitgeleend || 0);
+    if (n <= 0) return '<span class="badge">Niet op voorraad</span>';
+    return `<span class="badge green">${num(n)} op voorraad</span>${uit ? ` <span class="badge orange">${num(uit)} uitgeleend</span>` : ''}`;
+  };
+
+  let seq = 0;
   const load = async () => {
+    const mine = ++seq;
     const q = $('#q', c).value.trim().replace(/[%,()]/g, '');
-    let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, verkoopprijs, actief, foto_pad, designs(hoofdfoto_pad, design_code_lev), leveranciers(naam)')
+    let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, actief, foto_pad, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
       .order('artikelnummer', { ascending: false }).limit(500);
     if (q) query = /^\d+$/.test(q) ? query.eq('artikelnummer', Number(q)) : query.or(`naam.ilike.%${q}%,omschrijving.ilike.%${q}%,productnr_lev.ilike.%${q}%`);
     if ($('#soort', c).value) query = query.eq('soort', $('#soort', c).value);
-    if ($('#lev', c).value) query = query.eq('leverancier_id', $('#lev', c).value);
+    if ($('#lev input', c).value) query = query.eq('leverancier_id', $('#lev input', c).value);
     if (!$('#inactief', c).checked) query = query.eq('actief', true);
     let rows = check(await query);
     await withTotals(rows, 'v_voorraad', 'artikel_id');
+    if (mine !== seq) return; // er is intussen opnieuw gezocht
     if ($('#opvoorraad', c).checked) rows = rows.filter((r) => Number(r._t.voorraad_totaal) > 0);
-    $('#tbl', c).innerHTML = rows.length ? `<table class="list"><thead><tr><th></th><th>Nr.</th><th>Naam</th><th>Soort</th><th>Maat</th><th>Leverancier</th><th>Design</th><th class="num">Voorraad</th><th class="num">Verkoopprijs</th></tr></thead><tbody>
+    $('#aantal', c).textContent = `${rows.length} artikel${rows.length === 1 ? '' : 'en'}`;
+    const kaart = view === 'kaart';
+    $('#kaarten', c).style.display = kaart && rows.length ? '' : 'none';
+    $('#tbl-card', c).style.display = kaart && rows.length ? 'none' : '';
+    if (!rows.length) {
+      $('#tbl', c).innerHTML = `<div class="empty"><p>Geen artikelen gevonden.</p><a class="btn primary" href="#/artikel/new"><i data-lucide="plus"></i> Nieuw artikel</a></div>`;
+      return;
+    }
+    const foto = (r) => r.foto_pad || r.designs?.hoofdfoto_pad || '';
+    if (kaart) {
+      $('#kaarten', c).innerHTML = rows.map((r) => `
+        <a class="art-card" href="#/artikel/${r.id}">
+          <div class="art-img">${foto(r) ? `<img data-path="${esc(foto(r))}" alt="" loading="lazy">` : '<i data-lucide="image-off"></i>'}
+            <span class="art-soort">${esc(SOORT_ARTIKEL[r.soort])}</span></div>
+          <div class="art-body">
+            <div class="art-nr">${r.artikelnummer}${r.actief ? '' : ' · inactief'}</div>
+            <div class="art-naam">${esc(r.naam)}</div>
+            <div class="art-meta">${[maat(r), r.materiaal].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
+            <div class="art-meta">${[r.leveranciers?.naam, r.designs?.design_code_lev].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
+            <div class="art-foot"><span class="art-prijs">${money(r.verkoopprijs)}</span><span>${voorraadBadge(r)}</span></div>
+          </div>
+        </a>`).join('');
+      loadImages($('#kaarten', c));
+      return;
+    }
+    $('#tbl', c).innerHTML = `<table class="list"><thead><tr><th></th><th>Nr.</th><th>Naam</th><th>Soort</th><th>Maat</th><th>Leverancier</th><th>Design</th><th>Voorraad</th><th class="num">Verkoopprijs</th></tr></thead><tbody>
       ${rows.map((r) => `<tr class="click" data-id="${r.id}">
-        <td><img class="thumb" data-path="${esc(r.foto_pad || r.designs?.hoofdfoto_pad || '')}" alt=""></td>
+        <td>${foto(r) ? `<img class="thumb" data-path="${esc(foto(r))}" alt="">` : '<span class="thumb"></span>'}</td>
         <td><b>${r.artikelnummer}</b></td><td>${esc(r.naam)}${r.actief ? '' : ' <span class="badge">inactief</span>'}</td>
         <td>${esc(SOORT_ARTIKEL[r.soort])}</td><td>${maat(r)}</td><td>${esc(r.leveranciers?.naam || '')}</td>
-        <td>${esc(r.designs?.design_code_lev || '')}</td>
-        <td class="num">${r.soort === 'dienst' ? '' : num(r._t.voorraad_totaal)}${Number(r._t.uitgeleend) ? ` <span class="muted small">(${num(r._t.uitgeleend)} uit)</span>` : ''}</td>
+        <td>${esc(r.designs?.design_code_lev || '')}</td><td>${voorraadBadge(r)}</td>
         <td class="num">${money(r.verkoopprijs)}</td></tr>`).join('')}
-      </tbody></table>` : '<p class="empty">Geen artikelen gevonden.</p>';
-    $$('img[data-path=""]', c).forEach((i) => i.removeAttribute('data-path'));
-    loadImages(c);
+      </tbody></table>`;
+    loadImages($('#tbl', c));
   };
+  on(c, 'click', '#view [data-view]', (_e, b) => {
+    view = b.dataset.view;
+    try { localStorage.setItem('artikel-weergave', view); } catch { /* geen opslag */ }
+    zetView(); load();
+  });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
   let t; $('#q', c).addEventListener('input', () => { clearTimeout(t); t = setTimeout(load, 250); });
   ['#soort', '#lev', '#opvoorraad', '#inactief'].forEach((s) => $(s, c).addEventListener('change', load));
@@ -56,7 +104,7 @@ export async function renderList(c, _p, query) {
 export async function renderDetail(c, [idStr], query) {
   const isNew = idStr === 'new';
   const [levs, designs] = await Promise.all([
-    sb.from('leveranciers').select('id, naam, valuta').order('naam'),
+    sb.from('leveranciers').select('id, naam, nummer, land, valuta').order('naam'),
     sb.from('designs').select('id, naam, design_code_lev, leverancier_id').order('naam'),
   ]).then((r) => r.map(check));
 
@@ -73,8 +121,8 @@ export async function renderDetail(c, [idStr], query) {
   const fields1 = [
     { name: 'naam', label: 'Naam *', required: true, placeholder: 'bv. Fawn 365 x 275' },
     { name: 'soort', label: 'Soort', type: 'select', options: SOORT_ARTIKEL },
-    { name: 'design_id', label: 'Design (van leverancier)', type: 'select', empty: '– geen –', options: designs.map((d) => [d.id, `${d.naam}${d.design_code_lev ? ' (' + d.design_code_lev + ')' : ''}`]) },
-    { name: 'leverancier_id', label: 'Leverancier', type: 'select', empty: '– kies –', options: levs.map((l) => [l.id, l.naam]) },
+    { name: 'design_id', label: 'Design (van leverancier)', type: 'combo', empty: '– geen –', options: designs.map(designOpt) },
+    { name: 'leverancier_id', label: 'Leverancier', type: 'combo', placeholder: 'Kies…', options: levs.map(levOpt) },
     { name: 'productnr_lev', label: 'Productnummer leverancier' },
     { name: 'actief', label: 'Actief (zichtbaar bij zoeken)', type: 'checkbox' },
     { name: 'omschrijving', label: 'Aanvullende omschrijving (komt op documenten)', type: 'textarea', placeholder: 'bv. Wool / real silk' },
@@ -153,7 +201,7 @@ export async function renderDetail(c, [idStr], query) {
     } else {
       check(await sb.from('artikelen').update(v).eq('id', a.id));
       toast('Opgeslagen', 'ok');
-      renderDetail(c, [idStr], query);
+      refresh();
     }
   };
   if (isNew) return;
@@ -162,7 +210,7 @@ export async function renderDetail(c, [idStr], query) {
     const file = e.target.files[0]; if (!file) return;
     const path = await uploadFile(`artikelen/${a.id}`, file);
     check(await sb.from('artikelen').update({ foto_pad: path }).eq('id', a.id));
-    toast('Foto opgeslagen', 'ok'); renderDetail(c, [idStr], query);
+    toast('Foto opgeslagen', 'ok'); refresh();
   });
   $('#del', c).onclick = async () => {
     if (!await confirmBox(`Artikel ${a.artikelnummer} verwijderen? Dit kan alleen als het nog niet in orders gebruikt is. Anders: zet het op inactief.`, 'Verwijderen')) return;
@@ -177,7 +225,7 @@ export async function renderDetail(c, [idStr], query) {
     location.hash = '#/artikel/' + row.id;
   };
 
-  await renderExtra($('#extra', c), a, () => renderDetail(c, [idStr], query));
+  await renderExtra($('#extra', c), a, refresh);
 }
 
 async function renderExtra(el, a, reload) {
@@ -245,11 +293,11 @@ async function renderExtra(el, a, reload) {
 }
 
 export async function uitleenModal(artikel) {
-  const klanten = check(await sb.from('klanten').select('id, naam, soort').eq('actief', true).order('naam'));
+  const klanten = check(await sb.from('klanten').select('id, naam, nummer, postcode_plaats, soort').eq('actief', true).order('naam'));
   const ok = await modal({
     title: `Uitlenen / op zicht: ${artikel ? artikel.artikelnummer + ' ' + artikel.naam : ''}`,
     body: `${artikel ? '' : '<label class="field">Artikel (zoek op nummer of naam)<input id="art-zoek" placeholder="Typ om te zoeken…"></label><input type="hidden" name="artikel_id"><p id="art-gekozen" class="small"></p>'}` + formFields([
-      { name: 'klant_id', label: 'Bij klant / architect *', type: 'select', required: true, empty: '– kies –', options: klanten.map((k) => [k.id, k.naam]) },
+      { name: 'klant_id', label: 'Bij klant / architect *', type: 'combo', required: true, placeholder: 'Kies…', options: klanten.map(klantOpt) },
       { name: 'aantal', label: 'Aantal', type: 'number', default: 1, required: true },
       { name: 'datum_uit', label: 'Datum uit', type: 'date', default: vandaag() },
       { name: 'verwacht_terug', label: 'Verwacht terug', type: 'date' },
@@ -257,7 +305,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261113163017');
+      const { artikelPicker } = await import('../ui.js?v=20261114112056');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

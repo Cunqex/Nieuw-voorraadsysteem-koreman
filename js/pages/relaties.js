@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SOORT_KLANT, BTW, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, vandaag,
-} from '../ui.js?v=20261113163017';
+  SOORT_KLANT, BTW, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, vandaag, refresh,
+} from '../ui.js?v=20261114112056';
 
 const KLANT_FIELDS = [
   { name: 'aanhef', label: 'Aanhef', placeholder: 'bv. Familie, De heer, Mevrouw' },
@@ -169,10 +169,10 @@ export async function renderKlant(c, [id]) {
       ${uit.map((u) => `<tr><td>${u.artikelen.artikelnummer} ${esc(u.artikelen.naam)}</td><td class="num">${num(u.aantal)}</td><td>${datum(u.datum_uit)}</td><td>${datum(u.verwacht_terug)}</td><td>${u.datum_terug ? datum(u.datum_terug) : '<span class="badge orange">nog uit</span>'}</td>
         <td>${u.datum_terug ? '' : `<button class="btn small" data-terug="${u.id}">Terug</button>`}</td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Niets uitgeleend.</p>'}</div>`;
-  bindKop(c, 'klanten', r, () => renderKlant(c, [id]));
+  bindKop(c, 'klanten', r, refresh);
   on(c, 'click', '[data-terug]', async (_e, b) => {
     check(await sb.from('uitleningen').update({ datum_terug: vandaag() }).eq('id', b.dataset.terug));
-    toast('Teruggeboekt', 'ok'); renderKlant(c, [id]);
+    toast('Teruggeboekt', 'ok'); refresh();
   });
 }
 
@@ -190,5 +190,5 @@ export async function renderLeverancier(c, [id]) {
       ${pos.map((p) => `<tr class="click" onclick="location.hash='#/inkoop/${p.id}'"><td>${p.ordernummer}</td><td>${datum(p.orderdatum)}</td><td>${badge(PO_STATUS, p.status)}</td><td class="num">${money(p._t.totaal, p.valuta)}</td><td class="num">${money(p._t.betaald, p.valuta)}</td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Nog geen inkooporders.</p>'}</div>
     <div class="card"><h2>Designs</h2>${designs.length ? designs.map((d) => `<a class="badge blue" style="margin:2px" href="#/design/${d.id}">${esc(d.naam)} ${esc(d.design_code_lev || '')}</a>`).join('') : '<p class="muted">Geen.</p>'}</div>`;
-  bindKop(c, 'leveranciers', r, () => renderLeverancier(c, [id]));
+  bindKop(c, 'leveranciers', r, refresh);
 }

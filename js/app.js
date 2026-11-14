@@ -1,14 +1,14 @@
-import { sb, $, $$, toast, esc } from './ui.js?v=20261113163017';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261113163017';
-import * as dashboard from './pages/dashboard.js?v=20261113163017';
-import * as artikelen from './pages/artikelen.js?v=20261113163017';
-import * as designs from './pages/designs.js?v=20261113163017';
-import * as relaties from './pages/relaties.js?v=20261113163017';
-import * as inkoop from './pages/inkoop.js?v=20261113163017';
-import * as verkoop from './pages/verkoop.js?v=20261113163017';
-import * as stalen from './pages/stalen.js?v=20261113163017';
-import * as instellingen from './pages/instellingen.js?v=20261113163017';
-import * as docs from './docs.js?v=20261113163017';
+import { sb, $, $$, toast, esc, comboSet } from './ui.js?v=20261114112056';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114112056';
+import * as dashboard from './pages/dashboard.js?v=20261114112056';
+import * as artikelen from './pages/artikelen.js?v=20261114112056';
+import * as designs from './pages/designs.js?v=20261114112056';
+import * as relaties from './pages/relaties.js?v=20261114112056';
+import * as inkoop from './pages/inkoop.js?v=20261114112056';
+import * as verkoop from './pages/verkoop.js?v=20261114112056';
+import * as stalen from './pages/stalen.js?v=20261114112056';
+import * as instellingen from './pages/instellingen.js?v=20261114112056';
+import * as docs from './docs.js?v=20261114112056';
 
 // route-patroon → handler(container, params)
 const routes = [
@@ -29,7 +29,8 @@ const routes = [
   [/^\/instellingen$/, instellingen.render],
 ];
 
-async function route() {
+let routeToken = 0;
+async function route(opts = {}) {
   const hash = location.hash.slice(1) || '/';
   const [path, qs] = hash.split('?');
   const query = Object.fromEntries(new URLSearchParams(qs || ''));
@@ -46,7 +47,6 @@ async function route() {
   $('#doc').classList.add('hidden');
   $('#doc').innerHTML = '';
 
-  const main = $('#main');
   closeMenu();
   $$('#sidebar a').forEach((a) => {
     const target = a.getAttribute('href').slice(1);
@@ -57,21 +57,65 @@ async function route() {
     a.classList.toggle('active', same);
   });
 
+  // Elke weergave wordt in een NIEUW element opgebouwd en pas daarna getoond.
+  // Zo blijven er nooit oude klik-handlers hangen (voorheen ging een knop
+  // daardoor meerdere keren af) en flikkert de pagina niet bij verversen.
+  const main = $('#main');
+  const token = ++routeToken;
+  const view = document.createElement('div');
+  view.className = 'view';
+  main.classList.add('loading');
+  let found = false;
   for (const [re, handler] of routes) {
     const m = path.match(re);
-    if (m) {
-      main.innerHTML = '<p class="muted">Laden…</p>';
-      try {
-        await handler(main, m.slice(1), query);
-      } catch (e) {
-        console.error(e);
-        main.innerHTML = `<div class="card"><h2>Er ging iets mis</h2><p>${esc(e.message || e)}</p></div>`;
-      }
-      window.scrollTo(0, 0);
-      return;
+    if (!m) continue;
+    found = true;
+    try {
+      await handler(view, m.slice(1), query);
+    } catch (e) {
+      console.error(e);
+      view.innerHTML = `<div class="card"><h2>Er ging iets mis</h2><p>${esc(e.message || e)}</p><p><button class="btn" onclick="location.reload()">Pagina opnieuw laden</button></p></div>`;
     }
+    break;
   }
-  main.innerHTML = '<div class="card">Pagina niet gevonden. <a href="#/">Naar overzicht</a></div>';
+  if (!found) view.innerHTML = '<div class="card">Pagina niet gevonden. <a href="#/">Naar overzicht</a></div>';
+  if (token !== routeToken) return; // er is intussen al een nieuwere weergave gevraagd
+  const keep = opts.keepScroll ? captureState(main) : null;
+  const y = window.scrollY;
+  main.replaceChildren(view);
+  main.classList.remove('loading');
+  if (keep) { restoreState(view, keep); window.scrollTo(0, y); } else window.scrollTo(0, 0);
+}
+
+// Onthoud bij verversen wat de gebruiker aan het typen was (focus + nog niet opgeslagen velden)
+function keyOf(el) {
+  const regel = el.closest('[data-regel]');
+  if (regel && el.dataset.f) return `[data-regel="${regel.dataset.regel}"] [data-f="${el.dataset.f}"]`;
+  const form = el.closest('form[id]');
+  if (form && el.name) return `#${form.id} [name="${el.name}"]`;
+  if (el.id) return '#' + el.id;
+  return null;
+}
+function captureState(root) {
+  const dirty = [];
+  $$('input, textarea, select', root).forEach((el) => {
+    if (el.type === 'file' || el.type === 'checkbox' || el.classList.contains('combo-q')) return;
+    const changed = el.tagName === 'SELECT' ? [...el.options].some((o) => o.selected !== o.defaultSelected) : el.value !== el.defaultValue;
+    const key = changed && keyOf(el);
+    if (key) dirty.push([key, el.value]);
+  });
+  const act = document.activeElement && root.contains(document.activeElement) ? keyOf(document.activeElement) : null;
+  return { dirty, act };
+}
+function restoreState(view, { dirty, act }) {
+  dirty.forEach(([key, val]) => {
+    const el = view.querySelector(key);
+    if (!el || el.value === val) return;
+    el.value = val;
+    const combo = el.closest('.combo');
+    if (combo) comboSet(combo, val);
+  });
+  if (act) { const el = view.querySelector(act); if (el) { el.focus(); el.select?.(); } }
 }
 
 function closeMenu() {
@@ -133,6 +177,7 @@ if (SUPABASE_URL.includes('JOUW-PROJECT') || SUPABASE_ANON_KEY.includes('JOUW-')
     showApp(session);
   });
   window.addEventListener('hashchange', () => { if (current) route(); });
+  window.addEventListener('app:refresh', () => { if (current) route({ keepScroll: true }); });
   const { data } = await sb.auth.getSession();
   if (!data.session) showApp(null);
 }

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261113163017';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114112056';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -37,12 +37,20 @@ export const badge = (map, key) => { const [t, c] = map[key] || [key, '']; retur
 // ---------- DOM helpers ----------
 export function $(sel, root = document) { return root.querySelector(sel); }
 export function $$(sel, root = document) { return [...root.querySelectorAll(sel)]; }
+// Gedelegeerde event-handler. Loopt een (async) actie nog, dan wordt een
+// tweede klik genegeerd – zo kan een knop nooit dubbel afgaan.
 export function on(root, event, selector, handler) {
+  let busy = false;
   root.addEventListener(event, (e) => {
-    const t = e.target.closest(selector);
-    if (t && root.contains(t)) handler(e, t);
+    const t = e.target.closest?.(selector);
+    if (!t || !root.contains(t) || busy) return;
+    const r = handler(e, t);
+    if (r && typeof r.finally === 'function') { busy = true; r.finally(() => { busy = false; }); }
   });
 }
+
+// Huidige pagina opnieuw opbouwen (na opslaan/verwijderen). Scrollpositie blijft staan.
+export function refresh() { window.dispatchEvent(new Event('app:refresh')); }
 
 export function toast(msg, type = '') {
   const t = document.createElement('div');
@@ -63,7 +71,7 @@ export function check({ data, error }) {
 }
 
 // ---------- Modal ----------
-export function modal({ title, body, submitLabel = 'Opslaan', onSubmit, wide = false, onOpen }) {
+export function modal({ title, body, submitLabel = 'Opslaan', onSubmit, wide = false, onOpen, danger = false }) {
   return new Promise((resolve) => {
     const root = $('#modal-root');
     const bg = document.createElement('div');
@@ -73,11 +81,16 @@ export function modal({ title, body, submitLabel = 'Opslaan', onSubmit, wide = f
       <div class="modal-body">${body}</div>
       <div class="actions">
         <button type="button" class="btn" data-cancel>Annuleren</button>
-        ${onSubmit ? `<button type="submit" class="btn primary">${esc(submitLabel)}</button>` : ''}
+        ${onSubmit ? `<button type="submit" class="btn ${danger ? 'danger-solid' : 'primary'}">${esc(submitLabel)}</button>` : ''}
       </div></form>`;
     root.appendChild(bg);
     const form = $('form', bg);
-    const close = (v) => { bg.remove(); resolve(v); };
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || root.lastElementChild !== bg) return;
+      close(null);
+    };
+    document.addEventListener('keydown', onKey);
+    const close = (v) => { document.removeEventListener('keydown', onKey); bg.remove(); resolve(v); };
     $('[data-cancel]', bg).onclick = () => close(null);
     bg.addEventListener('mousedown', (e) => { if (e.target === bg) close(null); });
     form.onsubmit = async (e) => {
@@ -91,13 +104,14 @@ export function modal({ title, body, submitLabel = 'Opslaan', onSubmit, wide = f
       btn.disabled = false;
     };
     onOpen?.(form);
-    const first = $('input:not([type=hidden]),select,textarea', form);
-    first?.focus();
+    const first = $('input:not([type=hidden]):not(.combo-input),select,textarea,.combo-btn', $('.modal-body', form));
+    (first || $('button[type=submit]', form))?.focus();
   });
 }
 
 export function confirmBox(text, label = 'Ja, doorgaan') {
-  return modal({ title: 'Weet je het zeker?', body: `<p>${esc(text)}</p>`, submitLabel: label, onSubmit: () => true });
+  const danger = /verwijder|annuleer/i.test(label);
+  return modal({ title: 'Weet je het zeker?', body: `<p>${esc(text)}</p>`, submitLabel: label, danger, onSubmit: () => true });
 }
 
 // ---------- Forms ----------
@@ -113,6 +127,9 @@ export function formFields(fields, values = {}) {
     }
     if (f.type === 'textarea') {
       return `<label class="${cls || 'full'}">${esc(f.label)}<textarea name="${f.name}" ${req}>${esc(v)}</textarea>${hint}</label>`;
+    }
+    if (f.type === 'combo') {
+      return `<div class="field ${cls}"><span>${esc(f.label)}</span>${comboHtml({ name: f.name, options: f.options, value: v, placeholder: f.placeholder, empty: f.empty, required: f.required })}${hint}</div>`;
     }
     if (f.type === 'select') {
       const opts = Array.isArray(f.options) ? f.options : Object.entries(f.options);
@@ -149,12 +166,20 @@ export async function mediaUrl(path) {
   urlCache.set(path, { url: data.signedUrl, exp: Date.now() + 50 * 60 * 1000 });
   return data.signedUrl;
 }
-// Vul alle <img data-path="..."> in een container
+// Vul alle <img data-path="..."> in een container (alle links in één verzoek)
 export async function loadImages(root) {
-  await Promise.all($$('img[data-path]', root).map(async (img) => {
-    const url = await mediaUrl(img.dataset.path);
-    if (url) img.src = url;
-  }));
+  const imgs = $$('img[data-path]', root).filter((i) => i.dataset.path);
+  const now = Date.now();
+  const need = [...new Set(imgs.map((i) => i.dataset.path))].filter((p) => !(urlCache.get(p)?.exp > now));
+  for (let i = 0; i < need.length; i += 100) {
+    const { data } = await sb.storage.from('media').createSignedUrls(need.slice(i, i + 100), 3600);
+    (data || []).forEach((d) => { if (d.signedUrl) urlCache.set(d.path, { url: d.signedUrl, exp: now + 50 * 60 * 1000 }); });
+  }
+  imgs.forEach((img) => {
+    const u = urlCache.get(img.dataset.path)?.url;
+    img.onerror = () => { img.removeAttribute('src'); img.classList.add('img-fout'); };
+    if (u) img.src = u; else img.classList.add('img-fout');
+  });
 }
 export const isImage = (p) => /\.(jpe?g|png|gif|webp|avif|bmp)$/i.test(p || '');
 export async function uploadFile(folder, file) {
@@ -184,7 +209,7 @@ export function artikelPicker(input, onPick, { filter } = {}) {
       list = document.createElement('div');
       list.className = 'ac-list';
       list.innerHTML = rows.length ? rows.map((r, i) => `<div class="ac-item" data-i="${i}">
-        <b>${r.artikelnummer}</b> ${esc(r.naam)} <span class="muted small">${esc(SOORT_ARTIKEL[r.soort] || '')}</span></div>`).join('')
+        <b>${r.artikelnummer}</b><span>${esc(r.naam)}</span><span class="muted small" style="margin-left:auto">${esc([maat(r), SOORT_ARTIKEL[r.soort]].filter(Boolean).join(' · '))}</span></div>`).join('')
         : '<div class="ac-item muted">Niets gevonden</div>';
       wrap.appendChild(list);
       list.addEventListener('mousedown', (e) => {
@@ -213,9 +238,108 @@ export async function withTotals(rows, view, key, select = '*') {
   return rows;
 }
 
+// Opties voor de zoekbare keuzelijsten
+export const klantOpt = (k) => [k.id, k.naam, [k.nummer, k.postcode_plaats].filter(Boolean).join(' · ')];
+export const levOpt = (l) => [l.id, l.naam, [l.nummer, l.land, l.valuta].filter(Boolean).join(' · ')];
+export const designOpt = (d) => [d.id, d.naam, d.design_code_lev || ''];
+
 // ---------- Kleine helpers ----------
 export async function loadOptions(table, label = 'naam', extra = '') {
   const rows = check(await sb.from(table).select(`id, ${label}${extra ? ',' + extra : ''}`).eq('actief', true).order(label));
   return rows;
 }
 export function setTitle(t) { document.title = t ? `${t} – Koreman Voorraad` : 'Koreman Voorraad'; }
+
+
+// ===================== Zoekbare keuzelijst (combobox) =====================
+// Vervangt de standaard <select> bij lange lijsten (klanten, leveranciers, designs).
+// options: [[waarde, label, subtekst?], …]
+const comboData = new Map();
+let comboSeq = 0;
+export function comboHtml({ name, options, value, placeholder = 'Kies…', empty, required, id }) {
+  const key = 'c' + (++comboSeq);
+  if (comboData.size > 400) comboData.delete(comboData.keys().next().value);
+  const opts = options.map((o) => ({ v: String(o[0]), l: String(o[1] ?? ''), s: o[2] ? String(o[2]) : '' }));
+  comboData.set(key, { opts, empty, placeholder });
+  const cur = opts.find((o) => o.v === String(value ?? ''));
+  return `<div class="combo" data-combo="${key}" ${id ? `id="${id}"` : ''}>
+    <input class="combo-input" name="${name}" value="${esc(cur ? cur.v : '')}" ${required ? 'required' : ''} tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button type="button" class="combo-btn" aria-haspopup="listbox"><span class="combo-val ${cur ? '' : 'ph'}">${esc(cur ? cur.l : (empty ?? placeholder))}</span><i data-lucide="chevrons-up-down"></i></button>
+  </div>`;
+}
+export function comboSet(combo, value) {
+  const d = comboData.get(combo.dataset.combo);
+  const o = d?.opts.find((x) => x.v === String(value ?? ''));
+  $('.combo-input', combo).value = o ? o.v : '';
+  const lbl = $('.combo-val', combo);
+  lbl.textContent = o ? o.l : (d?.empty ?? d?.placeholder ?? '');
+  lbl.classList.toggle('ph', !o);
+}
+function comboClose() { $$('.combo-pop').forEach((p) => p.remove()); $$('.combo.open').forEach((c) => c.classList.remove('open')); }
+function comboRender(combo) {
+  const d = comboData.get(combo.dataset.combo);
+  const pop = $('.combo-pop', combo);
+  if (!d || !pop) return;
+  const q = $('.combo-q', pop).value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const cur = $('.combo-input', combo).value;
+  const hits = d.opts.filter((o) => { const t = (o.l + ' ' + o.s).toLowerCase(); return q.every((w) => t.includes(w)); });
+  const MAX = 60;
+  let html = '';
+  if (d.empty !== undefined && !q.length) html += `<div class="combo-opt muted" data-v="">${esc(d.empty)}</div>`;
+  html += hits.slice(0, MAX).map((o) => `<div class="combo-opt ${o.v === cur ? 'sel' : ''}" data-v="${esc(o.v)}"><span>${esc(o.l)}</span>${o.s ? `<small>${esc(o.s)}</small>` : ''}</div>`).join('');
+  if (!hits.length) html += '<div class="combo-none">Niets gevonden</div>';
+  if (hits.length > MAX) html += `<div class="combo-none">Nog ${hits.length - MAX} meer – typ om te zoeken</div>`;
+  const list = $('.combo-list', pop);
+  list.innerHTML = html;
+  (list.querySelector('.combo-opt.sel') || list.querySelector('.combo-opt'))?.classList.add('act');
+  list.querySelector('.act')?.scrollIntoView({ block: 'nearest' });
+}
+function comboOpen(combo) {
+  comboClose();
+  const d = comboData.get(combo.dataset.combo);
+  if (!d) return;
+  combo.classList.add('open');
+  const pop = document.createElement('div');
+  pop.className = 'combo-pop';
+  pop.innerHTML = `<div class="combo-search"><i data-lucide="search"></i><input class="combo-q" placeholder="Typ om te zoeken…" autocomplete="off"></div><div class="combo-list" role="listbox"></div>`;
+  combo.appendChild(pop);
+  const r = combo.getBoundingClientRect();
+  if (r.bottom + 330 > window.innerHeight && r.top > 330) pop.classList.add('up');
+  comboRender(combo);
+  $('.combo-q', pop).focus();
+}
+function comboPick(combo, value) {
+  comboSet(combo, value);
+  comboClose();
+  $('.combo-btn', combo).focus();
+  $('.combo-input', combo).dispatchEvent(new Event('change', { bubbles: true }));
+}
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest?.('.combo-btn');
+  if (!btn) return;
+  const combo = btn.closest('.combo');
+  if (combo.classList.contains('open')) comboClose(); else comboOpen(combo);
+});
+document.addEventListener('mousedown', (e) => {
+  const opt = e.target.closest?.('.combo-opt');
+  if (opt) { e.preventDefault(); comboPick(opt.closest('.combo'), opt.dataset.v); return; }
+  if (!e.target.closest?.('.combo.open')) comboClose();
+});
+document.addEventListener('input', (e) => { if (e.target.classList?.contains('combo-q')) comboRender(e.target.closest('.combo')); });
+document.addEventListener('keydown', (e) => {
+  const q = e.target.classList?.contains('combo-q') ? e.target : null;
+  if (!q) { if (e.key === 'Escape' && $('.combo-pop')) { e.preventDefault(); comboClose(); } return; }
+  const combo = q.closest('.combo');
+  const opts = $$('.combo-opt', combo);
+  const i = opts.findIndex((o) => o.classList.contains('act'));
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const n = Math.max(0, Math.min(opts.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
+    opts[i]?.classList.remove('act'); opts[n]?.classList.add('act'); opts[n]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (opts[i]) comboPick(combo, opts[i].dataset.v);
+  } else if (e.key === 'Escape') {
+    e.preventDefault(); comboClose(); $('.combo-btn', combo).focus();
+  } else if (e.key === 'Tab') comboClose();
+});

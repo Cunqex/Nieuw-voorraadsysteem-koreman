@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, maat, $, on, toast, confirmBox, formFields, readForm,
-  SOORT_ARTIKEL, loadImages, uploadFile, isImage, mediaUrl, setTitle,
-} from '../ui.js?v=20261113163017';
+  SOORT_ARTIKEL, loadImages, uploadFile, isImage, mediaUrl, setTitle, refresh, levOpt,
+} from '../ui.js?v=20261114112056';
 
 // =============================== LIJST ===============================
 export async function renderList(c) {
@@ -35,7 +35,7 @@ export async function renderList(c) {
 // =============================== DETAIL ===============================
 export async function renderDetail(c, [idStr]) {
   const isNew = idStr === 'new';
-  const levs = check(await sb.from('leveranciers').select('id, naam').order('naam'));
+  const levs = check(await sb.from('leveranciers').select('id, naam, nummer, land, valuta').order('naam'));
   let d = {};
   if (!isNew) d = check(await sb.from('designs').select('*').eq('id', idStr).single());
   setTitle(isNew ? 'Nieuw design' : `Design ${d.naam}`);
@@ -43,7 +43,7 @@ export async function renderDetail(c, [idStr]) {
   const fields = [
     { name: 'naam', label: 'Naam (onze naam) *', required: true, placeholder: 'bv. Fawn of Desert design' },
     { name: 'design_code_lev', label: 'Designcode / -naam leverancier', placeholder: 'bv. JO#8010', hint: 'Zoals op het staal staat' },
-    { name: 'leverancier_id', label: 'Leverancier', type: 'select', empty: '– kies –', options: levs.map((l) => [l.id, l.naam]) },
+    { name: 'leverancier_id', label: 'Leverancier', type: 'combo', placeholder: 'Kies…', options: levs.map(levOpt) },
     { name: 'omschrijving', label: 'Omschrijving', type: 'textarea' },
     { name: 'notities', label: 'Interne notities', type: 'textarea' },
   ];
@@ -77,7 +77,7 @@ export async function renderDetail(c, [idStr]) {
     location.hash = '#/designs';
   };
 
-  const reload = () => renderDetail(c, [idStr]);
+  const reload = refresh;
   const [files, arts] = await Promise.all([
     sb.from('design_bestanden').select('*').eq('design_id', d.id).order('aangemaakt_op'),
     sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, verkoopprijs, actief').eq('design_id', d.id).order('artikelnummer'),

@@ -1,12 +1,12 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage,
-} from '../ui.js?v=20261113163017';
+  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml,
+} from '../ui.js?v=20261114112056';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
   setTitle('Inkooporders');
-  const levs = check(await sb.from('leveranciers').select('id, naam, valuta').order('naam'));
+  const levs = check(await sb.from('leveranciers').select('id, naam, nummer, land, valuta').order('naam'));
   c.innerHTML = `
     <div class="page-head"><h1>Inkooporders</h1><span class="spacer"></span>
       <button class="btn primary" id="nieuw"><i data-lucide="plus"></i> Nieuwe inkooporder</button></div>
@@ -14,7 +14,7 @@ export async function renderList(c, _p, query) {
       <input type="search" id="q" placeholder="Zoek op nummer of referentie…">
       <select id="status"><option value="open">Alle open</option><option value="">Alles</option>
         ${Object.entries(PO_STATUS).map(([k, [l]]) => `<option value="${k}" ${query.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
-      <select id="lev"><option value="">Alle leveranciers</option>${levs.map((l) => `<option value="${l.id}">${esc(l.naam)}</option>`).join('')}</select>
+      ${comboHtml({ name: 'lev', id: 'lev', options: levs.map(levOpt), empty: 'Alle leveranciers' })}
     </div>
     <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
 
@@ -22,7 +22,7 @@ export async function renderList(c, _p, query) {
     let q = sb.from('inkooporders').select('id, ordernummer, status, orderdatum, voor_wie, referentie, valuta, leveranciers(naam), klanten(naam)').order('ordernummer', { ascending: false }).limit(500);
     const st = $('#status', c).value;
     if (st === 'open') q = q.not('status', 'in', '(ontvangen,geannuleerd)'); else if (st) q = q.eq('status', st);
-    if ($('#lev', c).value) q = q.eq('leverancier_id', $('#lev', c).value);
+    if ($('#lev input', c).value) q = q.eq('leverancier_id', $('#lev input', c).value);
     const s = $('#q', c).value.trim().replace(/[%,()]/g, '');
     if (s) q = /^\d+$/.test(s) ? q.eq('ordernummer', Number(s)) : q.ilike('referentie', `%${s}%`);
     const rows = check(await q);
@@ -35,17 +35,19 @@ export async function renderList(c, _p, query) {
     </tbody></table>` : '<p class="empty">Geen inkooporders gevonden.</p>';
   };
   const nieuw = async () => {
-    const klanten = check(await sb.from('klanten').select('id, naam').eq('actief', true).order('naam'));
+    const klanten = check(await sb.from('klanten').select('id, naam, nummer, postcode_plaats').eq('actief', true).order('naam'));
     const id = await modal({
       title: 'Nieuwe inkooporder',
       body: formFields([
-        { name: 'leverancier_id', label: 'Leverancier *', type: 'select', required: true, empty: '– kies –', options: levs.map((l) => [l.id, `${l.naam} (${l.valuta})`]), default: query.leverancier },
+        { name: 'leverancier_id', label: 'Leverancier *', type: 'combo', required: true, placeholder: 'Kies…', options: levs.map(levOpt), default: query.leverancier },
         { name: 'voor_wie', label: 'Voor wie?', type: 'select', options: { voorraad: 'Eigen voorraad', klant: 'In opdracht van klant / architect' } },
-        { name: 'klant_id', label: 'Klant / architect (intern, niet op PO)', type: 'select', empty: '– geen –', options: klanten.map((k) => [k.id, k.naam]) },
+        { name: 'klant_id', label: 'Klant / architect (intern, niet op PO)', type: 'combo', empty: '– geen –', options: klanten.map(klantOpt) },
         { name: 'referentie', label: 'Referentie op PO (bv. projectcode)', hint: 'De leverancier ziet alleen deze referentie, nooit de klantnaam' },
       ]),
       submitLabel: 'Aanmaken',
+      onOpen: (form) => klantVeld(form),
       onSubmit: async (v) => {
+        if (v.voor_wie !== 'klant') v.klant_id = null;
         const lev = levs.find((l) => String(l.id) === v.leverancier_id);
         const inst = check(await sb.from('instellingen').select('afleveradres_inkoop').eq('id', 1).single());
         return check(await sb.from('inkooporders').insert({
@@ -63,14 +65,23 @@ export async function renderList(c, _p, query) {
   if (query.nieuw) { history.replaceState(null, '', '#/inkoop'); nieuw(); }
 }
 
+// Toon het klantveld alleen als de order in opdracht van een klant is
+function klantVeld(form) {
+  const veld = form.querySelector('[name=klant_id]')?.closest('.field');
+  if (!veld) return;
+  const sync = () => { veld.style.display = form.voor_wie.value === 'klant' ? '' : 'none'; };
+  form.voor_wie.addEventListener('change', sync);
+  sync();
+}
+
 // =============================== DETAIL ===============================
 export async function renderDetail(c, [id]) {
-  const reload = () => renderDetail(c, [id]);
+  const reload = refresh;
   const po = check(await sb.from('inkooporders').select('*, leveranciers(*), klanten(id, naam), verkooporders(id, orderbev_nummer, offertenummer, klant_id)').eq('id', id).single());
   setTitle(`Inkooporder ${po.ordernummer}`);
   const [levs, klanten, regels, betalingen, kosten] = await Promise.all([
-    sb.from('leveranciers').select('id, naam, valuta').order('naam'),
-    sb.from('klanten').select('id, naam').order('naam'),
+    sb.from('leveranciers').select('id, naam, nummer, land, valuta').order('naam'),
+    sb.from('klanten').select('id, naam, nummer, postcode_plaats').order('naam'),
     sb.from('inkooporder_regels').select('*, artikelen(id, artikelnummer, naam, design_id, foto_pad, designs(hoofdfoto_pad, design_code_lev))').eq('inkooporder_id', id).order('volgorde').order('id'),
     sb.from('inkoop_betalingen').select('*').eq('inkooporder_id', id).order('datum'),
     sb.from('inkoop_kosten').select('*').eq('inkooporder_id', id).order('datum'),
@@ -121,23 +132,6 @@ export async function renderDetail(c, [id]) {
       ${po.verstuurd_op ? `<p class="small muted">Verstuurd op ${datum(po.verstuurd_op)}</p>` : ''}
     </div>
 
-    <form class="card" id="kop"><h2>Gegevens</h2>
-      ${formFields([
-        { name: 'leverancier_id', label: 'Leverancier', type: 'select', options: levs.map((l) => [l.id, l.naam]) },
-        { name: 'orderdatum', label: 'Orderdatum', type: 'date' },
-        { name: 'leverdatum', label: 'Leverdatum (op PO, Engels)' },
-        { name: 'voor_wie', label: 'Voor wie?', type: 'select', options: { voorraad: 'Eigen voorraad', klant: 'In opdracht van klant / architect' } },
-        { name: 'klant_id', label: 'Klant / architect (alleen intern)', type: 'select', empty: '– geen –', options: klanten.map((k) => [k.id, k.naam]) },
-        { name: 'referentie', label: 'Referentie (staat op PO)', hint: 'Leverancier ziet nooit de klantnaam' },
-        { name: 'valuta', label: 'Valuta', type: 'select', options: { EUR: 'Euro (€)', USD: 'Dollar ($)' } },
-        ...(cur === 'USD' ? [{ name: 'koers_schatting', label: 'Schattingskoers (€ per $1)', type: 'number', step: '0.000001', hint: 'Alleen voor voorraadwaarde tot er betaald is' }] : []),
-        { name: 'afleveradres', label: 'Afleveradres (op PO)', type: 'textarea' },
-        { name: 'opmerking_lev', label: 'Opmerking voor leverancier (op PO, Engels)', type: 'textarea' },
-        { name: 'notities_intern', label: 'Interne notities (niet op PO)', type: 'textarea' },
-      ], po)}
-      <div class="btn-row" style="margin-top:12px"><button class="btn primary">Opslaan</button>
-        ${cur === 'USD' ? '<button class="btn" type="button" id="ecb">ECB-dagkoers ophalen</button>' : ''}</div>
-    </form>
 
     <div class="card"><h2>Regels</h2>
       <div class="table-wrap"><table class="list edit"><thead><tr><th>Foto op PO</th><th>Artikel</th><th>Omschrijving (Engels)</th><th class="num">Aantal</th><th class="num">Prijs (${cur})</th><th class="num">Totaal</th><th class="num">Ontvangen</th><th></th></tr></thead><tbody>
@@ -153,14 +147,15 @@ export async function renderDetail(c, [id]) {
           ${r.aantal_ontvangen < r.aantal && po.status !== 'geannuleerd' ? `<br><button class="btn small ok" data-ontvang="${r.id}" data-rest="${r.aantal - r.aantal_ontvangen}" style="margin-top:4px">Ontvangen</button>` : ''}</td>
         <td>${r.aantal_ontvangen > 0 ? '' : `<button class="btn small danger" data-delregel="${r.id}"><i data-lucide="trash-2"></i></button>`}</td></tr>`; }).join('')}
       </tbody></table></div>
-      <div class="toolbar" style="margin-top:12px">
-        <div style="flex:1;min-width:260px"><input id="zoek" placeholder="+ Artikel toevoegen: typ artikelnummer of naam…"></div>
-        <button class="btn" id="vrij">+ Vrije regel</button>
+      <div class="add-line">
+        <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: typ artikelnummer of naam…" autocomplete="off"></div>
+        <button class="btn" id="vrij"><i data-lucide="plus"></i> Vrije regel</button>
       </div>
       <div class="totals"><div class="strong"><span>Totaal</span><span>${money(totaal, cur)}</span></div></div>
     </div>
 
-    <div class="card"><h2>Betalingen aan leverancier<span class="spacer"></span><button class="btn small primary" id="betaling">+ Betaling</button></h2>
+    <div class="cols-2">
+    <div class="card"><h2>Betalingen aan leverancier<span class="spacer"></span><button class="btn small primary" id="betaling"><i data-lucide="plus"></i> Betaling</button></h2>
       ${betalingen.length ? `<table class="list"><thead><tr><th>Datum</th><th>Omschrijving</th><th class="num">Bedrag (${cur})</th>${cur === 'USD' ? '<th class="num">Afgeschreven (€)</th><th class="num">Koers</th>' : ''}<th></th></tr></thead><tbody>
       ${betalingen.map((b) => `<tr><td>${datum(b.datum)}</td><td>${esc(b.omschrijving || '')}</td><td class="num">${money(b.bedrag, cur)}</td>
         ${cur === 'USD' ? `<td class="num">${money(b.bedrag_eur)}</td><td class="num">${(b.bedrag_eur / b.bedrag).toFixed(4)}</td>` : ''}
@@ -174,21 +169,41 @@ export async function renderDetail(c, [id]) {
       ${cur === 'USD' ? '<p class="small muted">De voorraadwaarde wordt berekend met het werkelijk afgeschreven eurobedrag.</p>' : ''}
     </div>
 
-    <div class="card"><h2>Bijkomende kosten (vracht, invoerrechten…)<span class="spacer"></span><button class="btn small" id="kost">+ Kosten</button></h2>
+    <div class="card"><h2>Bijkomende kosten (vracht, invoerrechten…)<span class="spacer"></span><button class="btn small" id="kost"><i data-lucide="plus"></i> Kosten</button></h2>
       <p class="small muted">Alleen ter registratie – telt <b>niet</b> mee in de voorraadwaarde.</p>
       ${kosten.length ? `<table class="list"><thead><tr><th>Datum</th><th>Soort</th><th>Omschrijving</th><th class="num">Bedrag (€)</th><th></th></tr></thead><tbody>
       ${kosten.map((k) => `<tr><td>${datum(k.datum)}</td><td>${esc(k.soort)}</td><td>${esc(k.omschrijving || '')}</td><td class="num">${money(k.bedrag_eur)}</td><td><button class="btn small danger" data-delkost="${k.id}"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}
       </tbody></table>` : ''}
       ${kosten.length ? `<div class="totals"><div class="strong"><span>Totaal kosten</span><span>${money(kostenEur)}</span></div></div>` : ''}
-    </div>`;
+    </div>
+    </div>
+
+    <form class="card" id="kop"><h2>Gegevens</h2>
+      ${formFields([
+        { name: 'leverancier_id', label: 'Leverancier', type: 'combo', options: levs.map(levOpt) },
+        { name: 'orderdatum', label: 'Orderdatum', type: 'date' },
+        { name: 'leverdatum', label: 'Leverdatum (op PO, Engels)' },
+        { name: 'voor_wie', label: 'Voor wie?', type: 'select', options: { voorraad: 'Eigen voorraad', klant: 'In opdracht van klant / architect' } },
+        { name: 'klant_id', label: 'Klant / architect (alleen intern)', type: 'combo', empty: '– geen –', options: klanten.map(klantOpt) },
+        { name: 'referentie', label: 'Referentie (staat op PO)', hint: 'Leverancier ziet nooit de klantnaam' },
+        { name: 'valuta', label: 'Valuta', type: 'select', options: { EUR: 'Euro (€)', USD: 'Dollar ($)' } },
+        ...(cur === 'USD' ? [{ name: 'koers_schatting', label: 'Schattingskoers (€ per $1)', type: 'number', step: '0.000001', hint: 'Alleen voor voorraadwaarde tot er betaald is' }] : []),
+        { name: 'afleveradres', label: 'Afleveradres (op PO)', type: 'textarea' },
+        { name: 'opmerking_lev', label: 'Opmerking voor leverancier (op PO, Engels)', type: 'textarea' },
+        { name: 'notities_intern', label: 'Interne notities (niet op PO)', type: 'textarea' },
+      ], po)}
+      <div class="btn-row" style="margin-top:12px"><button class="btn primary">Opslaan</button>
+        ${cur === 'USD' ? '<button class="btn" type="button" id="ecb">ECB-dagkoers ophalen</button>' : ''}</div>
+    </form>`;
   loadImages(c);
+  klantVeld($('#kop', c));
 
   // ---- kop opslaan ----
   $('#kop', c).onsubmit = async (e) => {
     e.preventDefault();
     const v = readForm(e.target);
     v.leverancier_id = Number(v.leverancier_id);
-    v.klant_id = v.klant_id ? Number(v.klant_id) : null;
+    v.klant_id = v.voor_wie === 'klant' && v.klant_id ? Number(v.klant_id) : null;
     check(await sb.from('inkooporders').update(v).eq('id', po.id));
     toast('Opgeslagen', 'ok'); reload();
   };

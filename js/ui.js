@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114114234';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261114115559';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -126,7 +126,7 @@ export function formFields(fields, values = {}) {
       return `<label class="check ${cls}"><input type="checkbox" name="${f.name}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
     }
     if (f.type === 'textarea') {
-      return `<label class="${cls || 'full'}">${esc(f.label)}<textarea name="${f.name}" ${req}>${esc(v)}</textarea>${hint}</label>`;
+      return `<label class="${f.narrow ? '' : cls || 'full'}">${esc(f.label)}<textarea name="${f.name}" ${req}>${esc(v)}</textarea>${hint}</label>`;
     }
     if (f.type === 'combo') {
       return `<div class="field ${cls}"><span>${esc(f.label)}</span>${comboHtml({ name: f.name, options: f.options, value: v, placeholder: f.placeholder, empty: f.empty, required: f.required })}${hint}</div>`;

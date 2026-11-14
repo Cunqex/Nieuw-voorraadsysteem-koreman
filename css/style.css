@@ -223,7 +223,7 @@ input[type=file] { height: auto; padding: 8px; }
 .totals { margin-left: auto; width: 100%; max-width: 360px; font-variant-numeric: tabular-nums; }
 .totals div { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; color: var(--navy-600); }
 .totals div.strong { font-weight: 700; color: var(--navy-950); border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; font-size: 15px; }
-.cols-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
+.cols-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); align-items: start; }
 .cols-2 > .card { margin-bottom: 0; }
 .cols-2 { margin-bottom: 16px; }
 
@@ -401,3 +401,45 @@ select:hover { border-color: var(--navy-200); }
 .kb-l { font-size: 12px; font-weight: 500; color: var(--navy-400); }
 @media (max-width: 900px) { .klantblok { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 520px) { .klantblok { grid-template-columns: 1fr; } }
+
+/* verkooporder: samenvatting, voortgang, compacte gegevens */
+.so-kop { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 0; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-card); margin-bottom: 16px; }
+.so-kop > div { display: flex; flex-direction: column; gap: 4px; padding: 18px 22px; min-width: 0; border-left: 1px solid var(--line); }
+.so-kop > div:first-child { border-left: 0; }
+.so-naam { font-size: 18px; font-weight: 700; color: var(--navy-950); overflow-wrap: anywhere; }
+.so-bedrag { font-size: 20px; font-weight: 700; color: var(--navy-950); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.so-bedrag.ok { color: var(--green-fg); }
+.so-bedrag.open { color: var(--amber-fg, #B45309); }
+@media (max-width: 800px) { .so-kop { grid-template-columns: 1fr 1fr; } .so-kop > div { border-left: 0; border-top: 1px solid var(--line); } .so-kop > div:first-child { grid-column: 1 / -1; border-top: 0; } }
+.stp-sub { font-size: 12px; font-weight: 400; color: var(--navy-400); text-align: center; line-height: 1.2; }
+.stp:disabled { cursor: default; }
+.stp:disabled:hover .stp-dot { transform: none; }
+.volgende { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; padding: 14px 16px; background: var(--navy-50); border-radius: 12px; }
+.volgende > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 280px; }
+.volgende b { font-size: 15px; color: var(--navy-950); }
+.volgende.klaar { background: var(--green-bg); }
+.volgende.klaar b { color: var(--green-fg); }
+.regel-voet { display: flex; gap: 24px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-top: 4px; }
+.regel-voet > p { flex: 1 1 320px; max-width: 520px; margin: 6px 0 0; }
+.regel-voet .totals { margin-left: auto; flex: 0 1 360px; }
+.kv { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 10px 16px; margin: 0; }
+.kv dt { font-size: 13px; color: var(--navy-400); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.g3 { margin-top: 16px; }
+.g3 .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g3 textarea { min-height: 84px; }
+@media (max-width: 900px) { .g3 .form-grid { grid-template-columns: 1fr; } }
+
+/* stappen onder elkaar op een smal scherm */
+@media (max-width: 640px) {
+  .stepper { flex-direction: column; gap: 2px; }
+  .stp { flex-direction: row; align-items: center; gap: 12px; padding: 6px 4px; width: 100%; text-align: left; flex-wrap: wrap; }
+  .stp::before { display: none; }
+  .stp-lbl, .stp-sub { text-align: left; }
+  .stp-sub { margin-left: auto; }
+  .cols-2 > .card { min-width: 0; overflow-x: auto; }
+}
+@media (max-width: 640px) {
+  .line-nums { flex-wrap: wrap; }
+  .line-nums .line-lbl:last-child { margin-left: auto; }
+}

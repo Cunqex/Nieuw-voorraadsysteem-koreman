@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261114114234';
+} from '../ui.js?v=20261114115559';
 
 const nrLabel = (s) => s.factuurnummer ? `Factuur ${s.factuurnummer}` : s.orderbev_nummer ? `Orderbevestiging ${s.orderbev_nummer}` : s.offertenummer ? `Offerte ${s.offertenummer}` : `Verkooporder (concept #${s.id})`;
 
@@ -87,27 +87,63 @@ export async function renderDetail(c, [id]) {
   const taal = so.taal;
   const docLink = (soort) => `#/doc/so/${so.id}/${soort}?taal=${taal}`;
 
+  // ---- voortgang: welke stap is klaar, welke is nu aan de beurt ----
+  const volBetaald = totaal > 0 && betaald >= totaal;
+  const stappen = [
+    { k: 'offerte', attr: 'data-doc="offerte"', lbl: 'Offerte', klaar: !!so.offertenummer, over: !so.offertenummer && !!so.orderbev_nummer,
+      sub: so.offertenummer ? `${so.offertenummer}${so.offerte_datum ? ' · ' + datum(so.offerte_datum) : ''}` : so.orderbev_nummer ? 'Overgeslagen' : '' },
+    { k: 'bevestig', attr: 'id="bevestig"', lbl: 'Orderbevestiging', klaar: !!so.orderbev_nummer,
+      sub: so.orderbev_nummer ? `${so.orderbev_nummer}${so.orderbev_datum ? ' · ' + datum(so.orderbev_datum) : ''}` : '' },
+    { k: 'betaling', attr: 'id="betaling"', lbl: 'Betaling', klaar: volBetaald,
+      sub: betaald ? `${money(betaald)} ontvangen` : '' },
+    { k: 'lever', attr: `id="lever" ${allesGeleverd ? 'disabled' : ''}`, lbl: 'Levering', klaar: !!allesGeleverd, sub: allesGeleverd ? 'Geleverd' : '' },
+    { k: 'factuur', attr: 'data-doc="factuur"', lbl: 'Factuur', klaar: !!so.factuurnummer,
+      sub: so.factuurnummer ? `${so.factuurnummer}${so.factuur_datum ? ' · ' + datum(so.factuur_datum) : ''}` : '' },
+  ];
+  const geannuleerd = st === 'geannuleerd';
+  // Aanbetaling binnen? Dan eerst leveren en factureren; de restbetaling komt daarna.
+  const aanbetaald = (betaald > 0 || Number(so.aanbetaling_pct) === 0) && betaald >= aanbetaling - 0.005;
+  let nu = geannuleerd ? null : stappen.find((x) => !x.klaar && !x.over && !(x.k === 'betaling' && aanbetaald && !so.factuurnummer));
+  if (!nu && !geannuleerd && !volBetaald) nu = stappen[2];
+  const VOLGENDE = {
+    offerte: ['Offerte maken', 'Maak de offerte voor de klant. Is de klant al akkoord? Dan kun je de order ook direct bevestigen.'],
+    bevestig: ['Order bevestigen', `De klant is akkoord. Je krijgt een orderbevestiging${nogBestellen.length ? ` en er wordt automatisch een concept-inkooporder gemaakt voor ${nogBestellen.length} te bestellen regel${nogBestellen.length === 1 ? '' : 's'}` : ''}.`],
+    betaling: ['Betaling registreren', betaald ? `Er staat nog ${money(totaal - betaald)} open.` : so.aanbetaling_pct > 0 ? `Leg de aanbetaling van ${money(aanbetaling)} (${num(so.aanbetaling_pct)}%) vast zodra die binnen is.` : `Leg de betaling van ${money(totaal)} vast zodra die binnen is.`],
+    lever: ['Leveren', 'Het tapijt gaat naar de klant; de voorraad wordt afgeboekt.'],
+    factuur: ['Factuur maken', 'Er wordt een definitief factuurnummer toegekend.'],
+  };
+  const kId = { offerte: '[data-doc=offerte]', bevestig: '#bevestig', betaling: '#betaling', lever: '#lever', factuur: '[data-doc=factuur]' };
+  const k = so.klanten || {};
+
   c.innerHTML = `
     <div class="page-head"><a class="btn small" href="#/verkoop"><i data-lucide="arrow-left"></i> Verkooporders</a>
       <h1>${esc(nrLabel(so))}</h1>${badge(SO_STATUS, st)}<span class="spacer"></span>
-      <span class="muted">${esc(so.klanten?.naam)}</span></div>
+      ${!geannuleerd ? '<button class="btn danger small" id="annuleer">Annuleren</button>' : ''}
+      ${!so.offertenummer && !so.orderbev_nummer && !so.factuurnummer ? '<button class="btn danger small" id="del"><i data-lucide="trash-2"></i> Verwijderen</button>' : ''}
+    </div>
 
-    <div class="card"><h2>Stappen</h2>
-      <div class="steps">
-        <button class="btn step ${so.offertenummer ? 'done' : st === 'offerte' ? 'primary' : ''}" data-doc="offerte"><span class="step-n">Stap 1</span>${so.offertenummer ? `Offerte ${so.offertenummer} bekijken` : 'Offerte maken'}</button>
-        <button class="btn step ${so.orderbev_nummer ? 'done' : st === 'offerte' ? 'primary' : ''}" id="bevestig"><span class="step-n">Stap 2</span>${so.orderbev_nummer ? `Orderbevestiging ${so.orderbev_nummer} bekijken` : 'Order bevestigen'}</button>
-        <button class="btn step ${betaald >= totaal && totaal > 0 ? 'done' : st === 'bevestigd' && !betaald ? 'primary' : ''}" id="betaling"><span class="step-n">Stap 3</span>Betaling registreren</button>
-        <button class="btn step ${allesGeleverd ? 'done' : st === 'bevestigd' && betaald ? 'primary' : ''}" id="lever" ${allesGeleverd ? 'disabled' : ''}><span class="step-n">Stap 4</span>${allesGeleverd ? 'Geleverd' : 'Leveren (voorraad afboeken)'}</button>
-        <button class="btn step ${so.factuurnummer ? 'done' : st === 'geleverd' ? 'primary' : ''}" data-doc="factuur"><span class="step-n">Stap 5</span>${so.factuurnummer ? `Factuur ${so.factuurnummer} bekijken` : 'Factuur maken'}</button>
-        ${st === 'gefactureerd' ? `<button class="btn step primary" id="betaald"><span class="step-n">Stap 6</span>Markeer als betaald</button>` : ''}
+    <div class="so-kop">
+      <div class="so-klant">
+        <span class="kb-l">Klant</span>
+        <b class="so-naam">${esc(k.naam || '')}</b>
+        <span class="muted small">${esc([k.postcode_plaats, so.klant_referentie ? 'ref. ' + so.klant_referentie : ''].filter(Boolean).join(' · ')) || `Klantnr. ${k.nummer ?? ''}`}</span>
       </div>
-      <div class="btn-row" style="margin-top:14px">
-        <span class="small muted">Documenten in het ${taal === 'en' ? 'Engels' : 'Nederlands'} (wijzig "Taal" bij Gegevens).
-        ${so.offerte_datum ? `Offerte ${datum(so.offerte_datum)}. ` : ''}${so.orderbev_datum ? `Bevestigd ${datum(so.orderbev_datum)}. ` : ''}${so.factuur_datum ? `Gefactureerd ${datum(so.factuur_datum)}.` : ''}</span>
-        <span class="spacer"></span>
-        ${st !== 'geannuleerd' ? '<button class="btn danger small" id="annuleer">Annuleren</button>' : ''}
-        ${!so.offertenummer && !so.orderbev_nummer && !so.factuurnummer ? '<button class="btn danger small" id="del">Verwijderen</button>' : ''}
-      </div>
+      <div><span class="kb-l">Totaal incl. btw</span><b class="so-bedrag">${money(totaal)}</b></div>
+      <div><span class="kb-l">Betaald</span><b class="so-bedrag ${betaald ? 'ok' : ''}">${money(betaald)}</b></div>
+      <div><span class="kb-l">Nog te voldoen</span><b class="so-bedrag ${totaal - betaald > 0.005 ? 'open' : 'ok'}">${money(totaal - betaald)}</b></div>
+    </div>
+
+    <div class="card"><h2>Voortgang</h2>
+      <div class="stepper">${stappen.map((x, i) => { const cls = x.klaar ? 'done' : nu === x ? 'cur' : 'todo';
+        return `<button class="stp ${cls}" ${x.attr} title="${x.klaar && x.k !== 'betaling' && x.k !== 'lever' ? 'Document bekijken' : esc(VOLGENDE[x.k][0])}"><span class="stp-dot">${x.klaar ? '<i data-lucide="check"></i>' : i + 1}</span><span class="stp-lbl">${x.lbl}</span>${x.sub ? `<span class="stp-sub">${esc(x.sub)}</span>` : ''}</button>`; }).join('')}</div>
+      ${geannuleerd ? '<div class="volgende"><div><b>Deze order is geannuleerd.</b></div></div>'
+        : nu ? `<div class="volgende"><div><span class="kb-l">Volgende stap</span><b>${VOLGENDE[nu.k][0]}</b><span class="small muted">${esc(VOLGENDE[nu.k][1])}</span></div>
+            <span class="spacer"></span>
+            ${nu.k === 'offerte' ? '<button class="btn" data-klik="#bevestig">Direct bevestigen</button>' : ''}
+            <button class="btn primary" data-klik="${kId[nu.k]}">${VOLGENDE[nu.k][0]} <i data-lucide="arrow-right"></i></button></div>`
+        : st === 'gefactureerd' ? '<div class="volgende"><div><span class="kb-l">Volgende stap</span><b>Order afronden</b><span class="small muted">Alles is betaald en gefactureerd.</span></div><span class="spacer"></span><button class="btn primary" id="betaald">Markeer als betaald</button></div>'
+        : '<div class="volgende klaar"><div><b>Deze order is afgerond.</b><span class="small muted">Klik op een stap om het document nog eens te openen.</span></div></div>'}
+      <p class="small muted" style="margin-top:12px">Klik op een afgeronde stap om het document te bekijken. Documenten zijn in het ${taal === 'en' ? 'Engels' : 'Nederlands'}.</p>
       ${nogBestellen.length && so.orderbev_nummer ? `<div class="warnbox">${nogBestellen.length} regel(s) moeten nog besteld worden. <button class="btn small" id="maakpo">Inkooporder(s) aanmaken</button></div>` : ''}
       ${zonderLev.length ? `<div class="warnbox">Let op: ${zonderLev.length} te bestellen artikel(en) hebben geen leverancier. Vul die in bij het artikel, anders kan er geen inkooporder gemaakt worden.</div>` : ''}
     </div>
@@ -138,48 +174,55 @@ export async function renderDetail(c, [id]) {
         <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: typ artikelnummer of naam…" autocomplete="off"></div>
         <button class="btn" id="vrij"><i data-lucide="plus"></i> Vrije regel</button>
       </div>
-      <p class="small muted" style="margin-bottom:16px">De prijs wordt overgenomen van het artikel (verkoopprijs incl. btw ÷ 1,21). "Bestellen?" staat automatisch aan voor maatwerk en als er te weinig in de showroom ligt.</p>
-      <div class="totals">
-        <div><span>Netto</span><span>${money(netto)}</span></div>
-        <div><span>${esc(BTW[so.btw_regeling])}</span><span>${money(btw)}</span></div>
-        <div class="strong"><span>Totaal</span><span>${money(totaal)}</span></div>
-        <div><span>Aanbetaling ${num(so.aanbetaling_pct)}%</span><span>${money(aanbetaling)}</span></div>
+      <div class="regel-voet">
+        <p class="small muted">De prijs komt van het artikel (verkoopprijs incl. btw ÷ 1,21) en kun je per regel aanpassen. "Bestellen bij leverancier" staat automatisch aan voor maatwerk en als er te weinig in de showroom ligt.</p>
+        <div class="totals">
+          <div><span>Netto</span><span>${money(netto)}</span></div>
+          <div><span>${esc(BTW[so.btw_regeling])}</span><span>${money(btw)}</span></div>
+          <div class="strong"><span>Totaal</span><span>${money(totaal)}</span></div>
+          ${so.aanbetaling_pct > 0 && so.aanbetaling_pct < 100 ? `<div><span>Waarvan aanbetaling ${num(so.aanbetaling_pct)}%</span><span>${money(aanbetaling)}</span></div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="cols-2">
+    <div class="card"><h2>Klant<span class="spacer"></span><button class="btn small" id="klantwissel"><i data-lucide="repeat"></i> Andere klant</button><button class="btn small" id="klantbewerk"><i data-lucide="pencil"></i> Wijzigen</button></h2>
+      <dl class="kv">
+        <dt>Naam</dt><dd><a href="#/klant/${so.klant_id}"><b>${esc(k.naam || '')}</b></a> <span class="muted small">· klantnr. ${k.nummer ?? ''}</span></dd>
+        <dt>E-mail</dt><dd>${k.email ? `<a href="mailto:${esc(k.email)}">${esc(k.email)}</a>` : '<span class="muted">Niet ingevuld</span>'}</dd>
+        <dt>Telefoon</dt><dd>${esc([k.telefoon, k.mobiel].filter(Boolean).join(' / ')) || '<span class="muted">Niet ingevuld</span>'}</dd>
+        <dt>Adres</dt><dd>${esc([k.adres, k.postcode_plaats, k.land].filter(Boolean).join(', ')) || '<span class="muted">Niet ingevuld</span>'}</dd>
+      </dl>
+    </div>
+
+    <div class="card"><h2>Betalingen van klant<span class="spacer"></span>${geannuleerd ? '' : '<button class="btn small primary" data-klik="#betaling"><i data-lucide="plus"></i> Betaling</button>'}</h2>
+      ${betalingen.length ? `<table class="list"><thead><tr><th>Datum</th><th>Soort</th><th>Omschrijving</th><th class="num">Bedrag</th><th></th></tr></thead><tbody>
+      ${betalingen.map((b) => `<tr><td>${datum(b.datum)}</td><td>${esc(b.soort)}</td><td>${esc(b.omschrijving || '')}</td><td class="num">${money(b.bedrag)}</td><td><button class="line-del" data-delbet="${b.id}" title="Betaling verwijderen" aria-label="Betaling verwijderen"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}
+      </tbody></table>` : '<p class="muted">Nog niets ontvangen.</p>'}
+      <div class="totals" style="margin-top:12px">
         <div><span>Betaald</span><span>${money(betaald)}</span></div>
         <div class="strong"><span>Nog te voldoen</span><span>${money(totaal - betaald)}</span></div>
       </div>
     </div>
-
-    <div class="card"><h2>Klant<span class="spacer"></span><button class="btn small" id="klantbewerk"><i data-lucide="pencil"></i> Gegevens wijzigen</button></h2>
-      <div class="klantblok">
-        <div><span class="kb-l">Naam</span><b>${esc(so.klanten?.naam || '')}</b><span class="muted small">Klantnr. ${so.klanten?.nummer ?? ''}</span></div>
-        <div><span class="kb-l">E-mail</span>${so.klanten?.email ? `<a href="mailto:${esc(so.klanten.email)}">${esc(so.klanten.email)}</a>` : '<span class="muted">Niet ingevuld</span>'}</div>
-        <div><span class="kb-l">Telefoon</span>${esc([so.klanten?.telefoon, so.klanten?.mobiel].filter(Boolean).join(' / ')) || '<span class="muted">Niet ingevuld</span>'}</div>
-        <div><span class="kb-l">Adres</span>${esc([so.klanten?.adres, so.klanten?.postcode_plaats, so.klanten?.land].filter(Boolean).join(', ')) || '<span class="muted">Niet ingevuld</span>'}</div>
-      </div>
     </div>
 
-    <form class="card" id="kop"><h2>Gegevens</h2>
+    <form class="card" id="kop"><h2>Ordergegevens</h2>
       ${formFields([
-        { name: 'klant_id', label: 'Klant', type: 'combo', options: klanten.map(klantOpt) },
         { name: 'klant_referentie', label: 'Referentie klant' },
         { name: 'orderdatum', label: 'Orderdatum', type: 'date' },
         { name: 'taal', label: 'Taal documenten', type: 'select', options: { nl: 'Nederlands', en: 'Engels' } },
         { name: 'btw_regeling', label: 'Btw', type: 'select', options: BTW },
         { name: 'aanbetaling_pct', label: 'Aanbetaling (%)', type: 'number', hint: 'bv. 50 of 100; 0 = geen aanbetaling' },
-        { name: 'betaalvoorwaarden', label: 'Betaalvoorwaarden (op document)', placeholder: 'bv. 50% bij bestelling, 50% na levering' },
         { name: 'levermethode', label: 'Levermethode', placeholder: 'bv. Afhalen / Bezorgen / Verzenden' },
-        { name: 'afleveradres', label: 'Afleveradres (als anders dan klantadres)', type: 'textarea' },
-        { name: 'opmerking', label: 'Opmerking (op documenten)', type: 'textarea' },
-        { name: 'notities_intern', label: 'Interne notities', type: 'textarea' },
+        { name: 'betaalvoorwaarden', label: 'Betaalvoorwaarden (op document)', placeholder: 'bv. 50% bij bestelling, 50% na levering', full: true },
       ], so)}
-      <div class="btn-row" style="margin-top:12px"><button class="btn primary">Opslaan</button></div>
+      <div class="g3">${formFields([
+        { name: 'afleveradres', label: 'Afleveradres', type: 'textarea', narrow: true, hint: 'Alleen als het afwijkt van het klantadres' },
+        { name: 'opmerking', label: 'Opmerking', type: 'textarea', narrow: true, hint: 'Komt op de documenten' },
+        { name: 'notities_intern', label: 'Interne notities', type: 'textarea', narrow: true, hint: 'Ziet de klant niet' },
+      ], so)}</div>
+      <div class="btn-row" style="margin-top:16px"><button class="btn primary">Opslaan</button></div>
     </form>
-
-    <div class="card"><h2>Betalingen van klant</h2>
-      ${betalingen.length ? `<table class="list"><thead><tr><th>Datum</th><th>Soort</th><th>Omschrijving</th><th class="num">Bedrag</th><th></th></tr></thead><tbody>
-      ${betalingen.map((b) => `<tr><td>${datum(b.datum)}</td><td>${esc(b.soort)}</td><td>${esc(b.omschrijving || '')}</td><td class="num">${money(b.bedrag)}</td><td><button class="btn small danger" data-delbet="${b.id}"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}
-      </tbody></table>` : '<p class="muted">Nog niets ontvangen.</p>'}
-    </div>
 
     ${pos.length ? `<div class="card"><h2>Gekoppelde inkooporders</h2><table class="list"><tbody>
       ${pos.map((p) => `<tr class="click" onclick="location.hash='#/inkoop/${p.id}'"><td><b>${p.ordernummer}</b></td><td>${esc(p.leveranciers?.naam)}</td><td>${badge(PO_STATUS, p.status)}</td></tr>`).join('')}
@@ -263,6 +306,22 @@ export async function renderDetail(c, [id]) {
     check(await sb.from('verkoop_betalingen').delete().eq('id', b.dataset.delbet)); reload();
   });
 
+  // ---- knoppen die een stap uit de voortgang starten ----
+  c.addEventListener('click', (e) => { const b = e.target.closest('[data-klik]'); if (b) $(b.dataset.klik, c)?.click(); });
+
+  // ---- andere klant kiezen (bestaand of nieuw intypen) ----
+  $('#klantwissel', c).onclick = async () => {
+    const actief = klanten;
+    const ok = await modal({
+      title: 'Andere klant voor deze order',
+      body: klantKiezerHtml(actief, so.klant_id),
+      submitLabel: 'Klant wijzigen',
+      onOpen: klantKiezerInit,
+      onSubmit: async (v, form) => { const nk = await klantKiezerWaarde(v, form, actief); check(await sb.from('verkooporders').update({ klant_id: nk.id }).eq('id', so.id)); },
+    });
+    if (ok) { toast('Klant gewijzigd', 'ok'); reload(); }
+  };
+
   // ---- klantgegevens direct op de order aanpassen ----
   $('#klantbewerk', c).onclick = async () => {
     const ok = await modal({
@@ -285,7 +344,6 @@ export async function renderDetail(c, [id]) {
   $('#kop', c).onsubmit = async (e) => {
     e.preventDefault();
     const v = readForm(e.target);
-    v.klant_id = Number(v.klant_id);
     v.aanbetaling_pct = v.aanbetaling_pct ?? 0;
     check(await sb.from('verkooporders').update(v).eq('id', so.id));
     toast('Opgeslagen', 'ok'); reload();

@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt,
-} from '../ui.js?v=20261114112056';
+  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages,
+} from '../ui.js?v=20261114113126';
 
 const nrLabel = (s) => s.factuurnummer ? `Factuur ${s.factuurnummer}` : s.orderbev_nummer ? `Orderbevestiging ${s.orderbev_nummer}` : s.offertenummer ? `Offerte ${s.offertenummer}` : `Verkooporder (concept #${s.id})`;
 
@@ -67,7 +67,7 @@ export async function renderDetail(c, [id]) {
   setTitle(nrLabel(so));
   const [klanten, regels, betalingen, pos] = await Promise.all([
     sb.from('klanten').select('id, naam, nummer, postcode_plaats').order('naam'),
-    sb.from('verkooporder_regels').select('*, artikelen(id, artikelnummer, naam, soort, leverancier_id), inkooporder_regels(id, inkooporders(id, ordernummer, status))').eq('verkooporder_id', id).order('volgorde').order('id'),
+    sb.from('verkooporder_regels').select('*, artikelen(id, artikelnummer, naam, soort, leverancier_id, foto_pad, designs(hoofdfoto_pad, design_code_lev)), inkooporder_regels(id, inkooporders(id, ordernummer, status))').eq('verkooporder_id', id).order('volgorde').order('id'),
     sb.from('verkoop_betalingen').select('*').eq('verkooporder_id', id).order('datum'),
     sb.from('inkooporders').select('id, ordernummer, status, leveranciers(naam)').eq('verkooporder_id', id),
   ]).then((r) => r.map(check));
@@ -114,19 +114,27 @@ export async function renderDetail(c, [id]) {
     </div>
 
     <div class="card"><h2>Regels</h2>
-      <div class="table-wrap"><table class="list edit"><thead><tr><th>Artikel</th><th>Omschrijving</th><th class="num">Aantal</th><th class="num">Prijs excl. btw</th><th class="num">Korting %</th><th class="num">Totaal</th><th>In showroom</th><th>Bestellen?</th><th>Inkooporder</th><th></th></tr></thead><tbody>
-      ${regels.map((r) => { const v = vmap.get(r.artikel_id); const po = r.inkooporder_regels?.inkooporders; return `<tr data-regel="${r.id}">
-        <td>${r.artikelen ? `<a href="#/artikel/${r.artikelen.id}"><b>${r.artikelen.artikelnummer}</b></a><br><span class="small muted">${esc(SOORT_ARTIKEL[r.artikelen.soort])}</span>` : '<span class="muted">vrije regel</span>'}</td>
-        <td style="min-width:220px"><textarea data-f="omschrijving" rows="3">${esc(r.omschrijving || '')}</textarea></td>
-        <td class="num" style="width:80px"><input type="number" step="any" data-f="aantal" value="${r.aantal}"></td>
-        <td class="num" style="width:120px"><input type="number" step="0.01" data-f="prijs" value="${r.prijs}"></td>
-        <td class="num" style="width:80px"><input type="number" step="0.01" data-f="korting_pct" value="${r.korting_pct}"></td>
-        <td class="num">${money(r.aantal * r.prijs * (1 - r.korting_pct / 100))}</td>
-        <td>${r.artikelen && r.artikelen.soort !== 'dienst' ? num(v?.in_showroom ?? 0) : ''}${r.geleverd ? '<br><span class="badge green">geleverd</span>' : ''}</td>
-        <td>${r.artikelen && r.artikelen.soort !== 'dienst' ? `<input type="checkbox" data-f="bestellen" ${r.bestellen ? 'checked' : ''} ${r.inkoopregel_id ? 'disabled' : ''} style="width:auto">` : ''}</td>
-        <td>${po ? `<a href="#/inkoop/${po.id}">${po.ordernummer}</a><br>${badge(PO_STATUS, po.status)}` : ''}</td>
-        <td>${r.geleverd || r.inkoopregel_id ? '' : `<button class="btn small danger" data-delregel="${r.id}"><i data-lucide="trash-2"></i></button>`}</td></tr>`; }).join('')}
-      </tbody></table></div>
+      <div class="lines">
+      ${regels.length ? regels.map((r) => { const v = vmap.get(r.artikel_id); const po = r.inkooporder_regels?.inkooporders; const a = r.artikelen; const fysiek = a && a.soort !== 'dienst';
+        const foto = a?.foto_pad || a?.designs?.hoofdfoto_pad; return `<div class="line" data-regel="${r.id}">
+        <div class="line-foto">${foto ? `<img data-path="${esc(foto)}" alt="">` : '<span class="line-nofoto"><i data-lucide="image-off"></i></span>'}</div>
+        <div class="line-main">
+          <div class="line-kop">${a ? `<a href="#/artikel/${a.id}" class="line-nr">${a.artikelnummer}</a><span class="line-naam">${esc(a.naam)}</span><span class="badge">${esc(SOORT_ARTIKEL[a.soort])}</span>` : '<span class="line-naam muted">Vrije regel</span>'}</div>
+          <label class="line-lbl">Omschrijving op documenten<textarea data-f="omschrijving" rows="2">${esc(r.omschrijving || '')}</textarea></label>
+        </div>
+        <div class="line-nums">
+          <label class="line-lbl">Aantal<input type="number" step="any" data-f="aantal" value="${r.aantal}"></label>
+          <label class="line-lbl">Prijs excl. btw<input type="number" step="0.01" data-f="prijs" value="${r.prijs}"></label>
+          <label class="line-lbl">Korting %<input type="number" step="0.01" data-f="korting_pct" value="${r.korting_pct}"></label>
+          <div class="line-lbl">Totaal<b class="line-tot">${money(r.aantal * r.prijs * (1 - r.korting_pct / 100))}</b></div>
+        </div>
+        <div class="line-side">
+          ${r.geleverd ? '<span class="badge green">Geleverd</span>' : fysiek ? `<span class="badge ${Number(v?.in_showroom ?? 0) >= r.aantal ? 'green' : ''}">${num(v?.in_showroom ?? 0)} in showroom</span>` : ''}
+          ${po ? `<a class="badge blue" href="#/inkoop/${po.id}">Inkooporder ${po.ordernummer} · ${esc(PO_STATUS[po.status][0])}</a>`
+            : fysiek && !r.geleverd ? `<label class="check small"><input type="checkbox" data-f="bestellen" ${r.bestellen ? 'checked' : ''}> Bestellen bij leverancier</label>` : ''}
+          ${r.geleverd || r.inkoopregel_id ? '' : `<button class="btn small danger" data-delregel="${r.id}" title="Regel verwijderen"><i data-lucide="trash-2"></i></button>`}
+        </div></div>`; }).join('') : '<p class="empty">Nog geen regels. Zoek hieronder een artikel om toe te voegen.</p>'}
+      </div>
       <div class="add-line">
         <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: typ artikelnummer of naam…" autocomplete="off"></div>
         <button class="btn" id="vrij"><i data-lucide="plus"></i> Vrije regel</button>
@@ -168,6 +176,8 @@ export async function renderDetail(c, [id]) {
     ${pos.length ? `<div class="card"><h2>Gekoppelde inkooporders</h2><table class="list"><tbody>
       ${pos.map((p) => `<tr class="click" onclick="location.hash='#/inkoop/${p.id}'"><td><b>${p.ordernummer}</b></td><td>${esc(p.leveranciers?.naam)}</td><td>${badge(PO_STATUS, p.status)}</td></tr>`).join('')}
     </tbody></table></div>` : ''}`;
+
+  loadImages(c);
 
   // ---- documenten ----
   const openDoc = async (soort) => {

@@ -531,6 +531,47 @@ begin
    where id = p_order and status in ('offerte','bevestigd');
 end $$;
 
+-- Verkooporder maken vanuit een inkooporder: regels worden overgenomen en gekoppeld
+create or replace function public.maak_verkooporder_voor_inkoop(p_po bigint, p_klant bigint)
+returns bigint
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  po record;
+  k record;
+  so_id bigint;
+begin
+  select * into po from public.inkooporders where id = p_po for update;
+  if not found then raise exception 'Inkooporder niet gevonden'; end if;
+  if po.verkooporder_id is not null then
+    raise exception 'Deze inkooporder is al gekoppeld aan een verkooporder';
+  end if;
+  select * into k from public.klanten where id = p_klant;
+  if not found then raise exception 'Klant niet gevonden'; end if;
+
+  insert into public.verkooporders (klant_id, taal, btw_regeling, aanbetaling_pct)
+  values (k.id, k.taal, k.btw_regeling, case when k.soort = 'particulier' then 100 else 50 end)
+  returning id into so_id;
+
+  insert into public.verkooporder_regels (verkooporder_id, artikel_id, omschrijving, aantal, prijs, bestellen, inkoopregel_id, volgorde)
+  select so_id, r.artikel_id,
+         coalesce(nullif(concat_ws(E'\n', a.naam, a.omschrijving), ''), r.omschrijving),
+         r.aantal, coalesce(round(a.verkoopprijs / 1.21, 2), 0),
+         r.artikel_id is not null, r.id, r.volgorde
+  from public.inkooporder_regels r
+  left join public.artikelen a on a.id = r.artikel_id
+  where r.inkooporder_id = p_po
+    and not exists (select 1 from public.verkooporder_regels v where v.inkoopregel_id = r.id)
+  order by r.volgorde, r.id;
+
+  update public.inkooporders set verkooporder_id = so_id, voor_wie = 'klant', klant_id = k.id where id = p_po;
+  return so_id;
+end $$;
+revoke execute on function public.maak_verkooporder_voor_inkoop(bigint, bigint) from public, anon;
+grant execute on function public.maak_verkooporder_voor_inkoop(bigint, bigint) to authenticated;
+
 -- =====================================================================
 -- Beveiliging: alleen ingelogde gebruikers (iedereen ziet alles)
 -- =====================================================================

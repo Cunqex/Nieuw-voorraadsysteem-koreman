@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml,
-} from '../ui.js?v=20261114112056';
+} from '../ui.js?v=20261114113126';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -65,6 +65,8 @@ export async function renderList(c, _p, query) {
   if (query.nieuw) { history.replaceState(null, '', '#/inkoop'); nieuw(); }
 }
 
+const STAPPEN = ['concept', 'verstuurd', 'bevestigd', 'in_productie', 'verzonden', 'ontvangen'];
+
 // Toon het klantveld alleen als de order in opdracht van een klant is
 function klantVeld(form) {
   const veld = form.querySelector('[name=klant_id]')?.closest('.field');
@@ -115,38 +117,42 @@ export async function renderDetail(c, [id]) {
   c.innerHTML = `
     <div class="page-head"><a class="btn small" href="#/inkoop"><i data-lucide="arrow-left"></i> Inkooporders</a>
       <h1>Inkooporder ${po.ordernummer}</h1>${badge(PO_STATUS, po.status)}<span class="spacer"></span>
+      ${po.verkooporder_id ? `<a class="btn" href="#/verkoop/${po.verkooporder_id}"><i data-lucide="receipt"></i> Verkooporder ${po.verkooporders?.orderbev_nummer || po.verkooporders?.offertenummer || ''}</a>`
+        : po.status !== 'geannuleerd' ? '<button class="btn" id="maakso"><i data-lucide="file-plus"></i> Verkooporder maken</button>' : ''}
       <a class="btn" href="#/doc/po/${po.id}" target="_blank"><i data-lucide="file-text"></i> Document / PDF</a>
       <button class="btn primary" id="mail"><i data-lucide="mail"></i> Mail naar leverancier</button>
     </div>
     ${geenAanbetaling ? `<div class="warnbox">Deze inkooporder hoort bij <a href="#/verkoop/${po.verkooporder_id}">verkooporder ${po.verkooporders?.orderbev_nummer || ''}</a>, maar daar is <b>nog geen aanbetaling</b> ontvangen. Verstuur pas na ontvangst van de aanbetaling.</div>` : ''}
     ${po.verkooporder_id && aanbetaald ? `<div class="help">Gekoppeld aan <a href="#/verkoop/${po.verkooporder_id}">verkooporder ${po.verkooporders?.orderbev_nummer || ''}</a> · aanbetaling ontvangen: ${money(aanbetaald)}</div>` : ''}
 
-    <div class="card"><h2>Status</h2>
-      <div class="btn-row">
-        <div class="segmented">${Object.entries(PO_STATUS).filter(([k]) => k !== 'geannuleerd').map(([k, [l]]) =>
-          `<button class="btn small ${po.status === k ? 'primary' : ''}" data-status="${k}">${l}</button>`).join('')}</div>
-        <span class="spacer"></span>
-        ${po.status !== 'geannuleerd' ? '<button class="btn small danger" data-status="geannuleerd">Annuleren</button>' : ''}
-        ${isConcept && !betalingen.length ? '<button class="btn small danger" id="del">Verwijderen</button>' : ''}
-      </div>
-      ${po.verstuurd_op ? `<p class="small muted">Verstuurd op ${datum(po.verstuurd_op)}</p>` : ''}
+    <div class="card"><h2>Status<span class="spacer"></span>
+        ${po.status !== 'geannuleerd' ? '<button class="btn small danger" data-status="geannuleerd">Annuleren</button>' : '<span class="badge red">Geannuleerd</span>'}
+        ${isConcept && !betalingen.length ? '<button class="btn small danger" id="del"><i data-lucide="trash-2"></i> Verwijderen</button>' : ''}</h2>
+      <div class="stepper">${STAPPEN.map((k, i) => { const nu = STAPPEN.indexOf(po.status); const cls = nu < 0 ? 'todo' : i < nu ? 'done' : i === nu ? 'cur' : 'todo';
+        return `<button class="stp ${cls}" data-status="${k}" title="Zet status op: ${PO_STATUS[k][0]}"><span class="stp-dot">${cls === 'done' ? '<i data-lucide="check"></i>' : i + 1}</span><span class="stp-lbl">${PO_STATUS[k][0]}</span></button>`; }).join('')}</div>
+      <p class="small muted" style="margin-top:12px">Klik op een stap om de status te wijzigen.${po.verstuurd_op ? ` Verstuurd op ${datum(po.verstuurd_op)}.` : ''}</p>
     </div>
 
-
     <div class="card"><h2>Regels</h2>
-      <div class="table-wrap"><table class="list edit"><thead><tr><th>Foto op PO</th><th>Artikel</th><th>Omschrijving (Engels)</th><th class="num">Aantal</th><th class="num">Prijs (${cur})</th><th class="num">Totaal</th><th class="num">Ontvangen</th><th></th></tr></thead><tbody>
-      ${regels.map((r) => { const opts = fotoOpties(r); return `<tr data-regel="${r.id}">
-        <td style="width:150px">${r.foto_pad ? `<img class="thumb" data-path="${esc(r.foto_pad)}" alt="">` : ''}
-          ${opts.length ? `<select data-f="foto_pad" style="margin-top:4px;font-size:12px;padding:3px"><option value="">geen foto</option>${opts.map(([p, l]) => `<option value="${esc(p)}" ${p === r.foto_pad ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}</td>
-        <td>${r.artikelen ? `<a href="#/artikel/${r.artikelen.id}"><b>${r.artikelen.artikelnummer}</b></a>${r.artikelen.designs?.design_code_lev ? `<br><span class="small muted">${esc(r.artikelen.designs.design_code_lev)}</span>` : ''}` : '<span class="muted">vrije regel</span>'}</td>
-        <td><textarea data-f="omschrijving" rows="3">${esc(r.omschrijving || '')}</textarea></td>
-        <td class="num" style="width:90px"><input type="number" step="any" data-f="aantal" value="${r.aantal}"></td>
-        <td class="num" style="width:120px"><input type="number" step="0.01" data-f="prijs" value="${r.prijs}"></td>
-        <td class="num">${money(r.aantal * r.prijs, cur)}</td>
-        <td class="num">${num(r.aantal_ontvangen)} / ${num(r.aantal)}
-          ${r.aantal_ontvangen < r.aantal && po.status !== 'geannuleerd' ? `<br><button class="btn small ok" data-ontvang="${r.id}" data-rest="${r.aantal - r.aantal_ontvangen}" style="margin-top:4px">Ontvangen</button>` : ''}</td>
-        <td>${r.aantal_ontvangen > 0 ? '' : `<button class="btn small danger" data-delregel="${r.id}"><i data-lucide="trash-2"></i></button>`}</td></tr>`; }).join('')}
-      </tbody></table></div>
+      <div class="lines">
+      ${regels.length ? regels.map((r) => { const opts = fotoOpties(r); const rest = r.aantal - r.aantal_ontvangen; return `<div class="line" data-regel="${r.id}">
+        <div class="line-foto">${r.foto_pad ? `<img data-path="${esc(r.foto_pad)}" alt="">` : '<span class="line-nofoto"><i data-lucide="image-off"></i></span>'}
+          ${opts.length ? `<select data-f="foto_pad" title="Foto op de inkooporder"><option value="">Geen foto</option>${opts.map(([p, l]) => `<option value="${esc(p)}" ${p === r.foto_pad ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}</div>
+        <div class="line-main">
+          <div class="line-kop">${r.artikelen ? `<a href="#/artikel/${r.artikelen.id}" class="line-nr">${r.artikelen.artikelnummer}</a><span class="line-naam">${esc(r.artikelen.naam)}</span>${r.artikelen.designs?.design_code_lev ? `<span class="badge blue">Design ${esc(r.artikelen.designs.design_code_lev)}</span>` : ''}` : '<span class="line-naam muted">Vrije regel</span>'}</div>
+          <label class="line-lbl">Omschrijving op de inkooporder (Engels)<textarea data-f="omschrijving" rows="2">${esc(r.omschrijving || '')}</textarea></label>
+        </div>
+        <div class="line-nums">
+          <label class="line-lbl">Aantal<input type="number" step="any" data-f="aantal" value="${r.aantal}"></label>
+          <label class="line-lbl">Prijs (${cur})<input type="number" step="0.01" data-f="prijs" value="${r.prijs}"></label>
+          <div class="line-lbl">Totaal<b class="line-tot">${money(r.aantal * r.prijs, cur)}</b></div>
+        </div>
+        <div class="line-side">
+          ${rest <= 0 ? '<span class="badge green">Ontvangen</span>' : r.aantal_ontvangen > 0 ? `<span class="badge orange">${num(r.aantal_ontvangen)} van ${num(r.aantal)} ontvangen</span>` : '<span class="badge">Nog niet ontvangen</span>'}
+          ${rest > 0 && po.status !== 'geannuleerd' ? `<button class="btn small ok" data-ontvang="${r.id}" data-rest="${rest}"><i data-lucide="package-check"></i> Ontvangst boeken</button>` : ''}
+          ${r.aantal_ontvangen > 0 ? '' : `<button class="btn small danger" data-delregel="${r.id}" title="Regel verwijderen"><i data-lucide="trash-2"></i></button>`}
+        </div></div>`; }).join('') : '<p class="empty">Nog geen regels. Zoek hieronder een artikel om toe te voegen.</p>'}
+      </div>
       <div class="add-line">
         <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: typ artikelnummer of naam…" autocomplete="off"></div>
         <button class="btn" id="vrij"><i data-lucide="plus"></i> Vrije regel</button>
@@ -229,6 +235,22 @@ export async function renderDetail(c, [id]) {
     check(await sb.from('verkooporder_regels').update({ inkoopregel_id: null }).in('inkoopregel_id', regels.map((r) => r.id).concat([0])));
     check(await sb.from('inkooporders').delete().eq('id', po.id));
     location.hash = '#/inkoop';
+  });
+
+  // ---- verkooporder maken vanuit deze inkooporder ----
+  $('#maakso', c)?.addEventListener('click', async () => {
+    if (!regels.length) { toast('Voeg eerst regels toe aan de inkooporder', 'error'); return; }
+    const actief = check(await sb.from('klanten').select('id, naam, nummer, postcode_plaats').eq('actief', true).order('naam'));
+    const soId = await modal({
+      title: 'Verkooporder maken van deze inkooporder',
+      body: `<p>De ${regels.length} regel${regels.length === 1 ? '' : 's'} worden overgenomen op een nieuwe verkooporder en aan deze inkooporder gekoppeld.
+        De verkoopprijs komt van het artikel; je kunt hem daarna aanpassen.</p>` + formFields([
+        { name: 'klant_id', label: 'Klant / architect *', type: 'combo', required: true, placeholder: 'Kies…', options: actief.map(klantOpt), default: po.klant_id, full: true },
+      ]) + '<p class="small muted">De leverancier ziet de klantnaam niet; die staat nooit op de inkooporder.</p>',
+      submitLabel: 'Verkooporder maken',
+      onSubmit: async (v) => check(await sb.rpc('maak_verkooporder_voor_inkoop', { p_po: po.id, p_klant: Number(v.klant_id) })),
+    });
+    if (soId) { toast('Verkooporder aangemaakt', 'ok'); location.hash = '#/verkoop/' + soId; }
   });
 
   // ---- mailen ----

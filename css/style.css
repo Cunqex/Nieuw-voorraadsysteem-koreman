@@ -340,3 +340,53 @@ table.list.edit td.num:has(input) { padding-top: 12px; }
 select { appearance: none; -webkit-appearance: none; padding-right: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%239aa1c2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; cursor: pointer; }
 select:hover { border-color: var(--navy-200); }
 .art-img img { position: absolute; inset: 0; padding: 10px; }
+
+/* ---------- Orderregels als kaarten ---------- */
+.lines { display: flex; flex-direction: column; gap: 12px; }
+.line { display: grid; grid-template-columns: 104px minmax(220px, 1fr) auto minmax(170px, auto); gap: 16px 20px; align-items: start; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; transition: border-color .15s; }
+.line:hover, .line:focus-within { border-color: var(--navy-200); }
+.line-foto { display: flex; flex-direction: column; gap: 6px; }
+.line-foto img, .line-nofoto { width: 104px; height: 104px; border-radius: 10px; background: var(--navy-50); border: 1px solid var(--line); object-fit: contain; display: flex; align-items: center; justify-content: center; color: var(--navy-200); }
+.line-foto img:not([src]) { visibility: hidden; }
+.line-foto select { height: 30px; font-size: 12px; padding: 0 26px 0 8px; background-position: right 6px center; }
+.line-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.line-kop { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 26px; }
+.line-nr { font-weight: 700; font-size: 15px; color: var(--navy-950); font-variant-numeric: tabular-nums; }
+.line-naam { font-weight: 600; font-size: 15px; color: var(--navy-900); }
+.line-lbl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500; color: var(--navy-400); }
+.line-lbl textarea { min-height: 56px; font-size: 13.5px; }
+.line-nums { display: flex; gap: 10px; align-items: flex-start; }
+.line-nums input { width: 96px; padding: 0 10px; text-align: right; font-variant-numeric: tabular-nums; }
+.line-nums label:first-child input { width: 72px; }
+.line-tot { display: flex; align-items: center; justify-content: flex-end; height: 40px; min-width: 104px; font-size: 15px; font-weight: 700; color: var(--navy-950); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.line-nums .line-lbl:last-child { text-align: right; }
+.line-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.line-side label.check { min-height: 0; }
+.line-side .btn.danger { margin-top: auto; }
+.lines + .add-line { margin-top: 12px; }
+@media (max-width: 1100px) {
+  .line { grid-template-columns: 80px 1fr; }
+  .line-foto img, .line-nofoto { width: 80px; height: 80px; }
+  .line-nums, .line-side { grid-column: 1 / -1; }
+  .line-side { flex-direction: row; align-items: center; flex-wrap: wrap; justify-content: flex-start; }
+  .line-side .btn.danger { margin: 0 0 0 auto; }
+}
+
+/* ---------- Status-stappen (inkooporder) ---------- */
+.stepper { display: flex; align-items: flex-start; }
+.stp { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 4px 6px; border: 0; background: none; font: inherit; cursor: pointer; color: var(--navy-400); border-radius: 10px; min-width: 0; }
+.stp::before { content: ''; position: absolute; top: 19px; right: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0; }
+.stp:first-child::before { display: none; }
+.stp.done::before, .stp.cur::before { background: var(--green); }
+.stp-dot { position: relative; z-index: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; background: #fff; border: 2px solid var(--line); color: var(--navy-400); transition: transform .15s, border-color .15s; }
+.stp-dot svg { width: 16px; height: 16px; stroke-width: 3; }
+.stp-lbl { font-size: 13px; font-weight: 500; text-align: center; line-height: 1.25; }
+.stp.done .stp-dot { background: var(--green); border-color: var(--green); color: #fff; }
+.stp.done { color: var(--green-fg); }
+.stp.cur .stp-dot { background: var(--navy-950); border-color: var(--navy-950); color: #fff; box-shadow: 0 0 0 4px rgb(2 8 38 / .12); }
+.stp.cur { color: var(--navy-950); }
+.stp.cur .stp-lbl { font-weight: 700; }
+.stp:hover .stp-dot { transform: scale(1.08); border-color: var(--navy-400); }
+.stp:hover { color: var(--navy-900); }
+.card h2 .badge { font-weight: 500; }
+#toast-root { top: 76px; bottom: auto; }

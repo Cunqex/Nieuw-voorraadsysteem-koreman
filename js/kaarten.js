@@ -3,7 +3,7 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261114161316';
+import { esc, $, modal, toast } from './ui.js?v=20261114161541';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -91,7 +91,7 @@ function collectieLogo(col) {
     <text x="100" y="69" text-anchor="middle" font-family="Georgia,serif" font-size="7.5" letter-spacing="2.4" fill="#fff">COLLECTIE</text></svg>`;
 }
 // Het kruisjespatroon uit het Koreman-logo, groot en licht op de achtergrond (zoals op de bestaande wandkaarten)
-const KRUISJES = `<svg class="kruis" viewBox="0 0 676 230" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#8fb0a4" stroke-opacity=".55" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="miter">
+const KRUISJES = `<svg class="kruis" viewBox="0 0 676 230" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#8fb0a4" stroke-opacity=".3" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="miter">
   <polyline points="0,2 338,228 676,2"/><polyline points="0,152 226,2 563,228"/><polyline points="113,228 450,2 676,152"/></g></svg>`;
 function wandkaart(k, logoUrl) {
   const rij = (l, v) => (v ? `<div class="r"><span>${l}</span><span>${esc(v)}</span></div>` : '');

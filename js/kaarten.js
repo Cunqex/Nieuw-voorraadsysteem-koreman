@@ -3,8 +3,8 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261114164040';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261114164040';
+import { esc, $, modal, toast } from './ui.js?v=20261114164257';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261114164257';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -100,7 +100,7 @@ function wandkaart(k, logoUrl) {
 }
 
 // ---------- Printen in een verborgen frame (eigen papierformaat per soort kaart) ----------
-function printHtml(inhoud, css, pagina) {
+export function printHtml(inhoud, css, pagina) {
   const f = document.createElement('iframe');
   f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
   document.body.appendChild(f);

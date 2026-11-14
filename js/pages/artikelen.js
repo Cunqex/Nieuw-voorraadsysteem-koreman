@@ -2,8 +2,8 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261114164040';
-import { kaartenModal } from '../kaarten.js?v=20261114164040';
+} from '../ui.js?v=20261114164257';
+import { kaartenModal } from '../kaarten.js?v=20261114164257';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -13,6 +13,7 @@ export async function renderList(c, _p, query) {
   const levs = check(await sb.from('leveranciers').select('id, naam, nummer, land, valuta').order('naam'));
   c.innerHTML = `
     <div class="page-head"><h1>Artikelen</h1><span class="spacer"></span>
+      <button class="btn" id="stalenvel" title="Meerdere staalkaarten kiezen en op A4 printen (6 per vel)"><i data-lucide="printer"></i> Staalkaarten printen</button>
       <button class="btn" id="voorraadlijst" title="Download een overzicht van alles wat op voorraad ligt"><i data-lucide="download"></i> Voorraadlijst</button>
       <div class="segmented" id="view">
         <button class="btn small" data-view="kaart" title="Kaartjes"><i data-lucide="layout-grid"></i></button>
@@ -109,6 +110,7 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261114164257'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -352,7 +354,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261114164040');
+      const { artikelPicker } = await import('../ui.js?v=20261114164257');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

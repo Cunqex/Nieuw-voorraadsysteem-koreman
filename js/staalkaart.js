@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261114163500';
+import { sb, check, esc, $, toast } from './ui.js?v=20261114164040';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -93,9 +93,9 @@ function barcodeSvg(tekst) {
 // ---------- De kaart ----------
 export const SK_CSS = `
 .sk{--w:100mm;--h:90mm;--u:calc(var(--w) / 100);position:relative;width:var(--w);height:var(--h);background:#fff;overflow:hidden;color:#1d1d1b;font-family:Georgia,"Times New Roman",serif;font-feature-settings:normal}
-.sk .logo{position:absolute;left:50%;top:calc(var(--u)*4.5);width:calc(var(--u)*50);transform:translateX(-50%)}
-.sk .titel{position:absolute;left:calc(var(--u)*6);right:calc(var(--u)*6);top:calc(var(--u)*26.5);text-align:center;font-size:calc(var(--u)*7);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sk .rijen{position:absolute;left:calc(var(--u)*9);right:calc(var(--u)*9);top:calc(var(--u)*36.5);border-top:calc(var(--u)*.25) solid #9a9a9a}
+.sk .logo{position:absolute;left:50%;top:calc(var(--u)*4);width:calc(var(--u)*36);transform:translateX(-50%)}
+.sk .titel{position:absolute;left:calc(var(--u)*6);right:calc(var(--u)*6);top:calc(var(--u)*19.5);text-align:center;font-size:calc(var(--u)*7);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk .rijen{position:absolute;left:calc(var(--u)*9);right:calc(var(--u)*9);top:calc(var(--u)*29.5);border-top:calc(var(--u)*.25) solid #9a9a9a}
 .sk .r{display:grid;grid-template-columns:calc(var(--u)*30) 1fr;align-items:center;height:calc(var(--u)*5);border-bottom:calc(var(--u)*.25) solid #9a9a9a;font-size:calc(var(--u)*3.4);white-space:nowrap;overflow:hidden}
 .sk .r b{font-weight:700;font-size:calc(var(--u)*3.7)}
 .sk .qr{position:absolute;left:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*15);height:calc(var(--u)*15)}
@@ -105,7 +105,7 @@ export const SK_CSS = `
 export function staalkaart(k, logoUrl, qr) {
   const rij = (l, v) => (v ? `<div class="r"><b>${l}</b><span>${esc(v)}</span></div>` : '');
   return `<div class="sk"><img class="logo" src="${logoUrl}" alt="Koreman Exclusive Carpets"><div class="titel">${esc(k.titel)}</div>
-    <div class="rijen">${rij('Collection:', k.collectie)}${rij('Material:', k.materiaal)}${rij('Method:', k.methode)}${rij('Knot density:', k.knoop)}${rij('Price:', k.prijs)}${rij('Custom sizes:', k.maatwerk)}</div>
+    <div class="rijen">${rij('Collection:', k.collectie)}${rij('Color:', k.kleur)}${rij('Material:', k.materiaal)}${rij('Method:', k.methode)}${rij('Knot density:', k.knoop)}${rij('Price:', k.prijs)}${rij('Custom sizes:', k.maatwerk)}</div>
     ${k.handle ? qrSvg(qr, productUrl(k.handle)) : ''}<div class="site">koremanmaastricht.nl</div>
     ${k.nr ? `<div class="code">${esc(k.nr)}${barcodeSvg(k.nr)}</div>` : ''}</div>`;
 }
@@ -118,10 +118,17 @@ export function staalPaneHtml() {
       <div class="kt-form">
         <label>Product op de website (B2B)<input id="sk-zoek" list="sk-lijst" placeholder="Typ een naam, bv. Umber" autocomplete="off"></label>
         <datalist id="sk-lijst"></datalist>
-        ${veld('sk-titel', 'Titel')}${veld('sk-collectie', 'Collection')}${veld('sk-materiaal', 'Material')}${veld('sk-methode', 'Method')}
+        ${veld('sk-titel', 'Titel')}${veld('sk-collectie', 'Collection')}${veld('sk-kleur', 'Color', 'placeholder="bv. 4M17"')}${veld('sk-materiaal', 'Material')}${veld('sk-methode', 'Method')}
         ${veld('sk-knoop', 'Knot density')}${veld('sk-prijs', 'Price')}${veld('sk-maatwerk', 'Custom sizes')}
         <div class="kt-row"><label style="flex:1">Breedte (mm)<input id="sk-w" type="number" min="50" max="300"></label><label style="flex:1">Hoogte (mm)<input id="sk-h" type="number" min="50" max="300"></label><label style="width:70px">Aantal<input id="sk-n" type="number" min="1" value="1"></label></div>
-        <button type="button" class="btn primary" id="sk-print" style="width:100%"><i data-lucide="printer"></i> Print staalkaart</button>
+        <button type="button" class="btn primary" id="sk-print" style="width:100%"><i data-lucide="printer"></i> Print alleen deze kaart</button>
+        <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
+          <b style="font-size:13px">Meerdere stalen op één A4-vel</b>
+          <p class="small muted" style="margin:2px 0 8px">Zet deze kaart op het vel, open het volgende artikel en doe hetzelfde. Bij 100 × 90 mm passen er 6 op een vel.</p>
+          <div class="kt-row"><button type="button" class="btn" id="sk-op-vel" style="flex:1"><i data-lucide="plus"></i> Zet op vel</button>
+            <button type="button" class="btn primary" id="sk-print-vel" style="flex:1"><i data-lucide="printer"></i> Print vel</button></div>
+          <div id="sk-vel" class="small" style="margin-top:8px"></div>
+        </div>
       </div></div>`;
 }
 
@@ -132,10 +139,11 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   let qr = null; let lijst = [];
   zet('sk-w', onthoud.get('sk-w', '100')); zet('sk-h', onthoud.get('sk-h', '90'));
   zet('sk-titel', a.naam || '');
+  zet('sk-kleur', a.kleurcode || '');
   zet('sk-materiaal', naarEngels(a.materiaal)); zet('sk-methode', naarEngels(a.techniek));
   if (a.verkoopprijs_m2) zet('sk-prijs', `€ ${Number(a.verkoopprijs_m2).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} / m²`);
   const status = (t) => { $('#sk-status', form).innerHTML = t; };
-  const lees = () => ({ handle, nr: String(a.artikelnummer ?? ''), titel: v('sk-titel'), collectie: v('sk-collectie'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 100, h: Number(v('sk-h')) || 90, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
+  const lees = () => ({ handle, nr: String(a.artikelnummer ?? ''), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 100, h: Number(v('sk-h')) || 90, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
   const kaartHtml = (k) => staalkaart(k, logoUrl, qr).replace('class="sk"', `class="sk" style="--w:${k.w}mm;--h:${k.h}mm"`);
   const toon = () => {
     const el = $('#sk-prev', form); el.style.transform = 'none'; el.innerHTML = kaartHtml(lees());
@@ -179,13 +187,47 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
     if (p) laad(p.handle); else status('Geen B2B-product met die naam gevonden.');
   });
   form.addEventListener('input', (e) => { if (e.target.id?.startsWith('sk-') && e.target.id !== 'sk-zoek') toon(); });
-  $('#sk-print', form).onclick = async () => {
-    const k = lees();
-    onthoud.set('sk-w', String(k.w)); onthoud.set('sk-h', String(k.h));
+  // ---- vel met meerdere kaarten (bewaard in deze browser tot je print of leegmaakt) ----
+  const velLees = () => { try { return JSON.parse(localStorage.getItem('kaart-sk-vel') || '[]'); } catch { return []; } };
+  const velZet = (l) => { try { localStorage.setItem('kaart-sk-vel', JSON.stringify(l)); } catch { /* geen opslag */ } };
+  const perVel = (w, h) => Math.max(1, Math.floor(200 / w)) * Math.max(1, Math.floor(287 / h));
+  const toonVel = () => {
+    const l = velLees(); const k = lees(); const n = perVel(k.w, k.h);
+    $('#sk-print-vel', form).innerHTML = `<i data-lucide="printer"></i> Print vel (${l.length})`;
+    $('#sk-vel', form).innerHTML = l.length ? `<div class="muted">${l.length} kaart${l.length === 1 ? '' : 'en'} klaar${l.length > n ? ` (${Math.ceil(l.length / n)} vellen)` : ` – nog ${n - l.length} plek${n - l.length === 1 ? '' : 'ken'} vrij`}:</div>`
+      + l.map((x, i) => `<div style="display:flex;gap:6px;align-items:center">${esc(x.nr)} ${esc(x.titel)}<span class="spacer" style="flex:1"></span><button type="button" class="btn small" data-vel-weg="${i}">Weg</button></div>`).join('')
+      + '<button type="button" class="btn small" id="sk-vel-leeg" style="margin-top:6px">Vel leegmaken</button>' : '<span class="muted">Nog geen kaarten op het vel.</span>';
+    window.lucide?.createIcons();
+  };
+  const bewaarKoppeling = async () => {
     if (handle && handle !== (a.website_handle || '')) {
       check(await sb.from('artikelen').update({ website_handle: handle }).eq('id', a.id));
       a.website_handle = handle; toast('Koppeling met de website opgeslagen', 'ok');
     }
+  };
+  $('#sk-op-vel', form).onclick = async () => {
+    const k = lees(); onthoud.set('sk-w', String(k.w)); onthoud.set('sk-h', String(k.h));
+    await bewaarKoppeling();
+    const l = velLees(); l.push(k); velZet(l); toonVel(); toast(`Op het vel gezet (${l.length})`, 'ok');
+  };
+  form.addEventListener('click', (e) => {
+    const weg = e.target.closest('[data-vel-weg]');
+    if (weg) { const l = velLees(); l.splice(Number(weg.dataset.velWeg), 1); velZet(l); toonVel(); }
+    if (e.target.closest('#sk-vel-leeg')) { velZet([]); toonVel(); }
+  });
+  $('#sk-print-vel', form).onclick = () => {
+    const l = velLees(); if (!l.length) { toast('Zet eerst kaarten op het vel', 'error'); return; }
+    const { w, h } = lees(); const cols = Math.max(1, Math.floor(200 / w)); const rows = Math.max(1, Math.floor(287 / h)); const n = cols * rows;
+    const vellen = []; for (let i = 0; i < l.length; i += n) vellen.push(l.slice(i, i + n));
+    const css = `${SK_CSS}.blad{width:210mm;height:297mm;display:grid;grid-template-columns:repeat(${cols},${w}mm);grid-auto-rows:${h}mm;justify-content:center;align-content:center}
+      .blad .sk{outline:.2mm dashed #b5b5b5;outline-offset:0}`;
+    printHtml(vellen.map((vel) => `<div class="vel blad">${vel.map((k) => kaartHtml({ ...k, w, h })).join('')}</div>`).join(''), css, '210mm 297mm');
+  };
+  toonVel();
+  $('#sk-print', form).onclick = async () => {
+    const k = lees();
+    onthoud.set('sk-w', String(k.w)); onthoud.set('sk-h', String(k.h));
+    await bewaarKoppeling();
     printHtml(Array(k.n).fill(`<div class="vel">${kaartHtml(k)}</div>`).join(''), SK_CSS, `${k.w}mm ${k.h}mm`);
   };
   return toon;

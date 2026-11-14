@@ -2,8 +2,8 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261114163500';
-import { kaartenModal } from '../kaarten.js?v=20261114163500';
+} from '../ui.js?v=20261114164040';
+import { kaartenModal } from '../kaarten.js?v=20261114164040';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -352,7 +352,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261114163500');
+      const { artikelPicker } = await import('../ui.js?v=20261114164040');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

@@ -13,3 +13,7 @@ create table if not exists public.artikel_website (
 );
 -- Functies materiaal_uit_tekst(text, proza) en techniek_uit_tekst(text): zie Supabase.
 -- Backup van materiaal/techniek/foto/website/design vóór de koppeling: public.backup_artikelen_20261117
+
+-- Custom (maatwerk) prijzen
+alter table public.website_producten add column if not exists custom_m2 numeric, add column if not exists b2b_prijs_m2 numeric, add column if not exists b2b_custom_m2 numeric;
+alter table public.artikelen add column if not exists custom boolean not null default false, add column if not exists custom_prijs_m2 numeric;

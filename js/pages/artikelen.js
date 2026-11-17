@@ -2,8 +2,8 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261117154112';
-import { kaartenModal } from '../kaarten.js?v=20261117154112';
+} from '../ui.js?v=20261117161355';
+import { kaartenModal } from '../kaarten.js?v=20261117161355';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -91,7 +91,7 @@ export async function renderList(c, _p, query) {
   $('#sel-wis', c).onclick = () => { gekozen.clear(); werkSelectieBij(); };
   $('#sel-alles', c).onclick = () => { zichtbaar.forEach((r) => gekozen.set(r.id, r.artikelnummer)); werkSelectieBij(); };
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261117154112');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261117161355');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -127,7 +127,7 @@ export async function renderList(c, _p, query) {
     let ids = null;
     if ($('#opvoorraad', c).checked) ids = (await alles(() => sb.from('v_voorraad').select('artikel_id').gt('voorraad_totaal', 0))).map((v) => v.artikel_id);
     const maak = () => {
-      let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, actief, foto_pad, collecties, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
+      let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, actief, foto_pad, collecties, custom, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
         .order('artikelnummer', { ascending: false }).order('id');
       if (q) query = /^\d+$/.test(q) ? query.or(`artikelnummer.ilike.${q}%,productnr_lev.ilike.%${q}%`) : query.or(`naam.ilike.%${q}%,omschrijving.ilike.%${q}%,productnr_lev.ilike.%${q}%`);
       if ($('#soort', c).value) query = query.eq('soort', $('#soort', c).value);
@@ -161,7 +161,7 @@ export async function renderList(c, _p, query) {
       $('#kaarten', c).innerHTML = rows.map((r) => `
         <a class="art-card" href="#/artikel/${r.id}">
           <div class="art-img">${foto(r) ? `<img data-path="${esc(foto(r))}" alt="" loading="lazy">` : '<i data-lucide="image-off"></i>'}
-            <span class="art-soort">${esc(SOORT_ARTIKEL[r.soort])}</span>${vinkje(r)}</div>
+            <span class="art-soort">${esc(SOORT_ARTIKEL[r.soort])}${r.custom ? ' · Custom' : ''}</span>${vinkje(r)}</div>
           <div class="art-body">
             <div class="art-nr">${r.artikelnummer}${r.actief ? '' : ' · inactief'}</div>
             <div class="art-naam">${esc(r.naam)}</div>
@@ -189,9 +189,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117154112'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117154112'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261117154112'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117161355'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117161355'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261117161355'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -295,7 +295,10 @@ export async function renderDetail(c, [idStr], query) {
       </div>
       <div class="card"><h2>Maat en eigenschappen</h2>${formFields(fields2, a)}
         <p class="small muted" id="opp">${m2(a) ? `Oppervlakte: ${num(m2(a), 2)} m²` : ''}</p></div>
-      <div class="card"><h2>Prijzen</h2>${formFields(fields3, a)}
+      <div class="card"><h2>Prijzen</h2>
+        <div class="custom-box"><label class="check"><input type="checkbox" name="custom" ${a.custom ? 'checked' : ''}> <b>Custom (maatwerk)</b> – verkoopprijs berekenen met de customprijs per m² van de website</label>
+          <div id="custom-info" class="small" style="margin-top:6px"></div></div>
+        ${formFields(fields3, a)}
         <p class="small muted">Vul je een m²-prijs in en is de maat bekend, dan rekent de app de stukprijs uit (en andersom).</p></div>
       <div class="btn-row" style="margin-bottom:16px"><button class="btn primary" type="submit">Opslaan</button></div>
     </form>
@@ -323,6 +326,55 @@ export async function renderDetail(c, [idStr], query) {
     form[stuk].addEventListener('input', () => { const ar = area(); if (ar && form[stuk].value) form[perm2].value = (Number(form[stuk].value) / ar).toFixed(2); });
   };
   link('inkoopprijs', 'inkoopprijs_m2');
+  // ---- Custom (maatwerk): customprijs per m² van de website ----
+  let customM2 = a.custom_prijs_m2 != null ? Number(a.custom_prijs_m2) : null; let customBron = '';
+  const zoekCustomprijs = async () => {
+    const handles = [...new Set([form.website_handle?.value?.trim().replace(/^.*\/products\//, ''), a.designs?.website_handle].filter(Boolean))];
+    if (!handles.length) return null;
+    const { data } = await sb.from('website_producten').select('handle, titel, b2b, custom_m2, b2b_custom_m2').in('handle', handles);
+    // eerst live van de website (actueel), anders wat er bij het ophalen is opgeslagen
+    for (const h of handles) {
+      const opgeslagen = (data || []).find((x) => x.handle === h);
+      let m2 = null; let soort = '';
+      try {
+        const pj = await (await fetch(`https://www.koremanmaastricht.nl/products/${h}.js`)).json();
+        const tag = (pj.tags || []).map((t) => String(t).match(/^m2prijs-(\d+(?:[.,]\d+)?)$/i)).find(Boolean);
+        if (tag) { m2 = Number(tag[1].replace(',', '.')); soort = 'customprijs'; }
+        else if ((pj.tags || []).some((t) => String(t).toLowerCase() === 'b2b')) {
+          const d = new DOMParser().parseFromString(await (await fetch(`https://www.koremanmaastricht.nl/products/${h}`)).text(), 'text/html');
+          const mf = JSON.parse(d.querySelector('#stape-product-data')?.textContent || '{}').metafields?.custom || {};
+          const g = String(mf.prijs_m2_maatwerk || '').replace(/\./g, '').replace(',', '.').match(/\d+(\.\d+)?/);
+          if (g) { m2 = Number(g[0]); soort = 'B2B-prijs custom sizes'; }
+        }
+      } catch { /* website niet bereikbaar: opgeslagen prijs gebruiken */ }
+      if (m2 == null && opgeslagen) {
+        if (opgeslagen.custom_m2 != null) { m2 = Number(opgeslagen.custom_m2); soort = 'customprijs'; }
+        else if (opgeslagen.b2b_custom_m2 != null) { m2 = Number(opgeslagen.b2b_custom_m2); soort = 'B2B-prijs custom sizes'; }
+      }
+      if (m2 != null) return { m2, bron: `${soort} van <a href="https://www.koremanmaastricht.nl/products/${esc(h)}" target="_blank" rel="noopener">${esc(opgeslagen?.titel || h)}</a>` };
+    }
+    return null;
+  };
+  const rekenCustom = () => {
+    const info = $('#custom-info', c);
+    if (!form.custom.checked) { info.innerHTML = ''; return; }
+    if (customM2 == null) { info.innerHTML = '<span style="color:var(--red-fg)">Geen customprijs gevonden op de website. Koppel het artikel aan een product (veld "Product op website") of vul de m²-prijs zelf in.</span>'; return; }
+    const ar = area();
+    form.verkoopprijs_m2.value = customM2.toFixed(2);
+    if (ar) form.verkoopprijs.value = (customM2 * ar).toFixed(2);
+    info.innerHTML = `Customprijs <b>${money(customM2)} per m²</b>${customBron ? ` (${customBron})` : ''}${ar ? ` × ${num(ar, 2)} m² = <b>${money(customM2 * ar)}</b>` : ' – vul lengte en breedte in om de prijs te berekenen'}.
+      <a href="#" id="custom-vernieuw">Opnieuw ophalen</a>`;
+    $('#custom-vernieuw', c).onclick = (e) => { e.preventDefault(); haalCustom(); };
+  };
+  const haalCustom = async () => {
+    $('#custom-info', c).textContent = 'Customprijs ophalen van de website…';
+    const r = await zoekCustomprijs().catch(() => null);
+    if (r) { customM2 = r.m2; customBron = r.bron; }
+    rekenCustom();
+  };
+  form.custom.addEventListener('change', () => { if (form.custom.checked) haalCustom(); else rekenCustom(); });
+  ['lengte_cm', 'breedte_cm'].forEach((n) => form[n].addEventListener('input', () => { if (form.custom.checked) rekenCustom(); }));
+  if (a.custom) haalCustom();
   link('verkoopprijs', 'verkoopprijs_m2');
   ['lengte_cm', 'breedte_cm'].forEach((n) => form[n].addEventListener('input', () => {
     const ar = area(); $('#opp', c).textContent = ar ? `Oppervlakte: ${num(ar, 2)} m²` : '';
@@ -336,6 +388,7 @@ export async function renderDetail(c, [idStr], query) {
     e.preventDefault();
     const v = readForm(form);
     v.collecties = collecties;
+    v.custom_prijs_m2 = v.custom && customM2 != null ? customM2 : null;
     v.design_id = v.design_id ? Number(v.design_id) : null;
     if (v.website_handle) v.website_handle = v.website_handle.replace(/^.*\/products\//, '').replace(/[?#/].*$/, '');
     v.leverancier_id = v.leverancier_id ? Number(v.leverancier_id) : null;
@@ -451,7 +504,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261117154112');
+      const { artikelPicker } = await import('../ui.js?v=20261117161355');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

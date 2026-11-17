@@ -3,8 +3,8 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261117141633';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261117141633';
+import { esc, $, modal, toast } from './ui.js?v=20261117141822';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261117141822';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -262,15 +262,15 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261117141633');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261117141822');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',
     wide: true,
-    body: `<style>${WK_CSS}.wv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:12px}
+    body: `<style>${WK_CSS}.wv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;margin-top:12px}
         .wv-item{border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--canvas)}
         .wv-item .schaal{transform-origin:top left}.wv-item .wrap{overflow:hidden;background:#fff}
-        .wv-item .onder{display:flex;gap:6px;align-items:center;font-size:12px;margin-top:4px}
+        .wv-item .onder{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;margin-top:4px}
         .wv-item .onder input{padding:2px 6px}</style>
       <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
         <label class="field" style="flex:1;min-width:220px;margin:0">Wandkaart toevoegen (zoek op artikelnummer of naam)<input id="wv-zoek" placeholder="Typ om te zoeken…" autocomplete="off"></label>
@@ -289,7 +289,7 @@ export async function wandVelModal(ids = []) {
         const l = wkWacht.lees(); const tot = l.reduce((x, k) => x + (Number(k.n) || 1), 0); const twee = pv.value === '2';
         const vellen = twee ? Math.ceil(tot / 2) : tot;
         $('#wv-info', form).innerHTML = l.length
-          ? `${l.length} ${l.length === 1 ? 'tapijt' : 'tapijten'}, samen ${tot} kaart${tot === 1 ? '' : 'en'} · ${twee ? `2 per ${DUBBEL_VEL[fo.value][1]}-vel (met snijlijn)` : `1 per ${fo.value}-vel`} · ${vellen} vel${vellen === 1 ? '' : 'len'}. Klik op een tekst in een kaart om die aan te passen.`
+          ? `${l.length} ${l.length === 1 ? 'tapijt' : 'tapijten'}, samen ${tot} kaart${tot === 1 ? '' : 'en'} · ${twee ? `2 per ${DUBBEL_VEL[fo.value][1]}-vel (met snijlijn)` : `1 per ${fo.value}-vel`} · ${vellen} vel${vellen === 1 ? '' : 'len'}. Met "Aanpassen" wijzig je de tekst op een kaart.`
           : 'Nog geen wandkaarten gekozen. Zoek hierboven een tapijt, of vink artikelen aan in de lijst.';
         $('#wv-print', form).innerHTML = `<i data-lucide="printer"></i> Print (${tot} kaart${tot === 1 ? '' : 'en'})`;
         $('#wv-grid', form).innerHTML = l.map((k, i) => `<div class="wv-item"><div class="wrap"><div class="schaal">${wandkaart(k, LOGO_WK())}</div></div>

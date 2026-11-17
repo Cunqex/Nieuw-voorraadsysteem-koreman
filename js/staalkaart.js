@@ -2,10 +2,12 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261114165901';
+import { sb, check, esc, $, toast } from './ui.js?v=20261117102155';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
+// Inkoopcode op de kaart: 60 + inkoopprijs afgerond op hele euro's + 4 (bv. € 398,16 -> 603984)
+export const inkoopcode = (p) => (p === null || p === undefined || p === '' || Number.isNaN(Number(p)) ? '' : `60${Math.round(Number(p))}4`);
 
 // ---------- Website ----------
 let lijstCache = null;
@@ -101,12 +103,13 @@ export const SK_CSS = `
 .sk .qr{position:absolute;left:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*15);height:calc(var(--u)*15)}
 .sk .code{position:absolute;right:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*24);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6)}
 .sk .code .bc{display:block;width:100%;height:calc(var(--u)*5.5);margin-top:calc(var(--u)*.6)}
+.sk .inkoop{position:absolute;left:calc(var(--u)*25);right:calc(var(--u)*34);bottom:calc(var(--u)*8);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6);color:#000;white-space:nowrap}
 .sk .site{position:absolute;left:calc(var(--u)*25);right:calc(var(--u)*34);bottom:calc(var(--u)*4.5);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6);color:#444;white-space:nowrap}`;
 export function staalkaart(k, logoUrl, qr) {
   const rij = (l, v) => (v ? `<div class="r"><b>${l}</b><span>${esc(v)}</span></div>` : '');
   return `<div class="sk"><img class="logo" src="${logoUrl}" alt="Koreman Exclusive Carpets"><div class="titel">${esc(k.titel)}</div>
     <div class="rijen">${rij('Collection:', k.collectie)}${rij('Color:', k.kleur)}${rij('Material:', k.materiaal)}${rij('Method:', k.methode)}${rij('Knot density:', k.knoop)}${rij('Price:', k.prijs)}${rij('Custom sizes:', k.maatwerk)}</div>
-    ${k.handle ? qrSvg(qr, productUrl(k.handle)) : ''}<div class="site">koremanmaastricht.nl</div>
+    ${k.handle ? qrSvg(qr, productUrl(k.handle)) : ''}${k.inkoop ? `<div class="inkoop">${esc(k.inkoop)}</div>` : ''}<div class="site">koremanmaastricht.nl</div>
     ${k.nr ? `<div class="code">${esc(k.nr)}${barcodeSvg(k.nr)}</div>` : ''}</div>`;
 }
 
@@ -143,7 +146,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   zet('sk-materiaal', naarEngels(a.materiaal)); zet('sk-methode', naarEngels(a.techniek));
   if (a.verkoopprijs_m2) zet('sk-prijs', `€ ${Number(a.verkoopprijs_m2).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} / m²`);
   const status = (t) => { $('#sk-status', form).innerHTML = t; };
-  const lees = () => ({ handle, nr: String(a.artikelnummer ?? ''), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 100, h: Number(v('sk-h')) || 90, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
+  const lees = () => ({ handle, nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(a.inkoopprijs), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 100, h: Number(v('sk-h')) || 90, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
   const kaartHtml = (k) => staalkaart(k, logoUrl, qr).replace('class="sk"', `class="sk" style="--w:${k.w}mm;--h:${k.h}mm"`);
   const toon = () => {
     const el = $('#sk-prev', form); el.style.transform = 'none'; el.innerHTML = kaartHtml(lees());
@@ -247,7 +250,7 @@ async function kaartVoorArtikel(a) {
   let geraden = false;
   if (!handle) { const g = await raadProduct(a).catch(() => null); if (g) { handle = g.handle; geraden = true; } }
   const k = {
-    handle, nr: String(a.artikelnummer ?? ''), titel: a.naam || '', collectie: '', kleur: a.kleurcode || '',
+    handle, nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(a.inkoopprijs), titel: a.naam || '', collectie: '', kleur: a.kleurcode || '',
     materiaal: naarEngels(a.materiaal), methode: naarEngels(a.techniek), knoop: '',
     prijs: a.verkoopprijs_m2 ? `€ ${Number(a.verkoopprijs_m2).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} / m²` : '', maatwerk: '',
   };
@@ -265,8 +268,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261114165901');
-  const { printHtml } = await import('./kaarten.js?v=20261114165901');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117102155');
+  const { printHtml } = await import('./kaarten.js?v=20261117102155');
   const logoUrl = new URL('img/logo-koreman.jpg', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

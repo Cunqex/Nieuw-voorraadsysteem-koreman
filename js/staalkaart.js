@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261117151204';
+import { sb, check, esc, $, toast } from './ui.js?v=20261117152235';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -37,6 +37,9 @@ async function productGegevens(handle) {
   const j = JSON.parse(s.textContent);
   const mf = j.metafields?.custom || {};
   const col = (j.collections || []).map((c) => c.title).find((t) => /^B2B .+ Collectie$/i.test(t));
+  // De eerste (hoofd)foto op de website is de rechte foto van het tapijt (bovenaanzicht)
+  let hoofdfoto = '';
+  try { const pj = await (await fetch(`${productUrl(handle)}.js`)).json(); hoofdfoto = pj.featured_image || pj.images?.[0] || ''; } catch { /* geen foto */ }
   return {
     handle: j.handle || handle,
     title: j.title || '',
@@ -46,7 +49,7 @@ async function productGegevens(handle) {
     knoopdichtheid: mf.knoopdichtheid || '',
     prijs_m2: mf.prijs_m2 || '',
     prijs_m2_maatwerk: mf.prijs_m2_maatwerk || '',
-    foto: (() => { const f = j.featured_image || j.images?.[0] || ''; const u = typeof f === 'string' ? f : (f.src || ''); return u ? (u.startsWith('//') ? `https:${u}` : u) : ''; })(),
+    foto: (() => { const f = hoofdfoto || j.featured_image || j.images?.[0] || ''; const u = typeof f === 'string' ? f : (f.src || ''); return u ? (u.startsWith('//') ? `https:${u}` : u) : ''; })(),
   };
 }
 // Zoek een passend B2B-product bij de artikelnaam (bv. "Umber Design 40x30" -> "Umber")
@@ -127,7 +130,7 @@ export function staalkaart(k, logoUrl, qr) {
 // Foto voor de kaart: de rechte (bovenaanzicht) foto van de website, anders de eigen foto van het artikel of design.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261117151204');
+  const { mediaUrl } = await import('./ui.js?v=20261117152235');
   await Promise.all(kaarten.map(async (k) => {
     if (k.fotoWeb) k.foto = k.fotoWeb;
     else if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } } else k.foto = '';
@@ -293,8 +296,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117151204');
-  const { printHtml } = await import('./kaarten.js?v=20261117151204');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117152235');
+  const { printHtml } = await import('./kaarten.js?v=20261117152235');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

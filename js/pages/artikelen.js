@@ -2,10 +2,30 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261117141822';
-import { kaartenModal } from '../kaarten.js?v=20261117141822';
+} from '../ui.js?v=20261117145449';
+import { kaartenModal } from '../kaarten.js?v=20261117145449';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
+
+// Categorieën en collecties zoals op koremanmaastricht.nl (namen = collecties op de website)
+export const CATEGORIEEN = [
+  { k: 'luxe', t: 'Luxe vloerkleden', hoofd: 'Luxe Vloerkleden', subs: [['Avant Garde Vloerkleden', 'Avant-garde'], ['Loricata', 'Loricata'], ['Riviera', 'Riviera']] },
+  { k: 'modern', t: 'Moderne vloerkleden', hoofd: 'Moderne Vloerkleden', subs: [['Platgeweven Vloerkleden', 'Platgeweven'], ['Hoogpolige Vloerkleden', 'Hoogpolig'], ['Laagpolige Vloerkleden', 'Laagpolig'], ['Effen Vloerkleden', 'Effen']] },
+  { k: 'design', t: 'Design vloerkleden', hoofd: 'Design Vloerkleden', subs: [['Gestreepte Tapijten', 'Gestreept'], ['Geometrische Tapijten', 'Geometrisch'], ['Artistiek', 'Artistiek'], ['Organische Vloerkleden', 'Organisch']] },
+  { k: 'oosters', t: 'Oosterse tapijten', hoofd: 'Oosterse Tapijten', subs: [['Kelim', 'Kelim'], ['Vintage', 'Vintage'], ['Perzisch Tapijt', 'Perzisch'], ['Meesterwerk', 'Meesterwerken'], ['Ziegler Tapijt', 'Ziegler']] },
+  { k: 'b2b', t: 'B2B collectie', hoofd: 'B2B Collectie', subs: [['B2B Nuance Collectie', 'Nuance'], ['B2B Forma Collectie', 'Forma'], ['B2B Strata Collectie', 'Strata'], ['B2B Terra Collectie', 'Terra'], ['B2B Flatwave Collectie', 'Flatwave']] },
+  { k: 'meubels', t: 'Meubels', hoofd: 'Oosterse Meubels', subs: [['Chinese Meubels', 'Chinees'], ['Indiase Meubels', 'Indiaas'], ['Overige Meubels', 'Overig']] },
+  { k: 'outlet', t: 'Outlet', hoofd: 'Outlet', subs: [] },
+];
+const catNamen = (cat) => [cat.hoofd, ...cat.subs.map(([n]) => n)];
+// De meest specifieke collectie (subcollectie) om op een kaartje te tonen
+const SUB_LABEL = Object.fromEntries(CATEGORIEEN.flatMap((x) => x.subs));
+function korteCollectie(col = []) {
+  const subs = (col || []).filter((nm) => SUB_LABEL[nm]).map((nm) => SUB_LABEL[nm]);
+  if (subs.length) return subs.slice(0, 2).join(', ');
+  const hoofd = CATEGORIEEN.find((x) => (col || []).includes(x.hoofd));
+  return hoofd ? hoofd.t : '';
+}
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -21,6 +41,8 @@ export async function renderList(c, _p, query) {
         <button class="btn small" data-view="lijst" title="Lijst"><i data-lucide="list"></i></button>
       </div>
       <a class="btn primary" href="#/artikel/new"><i data-lucide="plus"></i> Nieuw artikel</a></div>
+    <div class="cat-tabs" id="cat-tabs"></div>
+    <div class="cat-subs" id="cat-subs"></div>
     <div class="toolbar">
       <div class="search"><i data-lucide="search"></i><input type="search" id="q" placeholder="Zoek op nummer, naam of omschrijving…" value="${esc(query.q || '')}"></div>
       <select id="soort"><option value="">Alle soorten</option>${Object.entries(SOORT_ARTIKEL).map(([k, v]) => `<option value="${k}" ${query.soort === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
@@ -69,9 +91,34 @@ export async function renderList(c, _p, query) {
   $('#sel-wis', c).onclick = () => { gekozen.clear(); werkSelectieBij(); };
   $('#sel-alles', c).onclick = () => { zichtbaar.forEach((r) => gekozen.set(r.id, r.artikelnummer)); werkSelectieBij(); };
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261117141822');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261117145449');
     await stalenVelModal([...gekozen.keys()]);
   };
+
+  // ---- categorie-tabs zoals op de website ----
+  let cat = query.cat || ''; let sub = query.sub || '';
+  try { if (!query.cat) { cat = localStorage.getItem('artikel-cat') || ''; sub = localStorage.getItem('artikel-sub') || ''; } } catch { /* */ }
+  let tellingen = null;
+  const tekenTabs = () => {
+    const n = (k) => (tellingen ? ` <span class="cat-n">${tellingen[k] ?? 0}</span>` : '');
+    $('#cat-tabs', c).innerHTML = [['', 'Alle artikelen'], ...CATEGORIEEN.map((x) => [x.k, x.t]), ['geen', 'Zonder collectie']]
+      .map(([k, t]) => `<button type="button" class="cat-tab ${cat === k ? 'aan' : ''}" data-cat="${k}">${t}${n(k || 'alle')}</button>`).join('');
+    const cc = CATEGORIEEN.find((x) => x.k === cat);
+    $('#cat-subs', c).innerHTML = cc && cc.subs.length ? [['', `Alle ${cc.t.toLowerCase()}`], ...cc.subs].map(([naam, t]) => `<button type="button" class="chip ${sub === naam ? 'aan' : ''}" data-sub="${esc(naam)}">${esc(t)}${tellingen && naam ? ` <span class="cat-n">${tellingen['s:' + naam] ?? 0}</span>` : ''}</button>`).join('') : '';
+  };
+  const telAlles = async () => {
+    const r = await alles(() => { let q2 = sb.from('artikelen').select('collecties'); if (!$('#inactief', c).checked) q2 = q2.eq('actief', true); return q2; });
+    const t = { alle: r.length, geen: 0 };
+    r.forEach(({ collecties: col }) => {
+      const set = new Set(col || []); if (!set.size) t.geen++;
+      CATEGORIEEN.forEach((x) => { if (catNamen(x).some((nm) => set.has(nm))) t[x.k] = (t[x.k] || 0) + 1; x.subs.forEach(([nm]) => { if (set.has(nm)) t['s:' + nm] = (t['s:' + nm] || 0) + 1; }); });
+    });
+    tellingen = t; tekenTabs();
+  };
+  on(c, 'click', '[data-cat]', (_e, b) => { cat = b.dataset.cat; sub = ''; try { localStorage.setItem('artikel-cat', cat); localStorage.setItem('artikel-sub', ''); } catch { /* */ } tekenTabs(); toon = 120; load(); });
+  on(c, 'click', '[data-sub]', (_e, b) => { sub = b.dataset.sub; try { localStorage.setItem('artikel-sub', sub); } catch { /* */ } tekenTabs(); toon = 120; load(); });
+  $('#inactief', c).addEventListener('change', () => telAlles());
+  tekenTabs(); telAlles();
 
   let seq = 0; let toon = 120;
   const load = async () => {
@@ -80,12 +127,15 @@ export async function renderList(c, _p, query) {
     let ids = null;
     if ($('#opvoorraad', c).checked) ids = (await alles(() => sb.from('v_voorraad').select('artikel_id').gt('voorraad_totaal', 0))).map((v) => v.artikel_id);
     const maak = () => {
-      let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, actief, foto_pad, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
+      let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, actief, foto_pad, collecties, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
         .order('artikelnummer', { ascending: false }).order('id');
       if (q) query = /^\d+$/.test(q) ? query.or(`artikelnummer.ilike.${q}%,productnr_lev.ilike.%${q}%`) : query.or(`naam.ilike.%${q}%,omschrijving.ilike.%${q}%,productnr_lev.ilike.%${q}%`);
       if ($('#soort', c).value) query = query.eq('soort', $('#soort', c).value);
       if ($('#lev input', c).value) query = query.eq('leverancier_id', $('#lev input', c).value);
       if (!$('#inactief', c).checked) query = query.eq('actief', true);
+      if (cat === 'geen') query = query.eq('collecties', '{}');
+      else if (sub) query = query.contains('collecties', [sub]);
+      else if (cat) { const cc = CATEGORIEEN.find((x) => x.k === cat); if (cc) query = query.overlaps('collecties', catNamen(cc)); }
       return query;
     };
     let alle = ids && !ids.length ? [] : await alles(maak);
@@ -116,19 +166,19 @@ export async function renderList(c, _p, query) {
             <div class="art-nr">${r.artikelnummer}${r.actief ? '' : ' · inactief'}</div>
             <div class="art-naam">${esc(r.naam)}</div>
             <div class="art-meta">${[maat(r), r.materiaal].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
-            <div class="art-meta">${[r.leveranciers?.naam, r.designs?.design_code_lev].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
+            <div class="art-meta">${[r.designs?.naam ? 'Design ' + r.designs.naam : '', korteCollectie(r.collecties), r.leveranciers?.naam].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
             <div class="art-foot"><span class="art-prijs">${money(r.verkoopprijs)}</span><span>${voorraadBadge(r)}</span></div>
           </div>
         </a>`).join('');
       loadImages($('#kaarten', c));
       return;
     }
-    $('#tbl', c).innerHTML = `<table class="list"><thead><tr><th style="width:34px"></th><th></th><th>Nr.</th><th>Naam</th><th>Soort</th><th>Maat</th><th>Leverancier</th><th>Design</th><th>Voorraad</th><th class="num">Verkoopprijs</th></tr></thead><tbody>
+    $('#tbl', c).innerHTML = `<table class="list"><thead><tr><th style="width:34px"></th><th></th><th>Nr.</th><th>Naam</th><th>Soort</th><th>Maat</th><th>Leverancier</th><th>Collectie</th><th>Voorraad</th><th class="num">Verkoopprijs</th></tr></thead><tbody>
       ${rows.map((r) => `<tr class="click" data-id="${r.id}">
         <td>${vinkje(r)}</td><td>${foto(r) ? `<img class="thumb" data-path="${esc(foto(r))}" alt="">` : '<span class="thumb"></span>'}</td>
         <td><b>${r.artikelnummer}</b></td><td>${esc(r.naam)}${r.actief ? '' : ' <span class="badge">inactief</span>'}</td>
         <td>${esc(SOORT_ARTIKEL[r.soort])}</td><td>${maat(r)}</td><td>${esc(r.leveranciers?.naam || '')}</td>
-        <td>${esc(r.designs?.design_code_lev || '')}</td><td>${voorraadBadge(r)}</td>
+        <td>${esc(korteCollectie(r.collecties))}</td><td>${voorraadBadge(r)}</td>
         <td class="num">${money(r.verkoopprijs)}</td></tr>`).join('')}
       </tbody></table>`;
     loadImages($('#tbl', c));
@@ -139,9 +189,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117141822'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117141822'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261117141822'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117145449'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117145449'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261117145449'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -239,7 +289,8 @@ export async function renderDetail(c, [idStr], query) {
             ${isNew ? '' : `<label class="btn small" style="margin-top:6px">Eigen foto uploaden<input type="file" id="foto" accept="image/*" hidden></label>`}
             ${a.designs ? `<p class="small">Design: <a href="#/design/${a.designs.id}">${esc(a.designs.naam)}</a><br>${esc(a.designs.design_code_lev || '')}</p>` : ''}
           </div>
-          <div style="flex:1;min-width:280px">${formFields(fields1, a)}</div>
+          <div style="flex:1;min-width:280px">${formFields(fields1, a)}
+            <div class="field"><label>Collecties (zoals op de website)</label><div id="coll-edit" class="coll-edit"></div></div></div>
         </div>
       </div>
       <div class="card"><h2>Maat en eigenschappen</h2>${formFields(fields2, a)}
@@ -252,6 +303,20 @@ export async function renderDetail(c, [idStr], query) {
   loadImages(c);
 
   const form = $('#f', c);
+  const collecties = [...(a.collecties || [])];
+  const tekenColl = () => {
+    $('#coll-edit', c).innerHTML = `${collecties.map((nm, i) => `<span class="chip aan">${esc(SUB_LABEL[nm] || CATEGORIEEN.find((x) => x.hoofd === nm)?.t || nm)} <a href="#" data-coll-weg="${i}" title="Weghalen">✕</a></span>`).join('')}
+      <select id="coll-add" style="width:auto"><option value="">+ collectie toevoegen…</option>${CATEGORIEEN.map((x) => `<optgroup label="${esc(x.t)}">${catNamen(x).filter((nm) => !collecties.includes(nm)).map((nm) => `<option value="${esc(nm)}">${esc(SUB_LABEL[nm] || x.t)}</option>`).join('')}</optgroup>`).join('')}</select>
+      ${a.website_handle ? `<a class="small" href="https://www.koremanmaastricht.nl/products/${esc(a.website_handle)}" target="_blank" rel="noopener">Bekijk op de website ↗</a>` : ''}`;
+  };
+  tekenColl();
+  $('#coll-edit', c).addEventListener('click', (e) => { const w = e.target.closest('[data-coll-weg]'); if (!w) return; e.preventDefault(); collecties.splice(Number(w.dataset.collWeg), 1); tekenColl(); });
+  $('#coll-edit', c).addEventListener('change', (e) => {
+    if (e.target.id !== 'coll-add' || !e.target.value) return;
+    const nm = e.target.value; const cc = CATEGORIEEN.find((x) => catNamen(x).includes(nm));
+    collecties.push(nm); if (cc && nm !== cc.hoofd && !collecties.includes(cc.hoofd)) collecties.push(cc.hoofd);
+    tekenColl();
+  });
   const area = () => { const l = Number(form.lengte_cm.value), b = Number(form.breedte_cm.value); return l && b ? (l * b) / 10000 : null; };
   const link = (stuk, perm2) => {
     form[perm2].addEventListener('input', () => { const ar = area(); if (ar && form[perm2].value) form[stuk].value = (Number(form[perm2].value) * ar).toFixed(2); });
@@ -270,6 +335,7 @@ export async function renderDetail(c, [idStr], query) {
   form.onsubmit = async (e) => {
     e.preventDefault();
     const v = readForm(form);
+    v.collecties = collecties;
     v.design_id = v.design_id ? Number(v.design_id) : null;
     if (v.website_handle) v.website_handle = v.website_handle.replace(/^.*\/products\//, '').replace(/[?#/].*$/, '');
     v.leverancier_id = v.leverancier_id ? Number(v.leverancier_id) : null;
@@ -385,7 +451,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261117141822');
+      const { artikelPicker } = await import('../ui.js?v=20261117145449');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

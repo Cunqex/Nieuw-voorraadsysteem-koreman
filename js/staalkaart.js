@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261117141822';
+import { sb, check, esc, $, toast } from './ui.js?v=20261117145449';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -268,8 +268,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117141822');
-  const { printHtml } = await import('./kaarten.js?v=20261117141822');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117145449');
+  const { printHtml } = await import('./kaarten.js?v=20261117145449');
   const logoUrl = new URL('img/logo-koreman.jpg', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

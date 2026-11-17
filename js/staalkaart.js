@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261117152235';
+import { sb, check, esc, $, toast } from './ui.js?v=20261117154112';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -97,40 +97,41 @@ function barcodeSvg(tekst) {
 }
 
 // ---------- De kaart ----------
-// Ontwerp "Exclusief tapijtlabel": staande kaart, foto bovenaan, standaard 76 x 140 mm (4 per A4).
-// Alle maten in eenheden van 1/100 van de kaartbreedte (--u), zodat de kaart in elk formaat klopt.
+// Ontwerp "Exclusief tapijtlabel": staande kaart, foto bovenaan, standaard 105 x 148,5 mm
+// (precies 4 op een A4, paginavullend). Onderaan: QR-code | logo | artikelnummer, streepjescode en inkoopcode (604...).
+// Alle maten in eenheden van 1/100 van de kaartbreedte (--u); posities vanaf de onderkant.
 export const SK_CSS = `
-.sk{--w:76mm;--h:140mm;--u:calc(var(--w) / 100);position:relative;width:var(--w);height:var(--h);background:#f8f6f1;overflow:hidden;color:#1d1d1b;font-family:Georgia,"Times New Roman",serif;font-feature-settings:normal}
+.sk{--w:105mm;--h:148.5mm;--u:calc(var(--w) / 100);position:relative;width:var(--w);height:var(--h);background:#f8f6f1;overflow:hidden;color:#1d1d1b;font-family:Georgia,"Times New Roman",serif;font-feature-settings:normal}
 .sk .gat{position:absolute;width:calc(var(--u)*2.6);height:calc(var(--u)*2.6);border-radius:50%;border:calc(var(--u)*.35) solid #9a9a9a;background:#fff;transform:translate(-50%,-50%)}
-.sk .foto{position:absolute;left:calc(var(--u)*9.5);right:calc(var(--u)*9.5);top:calc(var(--u)*3);bottom:calc(var(--u)*79.5);background:#ece8df center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:#a39d91;font-family:Arial,sans-serif;font-size:calc(var(--u)*3)}
-.sk .logo{position:absolute;left:50%;bottom:calc(var(--u)*63.5);width:calc(var(--u)*36);transform:translateX(-50%)}
-.sk .titel{position:absolute;left:calc(var(--u)*6);right:calc(var(--u)*6);bottom:calc(var(--u)*54);text-align:center;font-size:calc(var(--u)*6.4);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sk .rijen{position:absolute;left:calc(var(--u)*7.5);right:calc(var(--u)*7.5);bottom:calc(var(--u)*19.5);border-top:calc(var(--u)*.25) solid #a08a68}
+.sk .foto{position:absolute;left:calc(var(--u)*9.5);right:calc(var(--u)*9.5);top:calc(var(--u)*3);bottom:calc(var(--u)*62.5);background:#ece8df center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:#a39d91;font-family:Arial,sans-serif;font-size:calc(var(--u)*3)}
+.sk .titel{position:absolute;left:calc(var(--u)*6);right:calc(var(--u)*6);bottom:calc(var(--u)*53);text-align:center;font-size:calc(var(--u)*6.4);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk .rijen{position:absolute;left:calc(var(--u)*7.5);right:calc(var(--u)*7.5);bottom:calc(var(--u)*20);border-top:calc(var(--u)*.25) solid #a08a68}
 .sk .r{display:grid;grid-template-columns:calc(var(--u)*40) 1fr;align-items:center;height:calc(var(--u)*4.35);padding-left:calc(var(--u)*2.5);border-bottom:calc(var(--u)*.25) solid #a08a68;font-size:calc(var(--u)*3.2);white-space:nowrap;overflow:hidden}
 .sk .r b{font-weight:700;font-size:calc(var(--u)*3.4)}
-.sk .qr{position:absolute;left:calc(var(--u)*9.5);bottom:calc(var(--u)*4.5);width:calc(var(--u)*12);height:calc(var(--u)*12)}
-.sk .streep{position:absolute;bottom:calc(var(--u)*6);height:calc(var(--u)*8.5);border-left:calc(var(--u)*.3) solid #b08d57}
-.sk .code{position:absolute;right:calc(var(--u)*9);bottom:calc(var(--u)*6.5);width:calc(var(--u)*15.5);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6)}
-.sk .code .bc{display:block;width:100%;height:calc(var(--u)*3.6);margin-top:calc(var(--u)*.6)}
-.sk .midden{position:absolute;left:calc(var(--u)*28.5);right:calc(var(--u)*30.5);bottom:calc(var(--u)*7.5);text-align:center;font-family:Arial,Helvetica,sans-serif;white-space:nowrap}
-.sk .inkoop{font-size:calc(var(--u)*2.6);color:#000;margin-bottom:calc(var(--u)*1)}
-.sk .site{font-size:calc(var(--u)*3);color:#1d1d1b}`;
+.sk .qr{position:absolute;left:calc(var(--u)*9.5);bottom:calc(var(--u)*5);width:calc(var(--u)*12.5);height:calc(var(--u)*12.5)}
+.sk .streep{position:absolute;bottom:calc(var(--u)*5.5);height:calc(var(--u)*11.5);border-left:calc(var(--u)*.3) solid #b08d57}
+.sk .midden{position:absolute;left:calc(var(--u)*27);right:calc(var(--u)*30.5);bottom:calc(var(--u)*4.8);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:calc(var(--u)*13);font-family:Arial,Helvetica,sans-serif;white-space:nowrap}
+.sk .midden .logo{width:calc(var(--u)*27);height:auto;display:block}
+.sk .site{font-size:calc(var(--u)*2.5);color:#1d1d1b;margin-top:calc(var(--u)*.8)}
+.sk .code{position:absolute;right:calc(var(--u)*8.5);bottom:calc(var(--u)*5);width:calc(var(--u)*17.5);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.7);line-height:1.15}
+.sk .code .bc{display:block;width:100%;height:calc(var(--u)*4.2);margin:calc(var(--u)*.6) 0}
+.sk .inkoop{font-size:calc(var(--u)*2.7);color:#000}`;
 export function staalkaart(k, logoUrl, qr) {
   const rij = (l, v) => (v ? `<div class="r"><b>${l}</b><span>${esc(v)}</span></div>` : '');
   const gat = (x, y) => `<span class="gat" style="left:calc(var(--u)*${x});top:${y}"></span>`;
   const foto = k.foto ? `<div class="foto" style="background-image:url('${String(k.foto).replace(/'/g, '%27')}')"></div>` : '<div class="foto">Geen foto</div>';
   return `<div class="sk">${foto}${gat(4.2, 'calc(var(--u)*4.2)')}${gat(95.8, 'calc(var(--u)*4.2)')}${gat(4.2, 'calc(100% - var(--u)*4.2)')}${gat(95.8, 'calc(100% - var(--u)*4.2)')}
-    <img class="logo" src="${logoUrl}" alt="Koreman Exclusive Carpets"><div class="titel">${esc(k.titel)}</div>
+    <div class="titel">${esc(k.titel)}</div>
     <div class="rijen">${rij('Collection:', k.collectie)}${rij('Color:', k.kleur)}${rij('Material:', k.materiaal)}${rij('Method:', k.methode)}${rij('Knot density:', k.knoop)}${rij('Price:', k.prijs)}${rij('Custom sizes:', k.maatwerk)}</div>
-    ${k.handle ? qrSvg(qr, productUrl(k.handle)) : ''}<span class="streep" style="left:calc(var(--u)*27)"></span><span class="streep" style="left:calc(var(--u)*69.5)"></span>
-    <div class="midden">${k.inkoop ? `<div class="inkoop">${esc(k.inkoop)}</div>` : ''}<div class="site">koremanmaastricht.nl</div></div>
-    ${k.nr ? `<div class="code">${esc(k.nr)}${barcodeSvg(k.nr)}</div>` : ''}</div>`;
+    ${k.handle ? qrSvg(qr, productUrl(k.handle)) : ''}<span class="streep" style="left:calc(var(--u)*25)"></span><span class="streep" style="left:calc(var(--u)*71)"></span>
+    <div class="midden"><img class="logo" src="${logoUrl}" alt="Koreman Exclusive Carpets"><div class="site">koremanmaastricht.nl</div></div>
+    ${k.nr || k.inkoop ? `<div class="code">${k.nr ? `${esc(k.nr)}${barcodeSvg(k.nr)}` : ''}${k.inkoop ? `<div class="inkoop">${esc(k.inkoop)}</div>` : ''}</div>` : ''}</div>`;
 }
 
 // Foto voor de kaart: de rechte (bovenaanzicht) foto van de website, anders de eigen foto van het artikel of design.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261117152235');
+  const { mediaUrl } = await import('./ui.js?v=20261117154112');
   await Promise.all(kaarten.map(async (k) => {
     if (k.fotoWeb) k.foto = k.fotoWeb;
     else if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } } else k.foto = '';
@@ -148,11 +149,11 @@ export function staalPaneHtml() {
         <datalist id="sk-lijst"></datalist>
         ${veld('sk-titel', 'Titel')}${veld('sk-collectie', 'Collection')}${veld('sk-kleur', 'Color', 'placeholder="bv. 4M17"')}${veld('sk-materiaal', 'Material')}${veld('sk-methode', 'Method')}
         ${veld('sk-knoop', 'Knot density')}${veld('sk-prijs', 'Price')}${veld('sk-maatwerk', 'Custom sizes')}
-        <div class="kt-row"><label style="flex:1">Breedte (mm)<input id="sk-w" type="number" min="50" max="300"></label><label style="flex:1">Hoogte (mm)<input id="sk-h" type="number" min="50" max="300"></label><label style="width:70px">Aantal<input id="sk-n" type="number" min="1" value="1"></label></div>
+        <div class="kt-row"><label style="flex:1">Breedte (mm)<input id="sk-w" type="number" min="50" max="300" step="0.5"></label><label style="flex:1">Hoogte (mm)<input id="sk-h" type="number" min="50" max="300" step="0.5"></label><label style="width:70px">Aantal<input id="sk-n" type="number" min="1" value="1"></label></div>
         <button type="button" class="btn primary" id="sk-print" style="width:100%"><i data-lucide="printer"></i> Print alleen deze kaart</button>
         <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
           <b style="font-size:13px">Meerdere stalen op één A4-vel</b>
-          <p class="small muted" style="margin:2px 0 8px">Zet deze kaart op het vel, open het volgende artikel en doe hetzelfde. Bij 76 × 140 mm passen er 4 op een vel.</p>
+          <p class="small muted" style="margin:2px 0 8px">Zet deze kaart op het vel, open het volgende artikel en doe hetzelfde. Bij 105 × 148,5 mm passen er precies 4 op een A4 (paginavullend).</p>
           <div class="kt-row"><button type="button" class="btn" id="sk-op-vel" style="flex:1"><i data-lucide="plus"></i> Zet op vel</button>
             <button type="button" class="btn primary" id="sk-print-vel" style="flex:1"><i data-lucide="printer"></i> Print vel</button></div>
           <div id="sk-vel" class="small" style="margin-top:8px"></div>
@@ -166,13 +167,13 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   let handle = a.website_handle || a.designs?.website_handle || '';
   const fotoPad = a.foto_pad || a.designs?.hoofdfoto_pad || ''; let fotoWeb = ''; let fotoNu = '';
   let qr = null; let lijst = [];
-  zet('sk-w', onthoud.get('sk2-w', '76')); zet('sk-h', onthoud.get('sk2-h', '140'));
+  zet('sk-w', onthoud.get('sk3-w', '105')); zet('sk-h', onthoud.get('sk3-h', '148.5'));
   zet('sk-titel', a.naam || '');
   zet('sk-kleur', a.kleurcode || '');
   zet('sk-materiaal', naarEngels(a.materiaal)); zet('sk-methode', naarEngels(a.techniek));
   if (a.verkoopprijs_m2) zet('sk-prijs', `€ ${Number(a.verkoopprijs_m2).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} / m²`);
   const status = (t) => { $('#sk-status', form).innerHTML = t; };
-  const lees = () => ({ handle, fotoPad, fotoWeb, foto: fotoWeb || fotoNu, nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(a.inkoopprijs), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 76, h: Number(v('sk-h')) || 140, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
+  const lees = () => ({ handle, fotoPad, fotoWeb, foto: fotoWeb || fotoNu, nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(a.inkoopprijs), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 105, h: Number(v('sk-h')) || 148.5, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
   const kaartHtml = (k) => staalkaart(k, logoUrl, qr).replace('class="sk"', `class="sk" style="--w:${k.w}mm;--h:${k.h}mm"`);
   const toon = () => {
     const el = $('#sk-prev', form); el.style.transform = 'none'; el.innerHTML = kaartHtml(lees());
@@ -220,7 +221,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   // ---- vel met meerdere kaarten (bewaard in deze browser tot je print of leegmaakt) ----
   const velLees = () => { try { return JSON.parse(localStorage.getItem('kaart-sk-vel') || '[]'); } catch { return []; } };
   const velZet = (l) => { try { localStorage.setItem('kaart-sk-vel', JSON.stringify(l)); } catch { /* geen opslag */ } };
-  const perVel = (w, h) => Math.max(1, Math.floor(200 / w)) * Math.max(1, Math.floor(287 / h));
+  const perVel = (w, h) => Math.max(1, Math.floor(210.01 / w)) * Math.max(1, Math.floor(297.01 / h));
   const toonVel = () => {
     const l = velLees(); const k = lees(); const n = perVel(k.w, k.h);
     $('#sk-print-vel', form).innerHTML = `<i data-lucide="printer"></i> Print vel (${l.length})`;
@@ -236,7 +237,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
     }
   };
   $('#sk-op-vel', form).onclick = async () => {
-    const k = lees(); onthoud.set('sk2-w', String(k.w)); onthoud.set('sk2-h', String(k.h));
+    const k = lees(); onthoud.set('sk3-w', String(k.w)); onthoud.set('sk3-h', String(k.h));
     await bewaarKoppeling();
     const l = velLees(); l.push(k); velZet(l); toonVel(); toast(`Op het vel gezet (${l.length})`, 'ok');
   };
@@ -247,7 +248,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   });
   $('#sk-print-vel', form).onclick = async () => {
     const l = velLees().flatMap((k) => Array(Math.max(1, Number(k.n) || 1)).fill(k)); if (!l.length) { toast('Zet eerst kaarten op het vel', 'error'); return; }
-    const { w, h } = lees(); const cols = Math.max(1, Math.floor(200 / w)); const rows = Math.max(1, Math.floor(287 / h)); const n = cols * rows;
+    const { w, h } = lees(); const cols = Math.max(1, Math.floor(210.01 / w)); const rows = Math.max(1, Math.floor(297.01 / h)); const n = cols * rows;
     await fotosOphalen(l);
     const vellen = []; for (let i = 0; i < l.length; i += n) vellen.push(l.slice(i, i + n));
     const css = `${SK_CSS}.blad{width:210mm;height:297mm;display:grid;grid-template-columns:repeat(${cols},${w}mm);grid-auto-rows:${h}mm;justify-content:center;align-content:center}
@@ -257,7 +258,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   toonVel();
   $('#sk-print', form).onclick = async () => {
     const k = lees();
-    onthoud.set('sk2-w', String(k.w)); onthoud.set('sk2-h', String(k.h));
+    onthoud.set('sk3-w', String(k.w)); onthoud.set('sk3-h', String(k.h));
     await bewaarKoppeling();
     printHtml(Array(k.n).fill(`<div class="vel">${kaartHtml(k)}</div>`).join(''), SK_CSS, `${k.w}mm ${k.h}mm`);
   };
@@ -270,7 +271,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
 // =====================================================================
 const velLeesG = () => { try { return JSON.parse(localStorage.getItem('kaart-sk-vel') || '[]'); } catch { return []; } };
 const velZetG = (l) => { try { localStorage.setItem('kaart-sk-vel', JSON.stringify(l)); } catch { /* geen opslag */ } };
-const maatG = () => { let w = 76; let h = 140; try { w = Number(localStorage.getItem('kaart-sk2-w')) || 76; h = Number(localStorage.getItem('kaart-sk2-h')) || 140; } catch { /* */ } return { w, h }; };
+const maatG = () => { let w = 105; let h = 148.5; try { w = Number(localStorage.getItem('kaart-sk3-w')) || 105; h = Number(localStorage.getItem('kaart-sk3-h')) || 148.5; } catch { /* */ } return { w, h }; };
 
 // Maak de kaartgegevens voor één artikel: website-gegevens waar mogelijk, anders uit het artikel
 async function kaartVoorArtikel(a) {
@@ -296,8 +297,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117152235');
-  const { printHtml } = await import('./kaarten.js?v=20261117152235');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117154112');
+  const { printHtml } = await import('./kaarten.js?v=20261117154112');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({
@@ -309,8 +310,8 @@ export async function stalenVelModal(ids = []) {
         .sv-item .onder{display:flex;gap:6px;align-items:center;font-size:12px;margin-top:4px}</style>
       <div class="kt-row" style="display:flex;gap:8px;align-items:end">
         <label class="field" style="flex:1;margin:0">Staal toevoegen (zoek op artikelnummer of naam)<input id="sv-zoek" placeholder="Typ om te zoeken…" autocomplete="off"></label>
-        <label class="field" style="width:110px;margin:0">Breedte (mm)<input id="sv-w" type="number" min="50" max="200"></label>
-        <label class="field" style="width:110px;margin:0">Hoogte (mm)<input id="sv-h" type="number" min="50" max="280"></label>
+        <label class="field" style="width:110px;margin:0">Breedte (mm)<input id="sv-w" type="number" min="50" max="210" step="0.5"></label>
+        <label class="field" style="width:110px;margin:0">Hoogte (mm)<input id="sv-h" type="number" min="50" max="297" step="0.5"></label>
       </div>
       <p class="small muted" id="sv-info" style="margin:8px 0 0"></p>
       <div class="sv-grid" id="sv-grid"></div>
@@ -319,8 +320,8 @@ export async function stalenVelModal(ids = []) {
     onOpen: (form) => {
       $('.actions [data-cancel]', form).textContent = 'Sluiten';
       const { w, h } = maatG(); $('#sv-w', form).value = w; $('#sv-h', form).value = h;
-      const maat = () => ({ w: Number($('#sv-w', form).value) || 76, h: Number($('#sv-h', form).value) || 140 });
-      const perVel = () => { const m = maat(); return Math.max(1, Math.floor(200 / m.w)) * Math.max(1, Math.floor(287 / m.h)); };
+      const maat = () => ({ w: Number($('#sv-w', form).value) || 105, h: Number($('#sv-h', form).value) || 148.5 });
+      const perVel = () => { const m = maat(); return Math.max(1, Math.floor(210.01 / m.w)) * Math.max(1, Math.floor(297.01 / m.h)); };
       const fc = new Map();
       const metFoto = (k) => ({ ...k, foto: k.fotoWeb || (k.fotoPad && fc.get(k.fotoPad)) || '' });
       const zorgFotos = async () => {
@@ -333,7 +334,7 @@ export async function stalenVelModal(ids = []) {
           ? `${l.length} ${l.length === 1 ? 'staal' : 'stalen'}, samen ${tot} kaart${tot === 1 ? '' : 'en'} · ${n} per A4 · ${Math.ceil(tot / n)} vel${Math.ceil(tot / n) === 1 ? '' : 'len'}. Kaarten zonder QR-code zijn (nog) niet gekoppeld aan de website – open dan het artikel en kies het product bij "Staalkaart (B2B)".`
           : 'Nog geen stalen gekozen. Zoek hierboven een staal en klik erop.';
         $('#sv-print', form).innerHTML = `<i data-lucide="printer"></i> Print (${tot} kaart${tot === 1 ? '' : 'en'})`;
-        $('#sv-grid', form).innerHTML = l.map((k, i) => `<div class="sv-item"><div class="wrap"><div class="schaal">${staalkaart(metFoto(k), logoUrl, qr).replace('class="sk"', 'class="sk" style="--w:76mm;--h:140mm"')}</div></div>
+        $('#sv-grid', form).innerHTML = l.map((k, i) => `<div class="sv-item"><div class="wrap"><div class="schaal">${staalkaart(metFoto(k), logoUrl, qr).replace('class="sk"', 'class="sk" style="--w:105mm;--h:148.5mm"')}</div></div>
           <div class="onder"><b>${esc(k.nr)}</b><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(k.titel)}</span>${k.handle ? '' : '<span class="badge orange">geen QR</span>'}</div>
           <div class="onder"><label style="display:flex;gap:4px;align-items:center;margin:0">Aantal <input type="number" min="1" max="99" value="${Number(k.n) || 1}" data-n="${i}" style="width:56px;padding:2px 6px"></label><span style="flex:1"></span><button type="button" class="btn small" data-weg="${i}">Weg</button></div></div>`).join('');
         form.querySelectorAll('.sv-item').forEach((it) => { const s = $('.schaal', it); const kaart = s.firstElementChild; const f = (it.clientWidth - 12) / kaart.offsetWidth; s.style.transform = `scale(${f})`; $('.wrap', it).style.height = `${kaart.offsetHeight * f}px`; });
@@ -346,7 +347,7 @@ export async function stalenVelModal(ids = []) {
         const l = velLeesG(); l.push(k); velZetG(l); await zorgFotos(); toon();
       });
       form.addEventListener('change', (e) => { const i = e.target.dataset?.n; if (i === undefined) return; const l = velLeesG(); if (!l[i]) return; l[i].n = Math.max(1, parseInt(e.target.value, 10) || 1); velZetG(l); toon(); });
-      form.addEventListener('input', (e) => { if (e.target.id === 'sv-w' || e.target.id === 'sv-h') { const m = maat(); try { localStorage.setItem('kaart-sk2-w', m.w); localStorage.setItem('kaart-sk2-h', m.h); } catch { /* */ } toon(); } });
+      form.addEventListener('input', (e) => { if (e.target.id === 'sv-w' || e.target.id === 'sv-h') { const m = maat(); try { localStorage.setItem('kaart-sk3-w', m.w); localStorage.setItem('kaart-sk3-h', m.h); } catch { /* */ } toon(); } });
       form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault(); });
       form.addEventListener('click', (e) => {
         const weg = e.target.closest('[data-weg]'); if (weg) { const l = velLeesG(); l.splice(Number(weg.dataset.weg), 1); velZetG(l); toon(); }
@@ -354,7 +355,7 @@ export async function stalenVelModal(ids = []) {
       });
       $('#sv-print', form).onclick = async () => {
         const l = velLeesG().flatMap((k) => Array(Math.max(1, Number(k.n) || 1)).fill(k)); if (!l.length) { toast('Kies eerst stalen', 'error'); return; }
-        const { w, h } = maat(); const cols = Math.max(1, Math.floor(200 / w)); const rows = Math.max(1, Math.floor(287 / h)); const n = cols * rows;
+        const { w, h } = maat(); const cols = Math.max(1, Math.floor(210.01 / w)); const rows = Math.max(1, Math.floor(297.01 / h)); const n = cols * rows;
         await zorgFotos();
         const vellen = []; for (let i = 0; i < l.length; i += n) vellen.push(l.slice(i, i + n));
         const css = `${SK_CSS}.blad{width:210mm;height:297mm;display:grid;grid-template-columns:repeat(${cols},${w}mm);grid-auto-rows:${h}mm;justify-content:center;align-content:center}.blad .sk{outline:.2mm dashed #b5b5b5}`;

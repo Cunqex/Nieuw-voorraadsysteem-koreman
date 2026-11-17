@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261117102155';
+import { sb, check, esc, $, toast } from './ui.js?v=20261117102600';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -101,8 +101,8 @@ export const SK_CSS = `
 .sk .r{display:grid;grid-template-columns:calc(var(--u)*30) 1fr;align-items:center;height:calc(var(--u)*5);border-bottom:calc(var(--u)*.25) solid #9a9a9a;font-size:calc(var(--u)*3.4);white-space:nowrap;overflow:hidden}
 .sk .r b{font-weight:700;font-size:calc(var(--u)*3.7)}
 .sk .qr{position:absolute;left:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*15);height:calc(var(--u)*15)}
-.sk .code{position:absolute;right:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*24);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6)}
-.sk .code .bc{display:block;width:100%;height:calc(var(--u)*5.5);margin-top:calc(var(--u)*.6)}
+.sk .code{position:absolute;right:calc(var(--u)*9);bottom:calc(var(--u)*4.5);width:calc(var(--u)*16.8);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6)}
+.sk .code .bc{display:block;width:100%;height:calc(var(--u)*3.85);margin-top:calc(var(--u)*.6)}
 .sk .inkoop{position:absolute;left:calc(var(--u)*25);right:calc(var(--u)*34);bottom:calc(var(--u)*8);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6);color:#000;white-space:nowrap}
 .sk .site{position:absolute;left:calc(var(--u)*25);right:calc(var(--u)*34);bottom:calc(var(--u)*4.5);text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:calc(var(--u)*2.6);color:#444;white-space:nowrap}`;
 export function staalkaart(k, logoUrl, qr) {
@@ -268,8 +268,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117102155');
-  const { printHtml } = await import('./kaarten.js?v=20261117102155');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117102600');
+  const { printHtml } = await import('./kaarten.js?v=20261117102600');
   const logoUrl = new URL('img/logo-koreman.jpg', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

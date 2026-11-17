@@ -2,8 +2,8 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261117170632';
-import { kaartenModal } from '../kaarten.js?v=20261117170632';
+} from '../ui.js?v=20261117171557';
+import { kaartenModal } from '../kaarten.js?v=20261117171557';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -25,6 +25,52 @@ function korteCollectie(col = []) {
   if (subs.length) return subs.slice(0, 2).join(', ');
   const hoofd = CATEGORIEEN.find((x) => (col || []).includes(x.hoofd));
   return hoofd ? hoofd.t : '';
+}
+
+// ---------- Customprijs per m² van de website (maatwerk) ----------
+// Eerst live van koremanmaastricht.nl (actueel), anders wat er bij het ophalen is opgeslagen.
+async function websiteCustomprijs(lijst) {
+  const handles = [...new Set(lijst.filter(Boolean))];
+  if (!handles.length) return null;
+  const { data } = await sb.from('website_producten').select('handle, titel, b2b, custom_m2, b2b_custom_m2').in('handle', handles);
+  for (const h of handles) {
+    const opgeslagen = (data || []).find((x) => x.handle === h);
+    let m2 = null; let soort = '';
+    try {
+      const pj = await (await fetch(`https://www.koremanmaastricht.nl/products/${h}.js`)).json();
+      const tag = (pj.tags || []).map((t) => String(t).match(/^m2prijs-(\d+(?:[.,]\d+)?)$/i)).find(Boolean);
+      if (tag) { m2 = Number(tag[1].replace(',', '.')); soort = 'customprijs'; }
+      else if ((pj.tags || []).some((t) => String(t).toLowerCase() === 'b2b')) {
+        const d = new DOMParser().parseFromString(await (await fetch(`https://www.koremanmaastricht.nl/products/${h}`)).text(), 'text/html');
+        const mf = JSON.parse(d.querySelector('#stape-product-data')?.textContent || '{}').metafields?.custom || {};
+        const g = String(mf.prijs_m2_maatwerk || '').replace(/\./g, '').replace(',', '.').match(/\d+(\.\d+)?/);
+        if (g) { m2 = Number(g[0]); soort = 'B2B-prijs custom sizes'; }
+      }
+    } catch { /* website niet bereikbaar: opgeslagen prijs gebruiken */ }
+    if (m2 == null && opgeslagen) {
+      if (opgeslagen.custom_m2 != null) { m2 = Number(opgeslagen.custom_m2); soort = 'customprijs'; }
+      else if (opgeslagen.b2b_custom_m2 != null) { m2 = Number(opgeslagen.b2b_custom_m2); soort = 'B2B-prijs custom sizes'; }
+    }
+    if (m2 != null) return { m2, bron: `${soort} van <a href="https://www.koremanmaastricht.nl/products/${esc(h)}" target="_blank" rel="noopener">${esc(opgeslagen?.titel || h)}</a>` };
+  }
+  return null;
+}
+// Alle custom-artikelen bijwerken als de customprijs op de website is veranderd (zelf aangepaste prijzen blijven staan).
+// Draait één keer per sessie op de achtergrond bij het openen van de artikellijst.
+async function syncCustomPrijzen() {
+  try { if (sessionStorage.getItem('custom-sync')) return; sessionStorage.setItem('custom-sync', '1'); } catch { /* */ }
+  const { data } = await sb.from('artikelen').select('id, lengte_cm, breedte_cm, verkoopprijs, custom_prijs_m2, website_handle, designs(website_handle)').eq('custom', true).eq('custom_prijs_handmatig', false);
+  let n = 0;
+  for (const r of data || []) {
+    const w = await websiteCustomprijs([r.website_handle, r.designs?.website_handle]).catch(() => null);
+    if (!w || (r.custom_prijs_m2 != null && Math.abs(Number(r.custom_prijs_m2) - w.m2) < 0.005)) continue;
+    const ar = r.lengte_cm && r.breedte_cm ? (Number(r.lengte_cm) * Number(r.breedte_cm)) / 10000 : null;
+    const upd = { custom_prijs_m2: w.m2, verkoopprijs_m2: w.m2 };
+    if (ar) upd.verkoopprijs = Math.round(w.m2 * ar * 100) / 100;
+    const { error } = await sb.from('artikelen').update(upd).eq('id', r.id);
+    if (!error) n++;
+  }
+  if (n) toast(`Customprijs op de website gewijzigd: ${n} custom-artikel${n === 1 ? '' : 'en'} bijgewerkt`, 'ok');
 }
 
 // =============================== LIJST ===============================
@@ -91,7 +137,7 @@ export async function renderList(c, _p, query) {
   $('#sel-wis', c).onclick = () => { gekozen.clear(); werkSelectieBij(); };
   $('#sel-alles', c).onclick = () => { zichtbaar.forEach((r) => gekozen.set(r.id, r.artikelnummer)); werkSelectieBij(); };
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261117170632');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261117171557');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -119,6 +165,7 @@ export async function renderList(c, _p, query) {
   on(c, 'click', '[data-sub]', (_e, b) => { sub = b.dataset.sub; try { localStorage.setItem('artikel-sub', sub); } catch { /* */ } tekenTabs(); toon = 120; load(); });
   $('#inactief', c).addEventListener('change', () => telAlles());
   tekenTabs(); telAlles();
+  syncCustomPrijzen().catch(() => {});
 
   let seq = 0; let toon = 120;
   const load = async () => {
@@ -189,9 +236,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117170632'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117170632'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261117170632'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117171557'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117171557'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261117171557'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -330,39 +377,26 @@ export async function renderDetail(c, [idStr], query) {
   // customM2 = prijs die gebruikt wordt; webM2 = prijs op de website; handmatig = zelf aangepast (wordt niet overschreven)
   let customM2 = a.custom_prijs_m2 != null ? Number(a.custom_prijs_m2) : null; let webM2 = null; let customBron = '';
   let handmatig = !!a.custom_prijs_handmatig;
-  const zoekCustomprijs = async () => {
-    const handles = [...new Set([form.website_handle?.value?.trim().replace(/^.*\/products\//, ''), a.designs?.website_handle].filter(Boolean))];
-    if (!handles.length) return null;
-    const { data } = await sb.from('website_producten').select('handle, titel, b2b, custom_m2, b2b_custom_m2').in('handle', handles);
-    // eerst live van de website (actueel), anders wat er bij het ophalen is opgeslagen
-    for (const h of handles) {
-      const opgeslagen = (data || []).find((x) => x.handle === h);
-      let m2 = null; let soort = '';
-      try {
-        const pj = await (await fetch(`https://www.koremanmaastricht.nl/products/${h}.js`)).json();
-        const tag = (pj.tags || []).map((t) => String(t).match(/^m2prijs-(\d+(?:[.,]\d+)?)$/i)).find(Boolean);
-        if (tag) { m2 = Number(tag[1].replace(',', '.')); soort = 'customprijs'; }
-        else if ((pj.tags || []).some((t) => String(t).toLowerCase() === 'b2b')) {
-          const d = new DOMParser().parseFromString(await (await fetch(`https://www.koremanmaastricht.nl/products/${h}`)).text(), 'text/html');
-          const mf = JSON.parse(d.querySelector('#stape-product-data')?.textContent || '{}').metafields?.custom || {};
-          const g = String(mf.prijs_m2_maatwerk || '').replace(/\./g, '').replace(',', '.').match(/\d+(\.\d+)?/);
-          if (g) { m2 = Number(g[0]); soort = 'B2B-prijs custom sizes'; }
-        }
-      } catch { /* website niet bereikbaar: opgeslagen prijs gebruiken */ }
-      if (m2 == null && opgeslagen) {
-        if (opgeslagen.custom_m2 != null) { m2 = Number(opgeslagen.custom_m2); soort = 'customprijs'; }
-        else if (opgeslagen.b2b_custom_m2 != null) { m2 = Number(opgeslagen.b2b_custom_m2); soort = 'B2B-prijs custom sizes'; }
-      }
-      if (m2 != null) return { m2, bron: `${soort} van <a href="https://www.koremanmaastricht.nl/products/${esc(h)}" target="_blank" rel="noopener">${esc(opgeslagen?.titel || h)}</a>` };
-    }
-    return null;
-  };
+  const zoekCustomprijs = () => websiteCustomprijs([form.website_handle?.value?.trim().replace(/^.*\/products\//, ''), a.designs?.website_handle]);
   // Standaardprijs (zonder custom) apart bewaren, zodat die terugkomt als custom weer uit gaat
   const leegOfNum = (x) => (x === null || x === undefined || x === '' ? null : Number(x));
   let standaard = a.custom ? { stuk: leegOfNum(a.std_verkoopprijs), m2: leegOfNum(a.std_verkoopprijs_m2) } : { stuk: leegOfNum(a.verkoopprijs), m2: leegOfNum(a.verkoopprijs_m2) };
   const zetStandaardTerug = () => {
     form.verkoopprijs.value = standaard.stuk != null ? standaard.stuk.toFixed(2) : '';
     form.verkoopprijs_m2.value = standaard.m2 != null ? standaard.m2.toFixed(2) : '';
+  };
+  // Prijzen meteen opslaan als custom aan/uit gaat of de customprijs verandert (de rest van het formulier niet)
+  const bewaarPrijs = async (melding) => {
+    const custom = form.custom.checked;
+    const upd = {
+      custom, verkoopprijs: leegOfNum(form.verkoopprijs.value), verkoopprijs_m2: leegOfNum(form.verkoopprijs_m2.value),
+      custom_prijs_m2: custom && customM2 != null ? customM2 : null, custom_prijs_handmatig: !!(custom && handmatig),
+      std_verkoopprijs: custom ? standaard.stuk : null, std_verkoopprijs_m2: custom ? standaard.m2 : null,
+    };
+    const { error } = await sb.from('artikelen').update(upd).eq('id', a.id);
+    if (error) { toast('Prijs kon niet worden opgeslagen: ' + error.message, 'error'); return; }
+    Object.assign(a, upd);
+    toast(melding || `Verkoopprijs opgeslagen: ${money(upd.verkoopprijs)}`, 'ok');
   };
   const rekenCustom = () => {
     const info = $('#custom-info', c);
@@ -384,9 +418,9 @@ export async function renderDetail(c, [idStr], query) {
     inp.addEventListener('change', () => {
       const n = inp.value === '' ? null : Number(inp.value);
       customM2 = n; handmatig = n != null && !(webM2 != null && Math.abs(webM2 - n) < 0.005);
-      rekenCustom();
+      rekenCustom(); bewaarPrijs();
     });
-    $('#custom-web', c)?.addEventListener('click', () => { customM2 = webM2; handmatig = false; rekenCustom(); });
+    $('#custom-web', c)?.addEventListener('click', () => { customM2 = webM2; handmatig = false; rekenCustom(); bewaarPrijs(); });
   };
   const haalCustom = async () => {
     $('#custom-info', c).textContent = 'Customprijs ophalen van de website…';
@@ -399,11 +433,15 @@ export async function renderDetail(c, [idStr], query) {
     if (form.custom.checked) {
       // de prijzen die nu in het formulier staan zijn de standaardprijzen
       standaard = { stuk: leegOfNum(form.verkoopprijs.value), m2: leegOfNum(form.verkoopprijs_m2.value) };
-      haalCustom();
-    } else { zetStandaardTerug(); rekenCustom(); }
+      haalCustom().then(() => bewaarPrijs(`Custom: verkoopprijs aangepast naar ${money(leegOfNum(form.verkoopprijs.value))}`));
+    } else { zetStandaardTerug(); rekenCustom(); bewaarPrijs(`Geen custom meer: verkoopprijs terug naar ${money(standaard.stuk)}`); }
   });
   ['lengte_cm', 'breedte_cm'].forEach((n) => form[n].addEventListener('input', () => { if (form.custom.checked) rekenCustom(); }));
-  if (a.custom) haalCustom();
+  // Bij openen: is de customprijs op de website veranderd (en niet zelf aangepast)? Dan de verkoopprijs automatisch bijwerken.
+  if (a.custom) haalCustom().then(() => {
+    const oud = leegOfNum(a.verkoopprijs); const nieuw = leegOfNum(form.verkoopprijs.value);
+    if (!handmatig && nieuw != null && (oud == null || Math.abs(oud - nieuw) > 0.004)) bewaarPrijs(`Customprijs op de website is gewijzigd: verkoopprijs bijgewerkt naar ${money(nieuw)}`);
+  });
   link('verkoopprijs', 'verkoopprijs_m2');
   ['lengte_cm', 'breedte_cm'].forEach((n) => form[n].addEventListener('input', () => {
     const ar = area(); $('#opp', c).textContent = ar ? `Oppervlakte: ${num(ar, 2)} m²` : '';
@@ -536,7 +574,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261117170632');
+      const { artikelPicker } = await import('../ui.js?v=20261117171557');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

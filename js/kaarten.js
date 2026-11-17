@@ -3,8 +3,8 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261117115341';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261117115341';
+import { esc, $, modal, toast } from './ui.js?v=20261117141042';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261117141042';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -74,6 +74,13 @@ function prijskaartje(k) {
 
 // ---------- Wandkaart ----------
 const FORMATEN = { A5: [210, 148], A4: [297, 210], A6: [148, 105] };
+// Twee kaarten onder elkaar op één staand vel van het volgende formaat
+const DUBBEL_VEL = { A5: ['A4 portrait', 'A4', 297], A6: ['A5 portrait', 'A5', 210], A4: ['A3 portrait', 'A3', 420] };
+const DUBBEL_CSS = `.vel2{position:relative;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.vel2 .snij{position:absolute;left:0;right:0;top:50%;border-top:.2mm dashed #c8c8c8}`;
+// Wandkaarten die klaarstaan om samen met de volgende kaart op één vel te printen
+const wkWacht = { lees() { try { return JSON.parse(localStorage.getItem('kaart-wk-vel') || '[]'); } catch { return []; } },
+  zet(l) { try { localStorage.setItem('kaart-wk-vel', JSON.stringify(l)); } catch { /* geen opslag */ } } };
 const WK_CSS = `
 .wk{--w:210mm;--h:148mm;--u:calc(var(--w) / 210);position:relative;width:var(--w);height:var(--h);background:#fff;overflow:hidden;color:#1d1d1b;
   font-family:"Proxima Nova","Montserrat","Avenir Next","Segoe UI",Arial,sans-serif;font-feature-settings:normal;font-variant-ligatures:none}
@@ -151,7 +158,10 @@ export async function kaartenModal(a) {
         ${veld('wk-herkomst', 'Herkomst', wk.herkomst)}${veld('wk-prijs', 'Prijs', wk.prijs)}
         <div class="kt-row"><label style="flex:1">Formaat<select id="wk-formaat">${Object.keys(FORMATEN).map((f) => `<option value="${f}" ${wk.formaat === f ? 'selected' : ''}>${f} liggend (${FORMATEN[f][0]} × ${FORMATEN[f][1]} mm)</option>`).join('')}</select></label>
           <label style="width:70px">Aantal<input id="wk-n" type="number" min="1" value="1"></label></div>
+        <label>Kaarten per vel<select id="wk-pervel"><option value="1">1 kaart per vel (eigen formaat)</option><option value="2">2 kaarten per vel (onder elkaar)</option></select></label>
+        <div id="wk-wacht" class="small" style="margin:-2px 0 10px"></div>
         <button type="button" class="btn primary" id="wk-print" style="width:100%"><i data-lucide="printer"></i> Print wandkaart</button>
+        <button type="button" class="btn" id="wk-bewaar" style="width:100%;margin-top:6px" hidden><i data-lucide="plus"></i> Bewaar voor het vel (print later samen met een andere kaart)</button>
       </div>
     </div>
     <div class="kt-pane" data-pane="pk" hidden>
@@ -177,9 +187,29 @@ export async function kaartenModal(a) {
       const schaal = (el, breedtePx) => { el.style.transform = 'none'; const kaart = el.firstElementChild; const k = breedtePx / kaart.offsetWidth; el.style.transform = `scale(${k})`; el.parentElement.style.height = `${kaart.offsetHeight * k + 24}px`; };
       const leesWk = () => ({ collectie: v('wk-collectie'), titel: v('wk-titel'), maat: v('wk-maat'), pool: v('wk-pool'), knoop: v('wk-knoop'), herkomst: v('wk-herkomst'), prijs: v('wk-prijs'), formaat: v('wk-formaat'), n: Math.max(1, parseInt(v('wk-n'), 10) || 1) });
       const leesPk = () => ({ oms: v('pk-oms'), maat: v('pk-maat'), prijs: v('pk-prijs'), nr: pk.nr, n: Math.max(1, parseInt(v('pk-n'), 10) || 1) });
+      const zetPerVel = () => {
+        const twee = v('wk-pervel') === '2'; const wacht = wkWacht.lees(); const f = v('wk-formaat');
+        $('#wk-bewaar', form).hidden = !twee;
+        $('#wk-print', form).innerHTML = `<i data-lucide="printer"></i> ${twee ? `Print op ${DUBBEL_VEL[f][1]} (2 per vel)` : 'Print wandkaart'}`;
+        $('#wk-wacht', form).innerHTML = twee
+          ? (wacht.length ? `<div style="background:var(--amber-bg);border-radius:8px;padding:8px 10px">Klaar voor het vel: ${wacht.map((x, i) => `<span style="white-space:nowrap"><b>${esc(x.titel)}</b>${x.maat ? ' (' + esc(x.maat) + ')' : ''} <a href="#" data-weg="${i}" title="Weghalen">✕</a></span>`).join(', ')}<br><span class="muted">Deze worden samen met deze kaart geprint.</span></div>`
+            : `<span class="muted">${DUBBEL_VEL[f][1]} staand, met een snijlijn in het midden. Wil je twee verschillende tapijten op één vel? Klik bij het eerste op "Bewaar voor het vel" en print bij het tweede.</span>`)
+          : '';
+        $('#wk-wacht', form).querySelectorAll('[data-weg]').forEach((x) => { x.onclick = (e) => { e.preventDefault(); const l = wkWacht.lees(); l.splice(Number(x.dataset.weg), 1); wkWacht.zet(l); zetPerVel(); }; });
+        window.lucide?.createIcons();
+      };
       const toonWk = () => { const el = $('#wk-prev', form); el.innerHTML = wandkaart(leesWk(), logoUrl); schaal(el, $('.kt-prev', form).clientWidth - 24); };
       const toonPk = () => { const el = $('#pk-prev', form); el.innerHTML = prijskaartje(leesPk()); schaal(el, Math.min(420, $('[data-pane=pk] .kt-prev', form).clientWidth - 24)); };
       $('#wk-collectie', form).value = wk.collectie;
+      $('#wk-pervel', form).value = onthoud.get('pervel', '1');
+      form.addEventListener('change', (e) => { if (e.target.id === 'wk-pervel' || e.target.id === 'wk-formaat') { onthoud.set('pervel', v('wk-pervel')); zetPerVel(); } });
+      zetPerVel();
+      $('#wk-bewaar', form).onclick = () => {
+        const k = leesWk();
+        if (!k.titel) { toast('Vul een titel in', 'error'); return; }
+        const l = wkWacht.lees(); for (let i = 0; i < k.n; i += 1) l.push(k); wkWacht.zet(l);
+        toast(`${k.n === 1 ? 'Kaart' : k.n + ' kaarten'} bewaard. Open het volgende artikel en print daar.`); zetPerVel();
+      };
       form.addEventListener('input', (e) => { if (e.target.id?.startsWith('wk-')) toonWk(); else if (e.target.id?.startsWith('pk-')) toonPk(); });
       form.addEventListener('change', (e) => { if (e.target.id?.startsWith('wk-')) toonWk(); });
       form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault(); });
@@ -193,8 +223,14 @@ export async function kaartenModal(a) {
         if (!k.titel) { toast('Vul een titel in', 'error'); return; }
         onthoud.set('pool', k.pool); onthoud.set('knoop', k.knoop); onthoud.set('herkomst', k.herkomst); onthoud.set('formaat', k.formaat);
         const [w, h] = FORMATEN[k.formaat];
-        const kaart = wandkaart(k, logoUrl).replace('class="wk"', `class="wk" style="--w:${w}mm;--h:${h}mm"`);
-        printHtml(Array(k.n).fill(`<div class="vel">${kaart}</div>`).join(''), WK_CSS, `${w}mm ${h}mm`);
+        const maak = (x) => wandkaart(x, logoUrl).replace('class="wk"', `class="wk" style="--w:${w}mm;--h:${h}mm"`);
+        if (v('wk-pervel') !== '2') { printHtml(Array(k.n).fill(`<div class="vel">${maak(k)}</div>`).join(''), WK_CSS, `${w}mm ${h}mm`); return; }
+        const kaarten = [...wkWacht.lees(), ...Array(k.n).fill(k)].map(maak);
+        const [pagina, , velH] = DUBBEL_VEL[k.formaat];
+        let html = '';
+        for (let i = 0; i < kaarten.length; i += 2) html += `<div class="vel vel2" style="width:${w}mm;height:${velH - 0.5}mm">${kaarten[i]}${kaarten[i + 1] || ''}${kaarten[i + 1] ? '<div class="snij"></div>' : ''}</div>`;
+        printHtml(html, WK_CSS + DUBBEL_CSS, pagina);
+        wkWacht.zet([]); zetPerVel();
       };
       $('#pk-print', form).onclick = () => {
         const k = leesPk();

@@ -3,8 +3,8 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261117141042';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261117141042';
+import { esc, $, modal, toast } from './ui.js?v=20261117141254';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261117141254';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -202,7 +202,10 @@ export async function kaartenModal(a) {
       const toonPk = () => { const el = $('#pk-prev', form); el.innerHTML = prijskaartje(leesPk()); schaal(el, Math.min(420, $('[data-pane=pk] .kt-prev', form).clientWidth - 24)); };
       $('#wk-collectie', form).value = wk.collectie;
       $('#wk-pervel', form).value = onthoud.get('pervel', '1');
-      form.addEventListener('change', (e) => { if (e.target.id === 'wk-pervel' || e.target.id === 'wk-formaat') { onthoud.set('pervel', v('wk-pervel')); zetPerVel(); } });
+      form.addEventListener('change', (e) => { if (e.target.id === 'wk-pervel' || e.target.id === 'wk-formaat') {
+        // 2 per vel: standaard A5-kaarten op een gewoon A4-vel
+        if (e.target.id === 'wk-pervel' && v('wk-pervel') === '2' && v('wk-formaat') === 'A4') { $('#wk-formaat', form).value = 'A5'; toonWk(); }
+        onthoud.set('pervel', v('wk-pervel')); zetPerVel(); } });
       zetPerVel();
       $('#wk-bewaar', form).onclick = () => {
         const k = leesWk();

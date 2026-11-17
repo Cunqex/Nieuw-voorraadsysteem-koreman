@@ -1,7 +1,20 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261117112343';
+} from '../ui.js?v=20261117115341';
+
+// Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
+const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
+const openBedrag = (r) => (OPEN_STATUS.includes(r.status) ? Math.max(0, Math.round(((Number(r._t?.totaal) || 0) - (Number(r._t?.betaald) || 0)) * 100) / 100) : 0);
+async function openstaandeOrders(klantId) {
+  const rows = await alles(() => {
+    let q = sb.from('verkooporders').select('id, klant_id, status, orderdatum, offertenummer, orderbev_nummer, factuurnummer, klanten(naam)').in('status', OPEN_STATUS);
+    if (klantId) q = q.eq('klant_id', klantId);
+    return q;
+  });
+  await withTotals(rows, 'v_verkooporder_totalen', 'verkooporder_id');
+  return rows.filter((r) => openBedrag(r) > 0.005);
+}
 
 const nrLabel = (s) => s.factuurnummer ? `Factuur ${s.factuurnummer}` : s.orderbev_nummer ? `Orderbevestiging ${s.orderbev_nummer}` : s.offertenummer ? `Offerte ${s.offertenummer}` : `Verkooporder (concept #${s.id})`;
 
@@ -14,15 +27,43 @@ export async function renderList(c, _p, query) {
     <div class="help">Een verkooporder doorloopt: <b>offerte</b> → <b>orderbevestiging</b> (met aanbetaling) → <b>levering</b> → <b>factuur</b>.
       Artikelen die besteld moeten worden, krijgen bij het bevestigen automatisch een concept-inkooporder voor de leverancier.</div>
     <div class="toolbar">
+      <div class="seg" style="display:flex;gap:4px"><button class="btn small" data-modus="orders">Orders</button><button class="btn small" data-modus="klanten"><i data-lucide="wallet"></i> Openstaand per klant</button></div>
       <input type="search" id="q" placeholder="Zoek op nummer, klant of referentie…">
       <select id="status"><option value="open">Alle open</option><option value="">Alles</option>
         ${Object.entries(SO_STATUS).map(([k, [l]]) => `<option value="${k}">${l}</option>`).join('')}</select>
     </div>
+    <div id="klantfilter"></div>
     <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
+  let modus = query.modus === 'klanten' ? 'klanten' : 'orders';
+  const klantFilter = query.klant_id ? Number(query.klant_id) : null;
+  const zetModus = () => {
+    c.querySelectorAll('[data-modus]').forEach((b) => b.classList.toggle('primary', b.dataset.modus === modus));
+    $('#status', c).hidden = modus === 'klanten';
+  };
+  // ---- weergave: per klant hoeveel er nog openstaat ----
+  const loadKlanten = async () => {
+    const rows = await openstaandeOrders();
+    const per = new Map();
+    rows.forEach((r) => {
+      const k = per.get(r.klant_id) || { id: r.klant_id, naam: r.klanten?.naam || '(onbekend)', orders: 0, open: 0, oudste: r.orderdatum };
+      k.orders += 1; k.open += openBedrag(r); if (r.orderdatum && (!k.oudste || r.orderdatum < k.oudste)) k.oudste = r.orderdatum;
+      per.set(r.klant_id, k);
+    });
+    const s = $('#q', c).value.trim().toLowerCase();
+    const lijst = [...per.values()].filter((k) => !s || k.naam.toLowerCase().includes(s)).sort((a2, b2) => b2.open - a2.open);
+    const tot = lijst.reduce((x, k) => x + k.open, 0);
+    $('#tbl', c).innerHTML = lijst.length ? `<table class="list"><thead><tr><th>Klant</th><th class="num">Open orders</th><th>Oudste order</th><th class="num">Nog te betalen</th></tr></thead><tbody>
+      ${lijst.map((k) => `<tr class="click" onclick="location.hash='#/verkoop?klant_id=${k.id}'"><td><b>${esc(k.naam)}</b></td><td class="num">${k.orders}</td><td>${datum(k.oudste)}</td><td class="num"><b>${money(k.open)}</b></td></tr>`).join('')}
+      </tbody><tfoot><tr><td><b>Totaal</b> <span class="muted small">(${lijst.length} klant${lijst.length === 1 ? '' : 'en'})</span></td><td class="num">${lijst.reduce((x, k) => x + k.orders, 0)}</td><td></td><td class="num"><b>${money(tot)}</b></td></tr></tfoot></table>
+      <p class="small muted" style="padding:10px 16px">Telt bevestigde, geleverde en gefactureerde orders waarop nog niet alles is betaald. Klik op een klant voor de orders.</p>`
+      : '<p class="empty">Er staat bij geen enkele klant nog iets open.</p>';
+  };
   const load = async () => {
-    const st = $('#status', c).value;
+    if (modus === 'klanten') return loadKlanten();
+    const st = klantFilter ? '' : $('#status', c).value;
     let rows = await alles(() => {
-      let q = sb.from('verkooporders').select('id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klant_referentie, klanten(naam)').order('orderdatum', { ascending: false }).order('id', { ascending: false });
+      let q = sb.from('verkooporders').select('id, klant_id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klant_referentie, klanten(naam)').order('orderdatum', { ascending: false }).order('id', { ascending: false });
+      if (klantFilter) q = q.eq('klant_id', klantFilter);
       if (st === 'open') q = q.not('status', 'in', '(betaald,geannuleerd)'); else if (st) q = q.eq('status', st);
       return q;
     });
@@ -31,10 +72,10 @@ export async function renderList(c, _p, query) {
     const aantal = rows.length;
     rows = rows.slice(0, 400);
     await withTotals(rows, 'v_verkooporder_totalen', 'verkooporder_id');
-    $('#tbl', c).innerHTML = rows.length ? `<table class="list"><thead><tr><th>Offerte</th><th>Orderbev.</th><th>Factuur</th><th>Klant</th><th>Referentie</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th></tr></thead><tbody>
+    $('#tbl', c).innerHTML = rows.length ? `<table class="list"><thead><tr><th>Offerte</th><th>Orderbev.</th><th>Factuur</th><th>Klant</th><th>Referentie</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th><th class="num">Openstaand</th></tr></thead><tbody>
       ${rows.map((r) => `<tr class="click" onclick="location.hash='#/verkoop/${r.id}'"><td>${r.offertenummer || '–'}</td><td>${r.orderbev_nummer || '–'}</td><td>${r.factuurnummer || '–'}</td>
         <td><b>${esc(r.klanten?.naam)}</b></td><td>${esc(r.klant_referentie || '')}</td><td>${datum(r.orderdatum)}</td><td>${badge(SO_STATUS, r.status)}</td>
-        <td class="num">${money(r._t.totaal)}</td><td class="num">${money(r._t.betaald)}</td></tr>`).join('')}
+        <td class="num">${money(r._t.totaal)}</td><td class="num">${money(r._t.betaald)}</td><td class="num">${openBedrag(r) > 0.005 ? `<b class="open-bedrag">${money(openBedrag(r))}</b>` : '<span class="muted">–</span>'}</td></tr>`).join('')}
     </tbody></table>${aantal > rows.length ? `<p class="small muted" style="padding:12px 16px">De nieuwste ${rows.length} van ${aantal} orders. Zoek op nummer of klant om een oudere order te vinden.</p>` : ''}` : '<p class="empty">Geen verkooporders gevonden.</p>';
   };
   const nieuw = async () => {
@@ -57,6 +98,15 @@ export async function renderList(c, _p, query) {
     if (id) location.hash = '#/verkoop/' + id;
   };
   $('#nieuw', c).onclick = nieuw;
+  c.querySelectorAll('[data-modus]').forEach((b) => { b.onclick = () => { modus = b.dataset.modus; zetModus(); load(); }; });
+  if (klantFilter) {
+    const open = await openstaandeOrders(klantFilter);
+    const kn = check(await sb.from('klanten').select('naam').eq('id', klantFilter).single()).naam;
+    const som = open.reduce((x, r) => x + openBedrag(r), 0);
+    $('#klantfilter', c).innerHTML = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div>Orders van <b>${esc(kn)}</b> · nog te betalen: <b class="open-bedrag">${money(som)}</b>${open.length ? ` over ${open.length} order${open.length === 1 ? '' : 's'}` : ''}</div><span class="spacer"></span><a class="btn small" href="#/klant/${klantFilter}">Klantkaart</a><a class="btn small" href="#/verkoop">Alle klanten</a></div>`;
+    $('#status', c).value = '';
+  }
+  zetModus();
   let t; $('#q', c).addEventListener('input', () => { clearTimeout(t); t = setTimeout(load, 250); });
   $('#status', c).addEventListener('change', load);
   await load();
@@ -163,6 +213,7 @@ export async function renderDetail(c, [id]) {
         <span class="kb-l">Klant</span>
         <b class="so-naam">${esc(k.naam || '')}</b>
         <span class="muted small">${esc([k.postcode_plaats, so.klant_referentie ? 'ref. ' + so.klant_referentie : ''].filter(Boolean).join(' · ')) || `Klantnr. ${k.nummer ?? ''}`}</span>
+        <a class="small" id="klant-open" href="#/verkoop?klant_id=${so.klant_id}" style="margin-top:4px"></a>
       </div>
       <div><span class="kb-l">Totaal incl. btw</span><b class="so-bedrag">${money(totaal)}</b></div>
       <div><span class="kb-l">Betaald</span><b class="so-bedrag ${betaald ? 'ok' : ''}">${money(betaald)}</b></div>
@@ -283,6 +334,12 @@ export async function renderDetail(c, [id]) {
     </tbody></table></div>` : ''}`;
 
   loadImages(c);
+  // Hoeveel moet deze klant in totaal nog betalen (alle open orders)?
+  if (so.klant_id) openstaandeOrders(so.klant_id).then((open) => {
+    const el = $('#klant-open', c); if (!el) return;
+    const som = open.reduce((x, r) => x + openBedrag(r), 0);
+    el.innerHTML = som > 0.005 ? `Klant moet in totaal nog <b class="open-bedrag">${money(som)}</b> betalen (${open.length} order${open.length === 1 ? '' : 's'}) ›` : 'Klant heeft verder niets openstaan';
+  }).catch(() => {});
 
   // ---- documenten ----
   const openDoc = async (soort) => {

@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261117150509';
+import { sb, check, esc, $, toast } from './ui.js?v=20261117151204';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -124,12 +124,13 @@ export function staalkaart(k, logoUrl, qr) {
     ${k.nr ? `<div class="code">${esc(k.nr)}${barcodeSvg(k.nr)}</div>` : ''}</div>`;
 }
 
-// Foto voor de kaart: eigen foto van het artikel of design, anders de foto van de website.
+// Foto voor de kaart: de rechte (bovenaanzicht) foto van de website, anders de eigen foto van het artikel of design.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261117150509');
+  const { mediaUrl } = await import('./ui.js?v=20261117151204');
   await Promise.all(kaarten.map(async (k) => {
-    if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || k.fotoWeb || ''; } catch { k.foto = k.fotoWeb || ''; } } else k.foto = k.fotoWeb || '';
+    if (k.fotoWeb) k.foto = k.fotoWeb;
+    else if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } } else k.foto = '';
   }));
   return kaarten;
 }
@@ -168,7 +169,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   zet('sk-materiaal', naarEngels(a.materiaal)); zet('sk-methode', naarEngels(a.techniek));
   if (a.verkoopprijs_m2) zet('sk-prijs', `€ ${Number(a.verkoopprijs_m2).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} / m²`);
   const status = (t) => { $('#sk-status', form).innerHTML = t; };
-  const lees = () => ({ handle, fotoPad, fotoWeb, foto: fotoNu || fotoWeb, nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(a.inkoopprijs), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 76, h: Number(v('sk-h')) || 140, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
+  const lees = () => ({ handle, fotoPad, fotoWeb, foto: fotoWeb || fotoNu, nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(a.inkoopprijs), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 76, h: Number(v('sk-h')) || 140, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
   const kaartHtml = (k) => staalkaart(k, logoUrl, qr).replace('class="sk"', `class="sk" style="--w:${k.w}mm;--h:${k.h}mm"`);
   const toon = () => {
     const el = $('#sk-prev', form); el.style.transform = 'none'; el.innerHTML = kaartHtml(lees());
@@ -292,8 +293,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117150509');
-  const { printHtml } = await import('./kaarten.js?v=20261117150509');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117151204');
+  const { printHtml } = await import('./kaarten.js?v=20261117151204');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({
@@ -318,7 +319,7 @@ export async function stalenVelModal(ids = []) {
       const maat = () => ({ w: Number($('#sv-w', form).value) || 76, h: Number($('#sv-h', form).value) || 140 });
       const perVel = () => { const m = maat(); return Math.max(1, Math.floor(200 / m.w)) * Math.max(1, Math.floor(287 / m.h)); };
       const fc = new Map();
-      const metFoto = (k) => ({ ...k, foto: (k.fotoPad && fc.get(k.fotoPad)) || k.fotoWeb || '' });
+      const metFoto = (k) => ({ ...k, foto: k.fotoWeb || (k.fotoPad && fc.get(k.fotoPad)) || '' });
       const zorgFotos = async () => {
         const nodig = [...new Set(velLeesG().map((k) => k.fotoPad).filter((p2) => p2 && !fc.has(p2)))];
         if (nodig.length) (await fotosOphalen(nodig.map((p2) => ({ fotoPad: p2 })))).forEach((x, i) => fc.set(nodig[i], x.foto));

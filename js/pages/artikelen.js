@@ -2,8 +2,8 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261117171557';
-import { kaartenModal } from '../kaarten.js?v=20261117171557';
+} from '../ui.js?v=20261117172442';
+import { kaartenModal } from '../kaarten.js?v=20261117172442';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -137,7 +137,7 @@ export async function renderList(c, _p, query) {
   $('#sel-wis', c).onclick = () => { gekozen.clear(); werkSelectieBij(); };
   $('#sel-alles', c).onclick = () => { zichtbaar.forEach((r) => gekozen.set(r.id, r.artikelnummer)); werkSelectieBij(); };
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261117171557');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261117172442');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -236,9 +236,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117171557'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117171557'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261117171557'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117172442'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261117172442'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261117172442'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -389,7 +389,7 @@ export async function renderDetail(c, [idStr], query) {
   const bewaarPrijs = async (melding) => {
     const custom = form.custom.checked;
     const upd = {
-      custom, verkoopprijs: leegOfNum(form.verkoopprijs.value), verkoopprijs_m2: leegOfNum(form.verkoopprijs_m2.value),
+      custom, lengte_cm: leegOfNum(form.lengte_cm.value), breedte_cm: leegOfNum(form.breedte_cm.value), verkoopprijs: leegOfNum(form.verkoopprijs.value), verkoopprijs_m2: leegOfNum(form.verkoopprijs_m2.value),
       custom_prijs_m2: custom && customM2 != null ? customM2 : null, custom_prijs_handmatig: !!(custom && handmatig),
       std_verkoopprijs: custom ? standaard.stuk : null, std_verkoopprijs_m2: custom ? standaard.m2 : null,
     };
@@ -412,7 +412,10 @@ export async function renderDetail(c, [idStr], query) {
         ${handmatig ? '<span class="badge custom">handmatig aangepast</span>' : ''}
         ${handmatig && webM2 != null && Math.abs(webM2 - (customM2 ?? -1)) > 0.004 ? '<button type="button" class="btn small" id="custom-web">Websiteprijs gebruiken</button>' : ''}
         <a href="#" id="custom-vernieuw">Opnieuw ophalen</a></div>
-      <div style="margin-top:4px">${web}${customM2 != null && ar ? `${web ? ' · ' : ''}${money(customM2)} × ${num(ar, 2)} m² = <b>${money(customM2 * ar)}</b>` : customM2 != null ? `${web ? ' · ' : ''}vul lengte en breedte in om de prijs te berekenen` : ''}</div>`;
+      <div style="margin-top:4px">${web}${customM2 != null && ar ? `${web ? ' · ' : ''}${money(customM2)} × ${num(ar, 2)} m² = <b>${money(customM2 * ar)}</b>` : ''}</div>
+      ${customM2 != null && !ar ? `<div class="custom-let"><b>Let op:</b> lengte en breedte zijn nog niet ingevuld, daarom staat de verkoopprijs nog op ${money(leegOfNum(form.verkoopprijs.value))}. Vul de maat in (bij "Maat en eigenschappen"), dan wordt de customprijs uitgerekend en opgeslagen.</div>` : ''}`;
+    form.lengte_cm.classList.toggle('let-op', customM2 != null && !ar && !form.lengte_cm.value);
+    form.breedte_cm.classList.toggle('let-op', customM2 != null && !ar && !form.breedte_cm.value);
     $('#custom-vernieuw', c).onclick = (e) => { e.preventDefault(); haalCustom(); };
     const inp = $('#custom-m2', c);
     inp.addEventListener('change', () => {
@@ -436,7 +439,13 @@ export async function renderDetail(c, [idStr], query) {
       haalCustom().then(() => bewaarPrijs(`Custom: verkoopprijs aangepast naar ${money(leegOfNum(form.verkoopprijs.value))}`));
     } else { zetStandaardTerug(); rekenCustom(); bewaarPrijs(`Geen custom meer: verkoopprijs terug naar ${money(standaard.stuk)}`); }
   });
-  ['lengte_cm', 'breedte_cm'].forEach((n) => form[n].addEventListener('input', () => { if (form.custom.checked) rekenCustom(); }));
+  let maatTimer;
+  ['lengte_cm', 'breedte_cm'].forEach((n) => form[n].addEventListener('input', () => {
+    if (!form.custom.checked) return;
+    rekenCustom();
+    clearTimeout(maatTimer);
+    if (area() && customM2 != null) maatTimer = setTimeout(() => bewaarPrijs(`Maat en customprijs opgeslagen: ${money(leegOfNum(form.verkoopprijs.value))}`), 900);
+  }));
   // Bij openen: is de customprijs op de website veranderd (en niet zelf aangepast)? Dan de verkoopprijs automatisch bijwerken.
   if (a.custom) haalCustom().then(() => {
     const oud = leegOfNum(a.verkoopprijs); const nieuw = leegOfNum(form.verkoopprijs.value);
@@ -574,7 +583,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261117171557');
+      const { artikelPicker } = await import('../ui.js?v=20261117172442');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

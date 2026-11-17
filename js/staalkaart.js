@@ -2,7 +2,7 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261117171557';
+import { sb, check, esc, $, toast } from './ui.js?v=20261117172442';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -131,7 +131,7 @@ export function staalkaart(k, logoUrl, qr) {
 // Foto voor de kaart: de rechte (bovenaanzicht) foto van de website, anders de eigen foto van het artikel of design.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261117171557');
+  const { mediaUrl } = await import('./ui.js?v=20261117172442');
   await Promise.all(kaarten.map(async (k) => {
     if (k.fotoWeb) k.foto = k.fotoWeb;
     else if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } } else k.foto = '';
@@ -297,8 +297,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117171557');
-  const { printHtml } = await import('./kaarten.js?v=20261117171557');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117172442');
+  const { printHtml } = await import('./kaarten.js?v=20261117172442');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

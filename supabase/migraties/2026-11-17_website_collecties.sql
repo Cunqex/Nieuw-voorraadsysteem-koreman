@@ -18,3 +18,4 @@ create table if not exists public.artikel_website (
 alter table public.website_producten add column if not exists custom_m2 numeric, add column if not exists b2b_prijs_m2 numeric, add column if not exists b2b_custom_m2 numeric;
 alter table public.artikelen add column if not exists custom boolean not null default false, add column if not exists custom_prijs_m2 numeric;
 alter table public.artikelen add column if not exists custom_prijs_handmatig boolean not null default false;
+alter table public.artikelen add column if not exists std_verkoopprijs numeric, add column if not exists std_verkoopprijs_m2 numeric;

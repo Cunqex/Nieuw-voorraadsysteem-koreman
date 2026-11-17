@@ -3,8 +3,8 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261117150403';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261117150403';
+import { esc, $, modal, toast } from './ui.js?v=20261117150509';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261117150509';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -262,7 +262,7 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261117150403');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261117150509');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',

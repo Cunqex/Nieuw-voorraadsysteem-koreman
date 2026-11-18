@@ -20,8 +20,19 @@ export const KNOOP_EN = [...KNOPEN.map((n) => `${dzd(n)} / m²`), 'Handtufted', 
 export const METHODES_EN = ['Handknotted', 'Handtufted', 'Handloom', 'Handwoven', 'Flatweave', 'Hand-knotted Nepalese', 'Loop & Cut'];
 export const TECHNIEKEN_NL = ['Handgeknoopt', 'Handgetuft', 'Handloom', 'Handgeweven', 'Platgeweven', 'Nepalese knoop', 'Loop & cut'];
 
-// Een regel op de kaart vervalt als de waarde leeg is of "n/a", "nvt", "n.v.t." of een streepje
+// "n/a", "nvt", "n.v.t." of een streepje
 export const leegWaarde = (v) => /^\s*(n\s*\/?\s*a|nvt|n\.v\.t\.?|-|–|—)?\s*$/i.test(String(v ?? ''));
+// Regel weglaten op de kaart: alleen als je zelf N/A (of n.v.t.) kiest of typt. Komt N/A van de website, dan blijft de regel staan.
+export const WEG = '__weg';
+export function volgGebruiker(root) {
+  const markeer = (e) => { if (e.isTrusted && e.target?.id) e.target.dataset.gebruiker = '1'; };
+  root.addEventListener('input', markeer, true); root.addEventListener('change', markeer, true);
+}
+export function kaartWaarde(el) {
+  if (!el) return '';
+  const v = el.value;
+  return el.dataset.gebruiker && String(v).trim() && leegWaarde(v) ? WEG : v;
+}
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 // ---------- Keuzelijst met "zelf invullen" ----------
@@ -38,6 +49,7 @@ export function zetWaarde(el, val) {
     const o = document.createElement('option'); o.textContent = v; el.insertBefore(o, el.options[1] || null);
   }
   el.value = v;
+  delete el.dataset.gebruiker; // door de app ingevuld (bv. van de website), niet door jou gekozen
   el.dispatchEvent(new Event('keuze-zet'));
 }
 // "Zelf invullen…" gekozen: vraag de tekst in een klein invoerveld onder de lijst
@@ -50,7 +62,7 @@ export function activeerKeuzes(root) {
     if (!inp) {
       inp = document.createElement('input'); inp.className = 'keuze-zelf'; inp.placeholder = 'Typ en druk op Enter'; inp.style.marginTop = '4px';
       sel.insertAdjacentElement('afterend', inp);
-      const klaar = () => { const t = inp.value.trim(); if (t) { zetWaarde(sel, t); sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); } inp.remove(); };
+      const klaar = () => { const t = inp.value.trim(); if (t) { zetWaarde(sel, t); sel.dataset.gebruiker = '1'; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); } inp.remove(); };
       inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); klaar(); } if (ev.key === 'Escape') inp.remove(); });
       inp.addEventListener('blur', klaar);
     }

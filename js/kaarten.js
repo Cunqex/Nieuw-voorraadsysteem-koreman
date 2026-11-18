@@ -3,9 +3,9 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261118123841';
-import { leegWaarde, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118123841';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118123841';
+import { esc, $, modal, toast } from './ui.js?v=20261118124142';
+import { WEG, leegWaarde, volgGebruiker, kaartWaarde, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118124142';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118124142';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -103,7 +103,7 @@ function collectieLogo(col) {
 const KRUISJES = `<svg class="kruis" viewBox="0 0 676 230" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#8fb0a4" stroke-opacity=".3" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="miter">
   <polyline points="0,2 338,228 676,2"/><polyline points="0,152 226,2 563,228"/><polyline points="113,228 450,2 676,152"/></g></svg>`;
 function wandkaart(k, logoUrl) {
-  const rij = (l, v) => (leegWaarde(v) ? '' : `<div class="r"><span>${l}</span><span>${esc(v)}</span></div>`);
+  const rij = (l, v) => (!v || v === WEG ? '' : `<div class="r"><span>${l}</span><span>${esc(v)}</span></div>`);
   return `<div class="wk">${KRUISJES}${collectieLogo(k.collectie)}<div class="titel">${esc(k.titel)}</div><div class="rijen">${rij('Afmeting:', k.maat)}${rij('Poolmateriaal:', k.pool)}${rij('Knoopdichtheid:', k.knoop)}${rij('Herkomst:', k.herkomst)}${rij('Prijs:', k.prijs)}</div><img class="logo" src="${logoUrl}" alt="Koreman Maastricht"></div>`;
 }
 
@@ -201,7 +201,8 @@ export async function kaartenModal(a) {
       $('.actions [data-cancel]', form.parentElement).textContent = 'Sluiten';
       materiaalKeuze($('#wk-pool', form), { opties: MATERIALEN_NL, scheiding: ' & ' });
       activeerKeuzes(form);
-      const v = (id) => $('#' + id, form).value;
+      volgGebruiker(form);
+      const v = (id) => kaartWaarde($('#' + id, form));
       const schaal = (el, breedtePx) => { el.style.transform = 'none'; const kaart = el.firstElementChild; const k = breedtePx / kaart.offsetWidth; el.style.transform = `scale(${k})`; el.parentElement.style.height = `${kaart.offsetHeight * k + 24}px`; };
       const leesWk = () => ({ collectie: v('wk-collectie'), titel: v('wk-titel'), maat: v('wk-maat'), pool: v('wk-pool'), knoop: v('wk-knoop'), herkomst: v('wk-herkomst'), prijs: v('wk-prijs'), formaat: v('wk-formaat'), n: Math.max(1, parseInt(v('wk-n'), 10) || 1) });
       const leesPk = () => ({ oms: v('pk-oms'), maat: v('pk-maat'), prijs: v('pk-prijs'), nr: pk.nr, n: Math.max(1, parseInt(v('pk-n'), 10) || 1) });
@@ -263,7 +264,7 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118123841');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118124142');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',
@@ -314,7 +315,7 @@ export async function wandVelModal(ids = []) {
         const item = form.querySelectorAll('.wv-item')[i];
         item.querySelector('.onder').insertAdjacentHTML('beforebegin', `<div class="wv-edit" style="display:grid;gap:4px;margin-top:6px;font-size:12px">${velden.map(([f, lbl]) => f === 'collectie'
           ? `<label style="margin:0">${lbl}<select data-f="${f}" style="width:100%"><option value="">Geen collectielogo</option>${Object.entries(COLLECTIES).map(([g, subs]) => `<optgroup label="${esc(g)}">${subs.map((x) => `<option ${k.collectie === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</optgroup>`).join('')}</select></label>`
-          : `<label style="margin:0">${lbl}<input data-f="${f}" value="${esc(k[f] || '')}" style="width:100%;padding:3px 6px"></label>`).join('')}
+          : `<label style="margin:0">${lbl}<input data-f="${f}" value="${esc(k[f] === WEG ? 'n.v.t.' : (k[f] || ''))}" style="width:100%;padding:3px 6px"></label>`).join('')}
           <button type="button" class="btn small primary" data-klaar="${i}">Klaar</button></div>`);
         item.querySelector(`[data-bewerk="${i}"]`).hidden = true;
       };
@@ -330,7 +331,7 @@ export async function wandVelModal(ids = []) {
         const kl = e.target.closest('[data-klaar]');
         if (kl) {
           const i = Number(kl.dataset.klaar); const l = wkWacht.lees(); const ed = kl.closest('.wv-edit');
-          ed.querySelectorAll('[data-f]').forEach((x) => { l[i][x.dataset.f] = x.value; });
+          ed.querySelectorAll('[data-f]').forEach((x) => { l[i][x.dataset.f] = x.value.trim() && leegWaarde(x.value) ? WEG : x.value; });
           wkWacht.zet(l); toon(); return;
         }
         if (e.target.closest('#wv-leeg')) { wkWacht.zet([]); toon(); }

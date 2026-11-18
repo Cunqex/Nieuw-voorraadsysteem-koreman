@@ -15,11 +15,13 @@ export const MATERIALEN_EN = MATERIALEN.map(([, en]) => en);
 // ---------- Knoopdichtheid en methode ----------
 const KNOPEN = [60000, 80000, 100000, 120000, 150000, 160000, 180000, 200000, 250000, 300000, 350000, 400000, 450000, 500000, 600000, 700000, 800000, 1000000];
 const dzd = (n) => n.toLocaleString('nl-NL');
-export const KNOOP_NL = [...KNOPEN.map((n) => `ong. ${dzd(n)} knopen p/m²`), 'Handgetuft', 'Handgetuft 14/14', 'Handgetuft 16/16', 'Handloom', 'Handgeweven', 'Platgeweven'];
+export const KNOOP_NL = [...KNOPEN.map((n) => `ong. ${dzd(n)} knopen p/m²`), 'Handgetuft', 'Handgetuft 14/14', 'Handgetuft 16/16', 'Handloom', 'Handgeweven', 'Platgeweven', 'n.v.t.'];
 export const KNOOP_EN = [...KNOPEN.map((n) => `${dzd(n)} / m²`), 'Handtufted', 'Handtufted 14/14', 'Handtufted 16/16', 'Handloom', 'Handwoven', 'Flatweave', 'N/A'];
 export const METHODES_EN = ['Handknotted', 'Handtufted', 'Handloom', 'Handwoven', 'Flatweave', 'Hand-knotted Nepalese', 'Loop & Cut'];
 export const TECHNIEKEN_NL = ['Handgeknoopt', 'Handgetuft', 'Handloom', 'Handgeweven', 'Platgeweven', 'Nepalese knoop', 'Loop & cut'];
 
+// Een regel op de kaart vervalt als de waarde leeg is of "n/a", "nvt", "n.v.t." of een streepje
+export const leegWaarde = (v) => /^\s*(n\s*\/?\s*a|nvt|n\.v\.t\.?|-|–|—)?\s*$/i.test(String(v ?? ''));
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 // ---------- Keuzelijst met "zelf invullen" ----------

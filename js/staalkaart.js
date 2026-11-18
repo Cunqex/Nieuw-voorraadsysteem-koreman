@@ -2,8 +2,8 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261118112558';
-import { keuzeSelect, zetWaarde, materiaalKeuze, METHODES_EN, KNOOP_EN, MATERIALEN_EN } from './keuzes.js?v=20261118112558';
+import { sb, check, esc, $, toast } from './ui.js?v=20261118123841';
+import { leegWaarde, keuzeSelect, zetWaarde, materiaalKeuze, METHODES_EN, KNOOP_EN, MATERIALEN_EN } from './keuzes.js?v=20261118123841';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -138,7 +138,7 @@ export const SK_CSS = `
 .sk .code .bc{display:block;width:100%;height:calc(var(--u)*4.2);margin:calc(var(--u)*.6) 0}
 .sk .inkoop{font-size:calc(var(--u)*2.7);color:#000}`;
 export function staalkaart(k, logoUrl, qr) {
-  const rij = (l, v) => (v ? `<div class="r"><b>${l}</b><span>${esc(v)}</span></div>` : '');
+  const rij = (l, v) => (leegWaarde(v) ? '' : `<div class="r"><b>${l}</b><span>${esc(v)}</span></div>`);
   const gat = (x, y) => `<span class="gat" style="left:calc(var(--u)*${x});top:${y}"></span>`;
   const foto = k.foto ? `<div class="foto" style="background-image:url('${String(k.foto).replace(/'/g, '%27')}')"></div>` : '<div class="foto">Geen foto</div>';
   return `<div class="sk">${foto}${gat(4.2, 'calc(var(--u)*4.2)')}${gat(95.8, 'calc(var(--u)*4.2)')}${gat(4.2, 'calc(100% - var(--u)*4.2)')}${gat(95.8, 'calc(100% - var(--u)*4.2)')}
@@ -152,7 +152,7 @@ export function staalkaart(k, logoUrl, qr) {
 // Foto voor de kaart: dezelfde foto als in het voorraadsysteem (artikel, anders design); alleen zonder eigen foto die van de website.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261118112558');
+  const { mediaUrl } = await import('./ui.js?v=20261118123841');
   await Promise.all(kaarten.map(async (k) => {
     k.foto = '';
     if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } }
@@ -325,8 +325,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261118112558');
-  const { printHtml } = await import('./kaarten.js?v=20261118112558');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261118123841');
+  const { printHtml } = await import('./kaarten.js?v=20261118123841');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

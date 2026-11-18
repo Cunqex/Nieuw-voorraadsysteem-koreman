@@ -3,9 +3,9 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261118112558';
-import { keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118112558';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118112558';
+import { esc, $, modal, toast } from './ui.js?v=20261118123841';
+import { leegWaarde, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118123841';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118123841';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -103,7 +103,7 @@ function collectieLogo(col) {
 const KRUISJES = `<svg class="kruis" viewBox="0 0 676 230" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#8fb0a4" stroke-opacity=".3" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="miter">
   <polyline points="0,2 338,228 676,2"/><polyline points="0,152 226,2 563,228"/><polyline points="113,228 450,2 676,152"/></g></svg>`;
 function wandkaart(k, logoUrl) {
-  const rij = (l, v) => (v ? `<div class="r"><span>${l}</span><span>${esc(v)}</span></div>` : '');
+  const rij = (l, v) => (leegWaarde(v) ? '' : `<div class="r"><span>${l}</span><span>${esc(v)}</span></div>`);
   return `<div class="wk">${KRUISJES}${collectieLogo(k.collectie)}<div class="titel">${esc(k.titel)}</div><div class="rijen">${rij('Afmeting:', k.maat)}${rij('Poolmateriaal:', k.pool)}${rij('Knoopdichtheid:', k.knoop)}${rij('Herkomst:', k.herkomst)}${rij('Prijs:', k.prijs)}</div><img class="logo" src="${logoUrl}" alt="Koreman Maastricht"></div>`;
 }
 
@@ -263,7 +263,7 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118112558');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118123841');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',

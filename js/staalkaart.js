@@ -2,25 +2,28 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261118103719';
+import { sb, check, esc, $, toast } from './ui.js?v=20261118103753';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
 // Inkoopcode op de kaart: 60 + inkoopprijs per m² afgerond op hele euro's + 4 (bv. € 398,16 per m² -> 603984)
-// Inkoopprijs per m² van het artikel: uit de laatste inkooporderregel (kostprijs in euro per stuk ÷ m²),
-// anders de ingevulde inkoopprijs per m², anders inkoopprijs per stuk ÷ m². Zonder maat: de inkoopprijs per stuk.
-export async function inkoopPerM2(a) {
+// Inkoopprijs per m² van het artikel. Volgorde: de zelf ingevulde inkoopprijs per m² op het artikel,
+// anders de laatste inkooporderregel (kostprijs in euro per stuk ÷ m²), anders inkoopprijs per stuk ÷ m².
+// Zonder maat: de inkoopprijs per stuk. Met bron, zodat je in het venster ziet waar de code vandaan komt.
+export async function inkoopInfo(a) {
   const opp = a.lengte_cm && a.breedte_cm ? (Number(a.lengte_cm) * Number(a.breedte_cm)) / 10000 : null;
+  if (a.inkoopprijs_m2 != null && Number(a.inkoopprijs_m2) > 0) return { m2: Number(a.inkoopprijs_m2), bron: 'inkoopprijs per m² van het artikel' };
   let stuk = null;
   try {
     const { data } = await sb.from('v_inkoopregel_kostprijs').select('inkoopregel_id, kostprijs_eur_stuk').eq('artikel_id', a.id).order('inkoopregel_id', { ascending: false }).limit(1);
     if (data?.[0]?.kostprijs_eur_stuk != null) stuk = Number(data[0].kostprijs_eur_stuk);
   } catch { /* geen inkooporder */ }
-  if (stuk != null && opp) return stuk / opp;
-  if (a.inkoopprijs_m2 != null) return Number(a.inkoopprijs_m2);
-  if (a.inkoopprijs != null && opp) return Number(a.inkoopprijs) / opp;
-  return stuk ?? (a.inkoopprijs != null ? Number(a.inkoopprijs) : null);
+  if (stuk != null && opp) return { m2: stuk / opp, bron: `inkooporder: € ${stuk.toFixed(2).replace('.', ',')} per stuk ÷ ${opp.toLocaleString('nl-NL', { maximumFractionDigits: 3 })} m²` };
+  if (a.inkoopprijs != null && opp) return { m2: Number(a.inkoopprijs) / opp, bron: `inkoopprijs per stuk van het artikel ÷ ${opp.toLocaleString('nl-NL', { maximumFractionDigits: 3 })} m²` };
+  const p = stuk ?? (a.inkoopprijs != null ? Number(a.inkoopprijs) : null);
+  return { m2: p, bron: p == null ? 'geen inkoopprijs bekend' : 'inkoopprijs per stuk (geen maat bekend)' };
 }
+export async function inkoopPerM2(a) { return (await inkoopInfo(a)).m2; }
 export const inkoopcode = (p) => (p === null || p === undefined || p === '' || Number.isNaN(Number(p)) ? '' : `60${Math.round(Number(p))}4`);
 
 // ---------- Website ----------
@@ -145,7 +148,7 @@ export function staalkaart(k, logoUrl, qr) {
 // Foto voor de kaart: dezelfde foto als in het voorraadsysteem (artikel, anders design); alleen zonder eigen foto die van de website.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261118103719');
+  const { mediaUrl } = await import('./ui.js?v=20261118103753');
   await Promise.all(kaarten.map(async (k) => {
     k.foto = '';
     if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } }
@@ -158,7 +161,7 @@ export async function fotosOphalen(kaarten) {
 export function staalPaneHtml() {
   const veld = (id, label, extra = '') => `<label>${label}<input id="${id}" ${extra}></label>`;
   return `<div class="kt-pane" data-pane="sk" hidden>
-      <div class="kt-prev"><div class="schaal" id="sk-prev"></div><p class="small muted" id="sk-status" style="margin:8px 0 0"></p></div>
+      <div class="kt-prev"><div class="schaal" id="sk-prev"></div><p class="small muted" id="sk-status" style="margin:8px 0 0"></p><p class="small" id="sk-inkoopinfo" style="margin:6px 0 0"></p></div>
       <div class="kt-form">
         <label>Product op de website (B2B)<input id="sk-zoek" list="sk-lijst" placeholder="Typ een naam, bv. Umber" autocomplete="off"></label>
         <datalist id="sk-lijst"></datalist>
@@ -182,7 +185,11 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   let handle = a.website_handle || a.designs?.website_handle || '';
   const fotoPad = a.foto_pad || a.designs?.hoofdfoto_pad || ''; let fotoWeb = ''; let fotoNu = '';
   let qr = null; let lijst = []; let inkoopM2 = null;
-  inkoopPerM2(a).then((x) => { inkoopM2 = x; toon(); }).catch(() => {});
+  inkoopInfo(a).then((x) => {
+    inkoopM2 = x.m2; toon();
+    const el = $('#sk-inkoopinfo', form);
+    if (el) el.innerHTML = x.m2 != null ? `Inkoopcode <b>${inkoopcode(x.m2)}</b> = € ${Math.round(x.m2)} (${esc(x.bron)}). Klopt dit niet? Vul bij het artikel de inkoopprijs per m² in.` : 'Geen inkoopprijs bekend: vul bij het artikel de inkoopprijs per m² in.';
+  }).catch(() => {});
   zet('sk-w', onthoud.get('sk3-w', '105')); zet('sk-h', onthoud.get('sk3-h', '148.5'));
   zet('sk-titel', a.naam || '');
   zet('sk-kleur', a.kleurcode || '');
@@ -313,8 +320,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261118103719');
-  const { printHtml } = await import('./kaarten.js?v=20261118103719');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261118103753');
+  const { printHtml } = await import('./kaarten.js?v=20261118103753');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

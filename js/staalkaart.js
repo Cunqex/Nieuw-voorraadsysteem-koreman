@@ -2,7 +2,8 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261118103753';
+import { sb, check, esc, $, toast } from './ui.js?v=20261118111102';
+import { keuzeSelect, zetWaarde, materiaalKeuze, METHODES_EN, KNOOP_EN, MATERIALEN_EN } from './keuzes.js?v=20261118111102';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -82,11 +83,14 @@ async function raadProduct(a) {
 const VERTAAL = [
   [/hand?ge?knoopt/i, 'Handknotted'], [/handgeweven/i, 'Handwoven'], [/handgetuft|handtufted/i, 'Handtufted'],
   [/nieuw[- ]zeelandse wol/i, 'New Zealand Wool'], [/hoogland ?wol/i, 'Highland Wool'], [/natuurzijde|echte zijde/i, 'Natural Silk'],
-  [/bamboe ?zijde/i, 'Bamboo Silk'], [/\bzijde\b/i, 'Silk'], [/\bwol\b/i, 'Wool'], [/linnen/i, 'Linen'], [/katoen/i, 'Cotton'],
+  [/bamboe ?zijde/i, 'Bamboo Silk'], [/sari ?zijde/i, 'Sari Silk'], [/ghazni wol/i, 'Ghazni Wool'], [/tibetaanse wol/i, 'Tibetan Wool'], [/scheerwol/i, 'Virgin Wool'],
+  [/\bzijde\b/i, 'Silk'], [/\bwol\b/i, 'Wool'], [/linnen/i, 'Linen'], [/katoen/i, 'Cotton'], [/brandnetel/i, 'Nettle'], [/hennep/i, 'Hemp'],
+  [/kasjmier/i, 'Cashmere'], [/\bleer\b/i, 'Leather'], [/acryl\b/i, 'Acrylic'], [/micro polyester/i, 'Micro Polyester'], [/platgeweven/i, 'Flatweave'],
   [/\s*&\s*/g, ' / '], [/\bja\b/i, 'Yes'],
 ];
 export const naarEngels = (t) => VERTAAL.reduce((s, [rx, en]) => s.replace(rx, en), String(t || '')).trim();
-const knoop = (t) => { const m = String(t || '').match(/([\d.\s]+)/); if (!m) return t || ''; const n = Number(m[1].replace(/[.\s]/g, '')); return n ? `${n.toLocaleString('nl-NL')} / m²` : t; };
+// Knoopdichtheid van de website; een klein getal (bv. 14) is de tuftkwaliteit van een handgetuft tapijt
+const knoop = (t) => { const m = String(t || '').match(/([\d.\s]+)/); if (!m) return t || ''; const n = Number(m[1].replace(/[.\s]/g, '')); if (!n) return t; if (n < 100) return `Handtufted ${n}/${n}`; return `${n.toLocaleString('nl-NL')} / m²`; };
 const m2prijs = (t) => { const m = String(t || '').match(/[\d.,]+/); return m ? `€ ${m[0]} / m²` : ''; };
 
 // ---------- QR-code ----------
@@ -148,7 +152,7 @@ export function staalkaart(k, logoUrl, qr) {
 // Foto voor de kaart: dezelfde foto als in het voorraadsysteem (artikel, anders design); alleen zonder eigen foto die van de website.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261118103753');
+  const { mediaUrl } = await import('./ui.js?v=20261118111102');
   await Promise.all(kaarten.map(async (k) => {
     k.foto = '';
     if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } }
@@ -165,8 +169,8 @@ export function staalPaneHtml() {
       <div class="kt-form">
         <label>Product op de website (B2B)<input id="sk-zoek" list="sk-lijst" placeholder="Typ een naam, bv. Umber" autocomplete="off"></label>
         <datalist id="sk-lijst"></datalist>
-        ${veld('sk-titel', 'Titel')}${veld('sk-collectie', 'Collection')}${veld('sk-kleur', 'Color', 'placeholder="bv. 4M17"')}${veld('sk-materiaal', 'Material')}${veld('sk-methode', 'Method')}
-        ${veld('sk-knoop', 'Knot density')}${veld('sk-prijs', 'Price')}${veld('sk-maatwerk', 'Custom sizes')}
+        ${veld('sk-titel', 'Titel')}${veld('sk-collectie', 'Collection')}${veld('sk-kleur', 'Color', 'placeholder="bv. 4M17"')}${veld('sk-materiaal', 'Material')}<label>Method${keuzeSelect('sk-methode', METHODES_EN)}</label>
+        <label>Knot density${keuzeSelect('sk-knoop', KNOOP_EN)}</label>${veld('sk-prijs', 'Price')}${veld('sk-maatwerk', 'Custom sizes')}
         <div class="kt-row"><label style="flex:1">Breedte (mm)<input id="sk-w" type="number" min="50" max="300" step="0.5"></label><label style="flex:1">Hoogte (mm)<input id="sk-h" type="number" min="50" max="300" step="0.5"></label><label style="width:70px">Aantal<input id="sk-n" type="number" min="1" value="1"></label></div>
         <button type="button" class="btn primary" id="sk-print" style="width:100%"><i data-lucide="printer"></i> Print alleen deze kaart</button>
         <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
@@ -181,7 +185,8 @@ export function staalPaneHtml() {
 
 export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   const v = (id) => $('#' + id, form).value;
-  const zet = (id, val) => { $('#' + id, form).value = val ?? ''; };
+  const zet = (id, val) => zetWaarde($('#' + id, form), val);
+  materiaalKeuze($('#sk-materiaal', form), { opties: MATERIALEN_EN, scheiding: ' / ' });
   let handle = a.website_handle || a.designs?.website_handle || '';
   const fotoPad = a.foto_pad || a.designs?.hoofdfoto_pad || ''; let fotoWeb = ''; let fotoNu = '';
   let qr = null; let lijst = []; let inkoopM2 = null;
@@ -320,8 +325,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261118103753');
-  const { printHtml } = await import('./kaarten.js?v=20261118103753');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261118111102');
+  const { printHtml } = await import('./kaarten.js?v=20261118111102');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

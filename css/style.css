@@ -550,3 +550,7 @@ td > .art-check { position: static; width: 22px; height: 22px; }
 .badge.custom { background: var(--amber-bg); color: var(--amber-fg); }
 .custom-let { margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: #fff; border: 1px solid var(--amber-fg); color: var(--amber-fg); }
 input.let-op { border-color: var(--amber-fg) !important; box-shadow: 0 0 0 2px var(--amber-bg); }
+/* Materiaalkiezer en keuzelijsten */
+.mat-keuze { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 3px; }
+.mat-keuze select { width: auto !important; display: inline-block !important; margin-top: 0 !important; }
+.kt-form .mat-keuze .chip { font-size: 12px; padding: 3px 9px; }

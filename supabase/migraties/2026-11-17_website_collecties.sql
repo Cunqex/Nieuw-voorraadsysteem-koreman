@@ -19,3 +19,5 @@ alter table public.website_producten add column if not exists custom_m2 numeric,
 alter table public.artikelen add column if not exists custom boolean not null default false, add column if not exists custom_prijs_m2 numeric;
 alter table public.artikelen add column if not exists custom_prijs_handmatig boolean not null default false;
 alter table public.artikelen add column if not exists std_verkoopprijs numeric, add column if not exists std_verkoopprijs_m2 numeric;
+-- 18-11-2026: factor voor verkoopprijs (inkoop per m2 x factor), namen opgeschoond (backup: public.backup_namen_20261118)
+alter table public.artikelen add column if not exists factor numeric default 6.5;

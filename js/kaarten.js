@@ -3,8 +3,9 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261118103753';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118103753';
+import { esc, $, modal, toast } from './ui.js?v=20261118111102';
+import { keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118111102';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118111102';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -171,7 +172,7 @@ export async function kaartenModal(a) {
       <div class="kt-form">
         <label>Collectie<select id="wk-collectie"><option value="">Geen collectielogo</option>${optCol}</select></label>
         ${veld('wk-titel', 'Titel', wk.titel)}${veld('wk-maat', 'Afmeting', wk.maat, 'placeholder="241 x 175"')}
-        ${veld('wk-pool', 'Poolmateriaal', wk.pool, 'list="kt-pool"')}${veld('wk-knoop', 'Knoopdichtheid', wk.knoop, 'list="kt-knoop"')}
+        ${veld('wk-pool', 'Poolmateriaal', wk.pool)}<label>Knoopdichtheid / techniek${keuzeSelect('wk-knoop', KNOOP_NL, wk.knoop)}</label>
         ${veld('wk-herkomst', 'Herkomst', wk.herkomst)}${veld('wk-prijs', 'Prijs', wk.prijs)}
         <div class="kt-row"><label style="flex:1">Formaat<select id="wk-formaat">${Object.keys(FORMATEN).map((f) => `<option value="${f}" ${wk.formaat === f ? 'selected' : ''}>${f} liggend (${FORMATEN[f][0]} × ${FORMATEN[f][1]} mm)</option>`).join('')}</select></label>
           <label style="width:70px">Aantal<input id="wk-n" type="number" min="1" value="1"></label></div>
@@ -190,9 +191,7 @@ export async function kaartenModal(a) {
         <p class="small muted" style="margin-top:8px">Formaat 85,7 × 54 mm, opmaak "Meubelen" uit IOne. Kies de labelprinter en schaal 100%.</p>
       </div>
     </div>
-    ${staalPaneHtml()}
-    <datalist id="kt-pool"><option>Hoogland wol &amp; bamboezijde</option><option>Nieuw-Zeelandse wol</option><option>Nieuw-Zeelandse wol &amp; zijde</option><option>Hoogland wol</option><option>Wol &amp; bamboezijde</option><option>Wol &amp; zijde</option><option>100% wol</option><option>Zijde</option><option>Tencel</option></datalist>
-    <datalist id="kt-knoop"><option>ong. 350.000 knopen p/m²</option><option>ong. 250.000 knopen p/m²</option><option>ong. 160.000 knopen p/m²</option><option>Handgetuft</option><option>Handgeweven</option></datalist>`;
+    ${staalPaneHtml()}`;
 
   await modal({
     title: `Kaarten printen – ${a.artikelnummer} ${a.naam || ''}`,
@@ -200,6 +199,8 @@ export async function kaartenModal(a) {
     wide: true,
     onOpen: (form) => {
       $('.actions [data-cancel]', form.parentElement).textContent = 'Sluiten';
+      materiaalKeuze($('#wk-pool', form), { opties: MATERIALEN_NL, scheiding: ' & ' });
+      activeerKeuzes(form);
       const v = (id) => $('#' + id, form).value;
       const schaal = (el, breedtePx) => { el.style.transform = 'none'; const kaart = el.firstElementChild; const k = breedtePx / kaart.offsetWidth; el.style.transform = `scale(${k})`; el.parentElement.style.height = `${kaart.offsetHeight * k + 24}px`; };
       const leesWk = () => ({ collectie: v('wk-collectie'), titel: v('wk-titel'), maat: v('wk-maat'), pool: v('wk-pool'), knoop: v('wk-knoop'), herkomst: v('wk-herkomst'), prijs: v('wk-prijs'), formaat: v('wk-formaat'), n: Math.max(1, parseInt(v('wk-n'), 10) || 1) });
@@ -262,7 +263,7 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118103753');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118111102');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',

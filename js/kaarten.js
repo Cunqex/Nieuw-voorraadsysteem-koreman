@@ -3,9 +3,9 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261118124142';
-import { WEG, leegWaarde, volgGebruiker, kaartWaarde, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118124142';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118124142';
+import { esc, $, modal, toast } from './ui.js?v=20261118152343';
+import { WEG, leegWaarde, volgGebruiker, kaartWaarde, naVinkjes, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118152343';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118152343';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -202,6 +202,7 @@ export async function kaartenModal(a) {
       materiaalKeuze($('#wk-pool', form), { opties: MATERIALEN_NL, scheiding: ' & ' });
       activeerKeuzes(form);
       volgGebruiker(form);
+      naVinkjes(form, ['wk-maat', 'wk-pool', 'wk-knoop', 'wk-herkomst', 'wk-prijs'], `wk-${a.artikelnummer ?? a.id}`);
       const v = (id) => kaartWaarde($('#' + id, form));
       const schaal = (el, breedtePx) => { el.style.transform = 'none'; const kaart = el.firstElementChild; const k = breedtePx / kaart.offsetWidth; el.style.transform = `scale(${k})`; el.parentElement.style.height = `${kaart.offsetHeight * k + 24}px`; };
       const leesWk = () => ({ collectie: v('wk-collectie'), titel: v('wk-titel'), maat: v('wk-maat'), pool: v('wk-pool'), knoop: v('wk-knoop'), herkomst: v('wk-herkomst'), prijs: v('wk-prijs'), formaat: v('wk-formaat'), n: Math.max(1, parseInt(v('wk-n'), 10) || 1) });
@@ -264,7 +265,7 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118124142');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118152343');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',

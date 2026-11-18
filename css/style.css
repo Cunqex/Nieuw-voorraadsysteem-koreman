@@ -554,3 +554,10 @@ input.let-op { border-color: var(--amber-fg) !important; box-shadow: 0 0 0 2px v
 .mat-keuze { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 3px; }
 .mat-keuze select { width: auto !important; display: inline-block !important; margin-top: 0 !important; }
 .kt-form .mat-keuze .chip { font-size: 12px; padding: 3px 9px; }
+
+/* N/A-vinkje bij de kaartvelden */
+.na-wrap { position: relative; }
+.na-vink { position: absolute; top: 0; right: 0; margin: 0 !important; display: flex !important; align-items: center; gap: 4px; font-size: 12px !important; color: var(--navy-500); cursor: pointer; user-select: none; }
+.kt-form .na-vink input { display: inline-block !important; width: auto !important; margin: 0 !important; }
+.na-wrap.na-aan > label:first-child { opacity: .45; text-decoration: line-through; }
+.na-wrap.na-aan > label:first-child input, .na-wrap.na-aan > label:first-child select { text-decoration: none; }

@@ -30,8 +30,34 @@ export function volgGebruiker(root) {
 }
 export function kaartWaarde(el) {
   if (!el) return '';
+  if (el.closest?.('.na-wrap')?.querySelector('.na-vink input')?.checked) return WEG; // N/A aangevinkt: regel weg
   const v = el.value;
   return el.dataset.gebruiker && String(v).trim() && leegWaarde(v) ? WEG : v;
+}
+// Vinkje "N/A" rechtsboven bij elk kaartveld: aangevinkt = die regel staat niet op de kaart.
+// Per artikel onthouden (sleutel = artikelnummer), dus de volgende keer staat het vinkje er nog.
+export function naVinkjes(form, ids, sleutel = '') {
+  const key = sleutel ? `kaart-na-${sleutel}` : '';
+  let aan = [];
+  try { aan = key ? JSON.parse(localStorage.getItem(key) || '[]') : []; } catch { aan = []; }
+  const bewaar = () => {
+    if (!key) return;
+    const l = ids.filter((id) => form.querySelector(`#${id}-na`)?.checked);
+    try { if (l.length) localStorage.setItem(key, JSON.stringify(l)); else localStorage.removeItem(key); } catch { /* geen opslag */ }
+  };
+  ids.forEach((id) => {
+    const el = form.querySelector('#' + id); const lab = el?.closest('label');
+    if (!lab || lab.parentElement?.classList.contains('na-wrap')) return;
+    const wrap = document.createElement('div'); wrap.className = 'na-wrap';
+    lab.replaceWith(wrap); wrap.appendChild(lab);
+    const vink = document.createElement('label'); vink.className = 'na-vink'; vink.title = 'Deze regel niet op de kaart zetten';
+    vink.innerHTML = `<input type="checkbox" id="${id}-na"> N/A`;
+    wrap.appendChild(vink);
+    const cb = vink.firstElementChild;
+    const stand = () => { wrap.classList.toggle('na-aan', cb.checked); };
+    cb.checked = aan.includes(id); stand();
+    cb.addEventListener('change', () => { stand(); bewaar(); });
+  });
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 

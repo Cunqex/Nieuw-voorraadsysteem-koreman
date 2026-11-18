@@ -3,9 +3,9 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261118111102';
-import { keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118111102';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118111102';
+import { esc, $, modal, toast } from './ui.js?v=20261118112558';
+import { keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261118112558';
+import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261118112558';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -33,10 +33,10 @@ export function maatTekst(a) {
 }
 const titelZonderMaat = (naam) => String(naam || '').replace(MAAT_RX, ' ').replace(/\s{2,}/g, ' ').replace(/[\s,:-]+$/, '').trim();
 const euro = (v) => Number(v || 0).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-// Prijskaartje zoals IOne: "€ 6.930" (centen alleen als die er zijn)
-export const prijsKaartje = (v) => { if (v === null || v === undefined || v === '') return ''; const [h, c] = euro(v).split(','); return `€ ${h}${c === '00' ? '' : ',' + c}`; };
+// Prijskaartje zoals IOne: "€ 6.930" (zonder centen)
+export const prijsKaartje = (v) => { if (v === null || v === undefined || v === '') return ''; const [h] = euro(Math.round(Number(v))).split(','); return `€ ${h}`; };
 // Wandkaart: "€ 2.990,-"
-export const prijsWand = (v) => { if (v === null || v === undefined || v === '') return ''; const [h, c] = euro(v).split(','); return `€ ${h},${c === '00' ? '-' : c}`; };
+export const prijsWand = (v) => { if (v === null || v === undefined || v === '') return ''; const [h] = euro(Math.round(Number(v))).split(','); return `€ ${h},-`; };
 
 const onthoud = {
   get(k, d = '') { try { return localStorage.getItem('kaart-' + k) ?? d; } catch { return d; } },
@@ -263,7 +263,7 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118111102');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261118112558');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',

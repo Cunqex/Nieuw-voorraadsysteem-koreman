@@ -2,11 +2,25 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261117172442';
+import { sb, check, esc, $, toast } from './ui.js?v=20261118103719';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
-// Inkoopcode op de kaart: 60 + inkoopprijs afgerond op hele euro's + 4 (bv. € 398,16 -> 603984)
+// Inkoopcode op de kaart: 60 + inkoopprijs per m² afgerond op hele euro's + 4 (bv. € 398,16 per m² -> 603984)
+// Inkoopprijs per m² van het artikel: uit de laatste inkooporderregel (kostprijs in euro per stuk ÷ m²),
+// anders de ingevulde inkoopprijs per m², anders inkoopprijs per stuk ÷ m². Zonder maat: de inkoopprijs per stuk.
+export async function inkoopPerM2(a) {
+  const opp = a.lengte_cm && a.breedte_cm ? (Number(a.lengte_cm) * Number(a.breedte_cm)) / 10000 : null;
+  let stuk = null;
+  try {
+    const { data } = await sb.from('v_inkoopregel_kostprijs').select('inkoopregel_id, kostprijs_eur_stuk').eq('artikel_id', a.id).order('inkoopregel_id', { ascending: false }).limit(1);
+    if (data?.[0]?.kostprijs_eur_stuk != null) stuk = Number(data[0].kostprijs_eur_stuk);
+  } catch { /* geen inkooporder */ }
+  if (stuk != null && opp) return stuk / opp;
+  if (a.inkoopprijs_m2 != null) return Number(a.inkoopprijs_m2);
+  if (a.inkoopprijs != null && opp) return Number(a.inkoopprijs) / opp;
+  return stuk ?? (a.inkoopprijs != null ? Number(a.inkoopprijs) : null);
+}
 export const inkoopcode = (p) => (p === null || p === undefined || p === '' || Number.isNaN(Number(p)) ? '' : `60${Math.round(Number(p))}4`);
 
 // ---------- Website ----------
@@ -128,13 +142,14 @@ export function staalkaart(k, logoUrl, qr) {
     ${k.nr || k.inkoop ? `<div class="code">${k.nr ? `${esc(k.nr)}${barcodeSvg(k.nr)}` : ''}${k.inkoop ? `<div class="inkoop">${esc(k.inkoop)}</div>` : ''}</div>` : ''}</div>`;
 }
 
-// Foto voor de kaart: de rechte (bovenaanzicht) foto van de website, anders de eigen foto van het artikel of design.
+// Foto voor de kaart: dezelfde foto als in het voorraadsysteem (artikel, anders design); alleen zonder eigen foto die van de website.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261117172442');
+  const { mediaUrl } = await import('./ui.js?v=20261118103719');
   await Promise.all(kaarten.map(async (k) => {
-    if (k.fotoWeb) k.foto = k.fotoWeb;
-    else if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } } else k.foto = '';
+    k.foto = '';
+    if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } }
+    if (!k.foto) k.foto = k.fotoWeb || '';
   }));
   return kaarten;
 }
@@ -166,14 +181,15 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   const zet = (id, val) => { $('#' + id, form).value = val ?? ''; };
   let handle = a.website_handle || a.designs?.website_handle || '';
   const fotoPad = a.foto_pad || a.designs?.hoofdfoto_pad || ''; let fotoWeb = ''; let fotoNu = '';
-  let qr = null; let lijst = [];
+  let qr = null; let lijst = []; let inkoopM2 = null;
+  inkoopPerM2(a).then((x) => { inkoopM2 = x; toon(); }).catch(() => {});
   zet('sk-w', onthoud.get('sk3-w', '105')); zet('sk-h', onthoud.get('sk3-h', '148.5'));
   zet('sk-titel', a.naam || '');
   zet('sk-kleur', a.kleurcode || '');
   zet('sk-materiaal', naarEngels(a.materiaal)); zet('sk-methode', naarEngels(a.techniek));
   if (a.verkoopprijs_m2) zet('sk-prijs', `€ ${Number(a.verkoopprijs_m2).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} / m²`);
   const status = (t) => { $('#sk-status', form).innerHTML = t; };
-  const lees = () => ({ handle, fotoPad, fotoWeb, foto: fotoWeb || fotoNu, nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(a.inkoopprijs), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 105, h: Number(v('sk-h')) || 148.5, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
+  const lees = () => ({ handle, fotoPad, fotoWeb, foto: fotoNu || fotoWeb, nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(inkoopM2), titel: v('sk-titel'), collectie: v('sk-collectie'), kleur: v('sk-kleur'), materiaal: v('sk-materiaal'), methode: v('sk-methode'), knoop: v('sk-knoop'), prijs: v('sk-prijs'), maatwerk: v('sk-maatwerk'), w: Number(v('sk-w')) || 105, h: Number(v('sk-h')) || 148.5, n: Math.max(1, parseInt(v('sk-n'), 10) || 1) });
   const kaartHtml = (k) => staalkaart(k, logoUrl, qr).replace('class="sk"', `class="sk" style="--w:${k.w}mm;--h:${k.h}mm"`);
   const toon = () => {
     const el = $('#sk-prev', form); el.style.transform = 'none'; el.innerHTML = kaartHtml(lees());
@@ -279,7 +295,7 @@ async function kaartVoorArtikel(a) {
   let geraden = false;
   if (!handle) { const g = await raadProduct(a).catch(() => null); if (g) { handle = g.handle; geraden = true; } }
   const k = {
-    handle, fotoPad: a.foto_pad || a.designs?.hoofdfoto_pad || '', fotoWeb: '', nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(a.inkoopprijs), titel: a.naam || '', collectie: '', kleur: a.kleurcode || '',
+    handle, fotoPad: a.foto_pad || a.designs?.hoofdfoto_pad || '', fotoWeb: '', nr: String(a.artikelnummer ?? ''), inkoop: inkoopcode(await inkoopPerM2(a)), titel: a.naam || '', collectie: '', kleur: a.kleurcode || '',
     materiaal: naarEngels(a.materiaal), methode: naarEngels(a.techniek), knoop: '',
     prijs: a.verkoopprijs_m2 ? `€ ${Number(a.verkoopprijs_m2).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} / m²` : '', maatwerk: '',
   };
@@ -297,8 +313,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261117172442');
-  const { printHtml } = await import('./kaarten.js?v=20261117172442');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261118103719');
+  const { printHtml } = await import('./kaarten.js?v=20261118103719');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({
@@ -323,7 +339,7 @@ export async function stalenVelModal(ids = []) {
       const maat = () => ({ w: Number($('#sv-w', form).value) || 105, h: Number($('#sv-h', form).value) || 148.5 });
       const perVel = () => { const m = maat(); return Math.max(1, Math.floor(210.01 / m.w)) * Math.max(1, Math.floor(297.01 / m.h)); };
       const fc = new Map();
-      const metFoto = (k) => ({ ...k, foto: k.fotoWeb || (k.fotoPad && fc.get(k.fotoPad)) || '' });
+      const metFoto = (k) => ({ ...k, foto: (k.fotoPad && fc.get(k.fotoPad)) || k.fotoWeb || '' });
       const zorgFotos = async () => {
         const nodig = [...new Set(velLeesG().map((k) => k.fotoPad).filter((p2) => p2 && !fc.has(p2)))];
         if (nodig.length) (await fotosOphalen(nodig.map((p2) => ({ fotoPad: p2 })))).forEach((x, i) => fc.set(nodig[i], x.foto));
@@ -346,6 +362,15 @@ export async function stalenVelModal(ids = []) {
         const k = await kaartVoorArtikel(a); k.n = 1;
         const l = velLeesG(); l.push(k); velZetG(l); await zorgFotos(); toon();
       });
+      // Kaarten die al op het vel stonden bijwerken: foto uit het voorraadsysteem en inkoopcode uit de inkooporder
+      (async () => {
+        const nrs = [...new Set(velLeesG().map((k) => k.nr).filter(Boolean))]; if (!nrs.length) return;
+        const { data } = await sb.from('artikelen').select('id, artikelnummer, foto_pad, lengte_cm, breedte_cm, inkoopprijs, inkoopprijs_m2, designs(hoofdfoto_pad)').in('artikelnummer', nrs);
+        const per = new Map();
+        for (const a of data || []) per.set(String(a.artikelnummer), { fotoPad: a.foto_pad || a.designs?.hoofdfoto_pad || '', inkoop: inkoopcode(await inkoopPerM2(a)) });
+        const l = velLeesG().map((k) => (per.has(k.nr) ? { ...k, ...per.get(k.nr) } : k)); velZetG(l);
+        await zorgFotos(); toon();
+      })().catch(() => {});
       form.addEventListener('change', (e) => { const i = e.target.dataset?.n; if (i === undefined) return; const l = velLeesG(); if (!l[i]) return; l[i].n = Math.max(1, parseInt(e.target.value, 10) || 1); velZetG(l); toon(); });
       form.addEventListener('input', (e) => { if (e.target.id === 'sv-w' || e.target.id === 'sv-h') { const m = maat(); try { localStorage.setItem('kaart-sk3-w', m.w); localStorage.setItem('kaart-sk3-h', m.h); } catch { /* */ } toon(); } });
       form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault(); });

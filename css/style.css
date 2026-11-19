@@ -561,3 +561,10 @@ input.let-op { border-color: var(--amber-fg) !important; box-shadow: 0 0 0 2px v
 .kt-form .na-vink input { display: inline-block !important; width: auto !important; margin: 0 !important; }
 .na-wrap.na-aan > label:first-child { opacity: .45; text-decoration: line-through; }
 .na-wrap.na-aan > label:first-child input, .na-wrap.na-aan > label:first-child select { text-decoration: none; }
+
+/* Balans / telling */
+.scan-card .scan-input { font-size: 22px; padding: 12px 14px; letter-spacing: .03em; }
+.scan-melding { margin-top: 12px; border-radius: 10px; padding: 12px 14px; font-size: 15px; display: none; }
+.scan-melding.goed { display: block; background: var(--green-bg); color: var(--green-fg); }
+.scan-melding.fout { display: block; background: var(--red-bg); color: var(--red-fg); }
+table.list tr.gescand td { background: #e8f6ec; }

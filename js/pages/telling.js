@@ -1,6 +1,6 @@
 // Balans / voorraadtelling: barcodes scannen en de voorraad meteen gelijk zetten.
 // Elke scan telt 1 stuk. De voorraad van dat artikel wordt direct: getelde stuks + wat uitgeleend is.
-import { sb, check, esc, num, datum, $, on, toast, setTitle, modal, confirmBox, artikelPicker, alles, SOORT_ARTIKEL } from '../ui.js?v=20261119110855';
+import { sb, check, esc, num, datum, $, on, toast, setTitle, modal, confirmBox, artikelPicker, alles, SOORT_ARTIKEL } from '../ui.js?v=20261119150808';
 
 const maatTxt = (a) => (a?.breedte_cm && a?.lengte_cm ? `${num(a.lengte_cm)} x ${num(a.breedte_cm)} cm` : '');
 

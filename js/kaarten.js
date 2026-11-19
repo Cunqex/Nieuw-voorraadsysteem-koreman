@@ -3,9 +3,9 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261119110855';
-import { WEG, leegWaarde, volgGebruiker, kaartWaarde, naVinkjes, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261119110855';
-import { staalPaneHtml, staalPaneInit, SK_CSS } from './staalkaart.js?v=20261119110855';
+import { esc, $, modal, toast } from './ui.js?v=20261119150808';
+import { WEG, leegWaarde, volgGebruiker, kaartWaarde, naVinkjes, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261119150808';
+import { staalPaneHtml, staalPaneInit, SK_CSS, inkoopInfo, inkoopcode } from './staalkaart.js?v=20261119150808';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -65,12 +65,13 @@ const PK_CSS = `
 .pk .t{position:absolute;white-space:nowrap;line-height:1.25}
 .pk .oms{left:65pt;font-size:10pt;max-width:172pt;overflow:hidden;text-overflow:ellipsis}
 .pk .maat{left:65pt;font-size:10pt}
-.pk .prijs{left:62pt;font-size:13pt;font-weight:bold}`;
+.pk .prijs{left:62pt;font-size:13pt;font-weight:bold}
+.pk .ink{left:65pt;bottom:4pt;font-size:7pt;color:#444;letter-spacing:.3pt}`;
 function prijskaartje(k) {
   const bc = streepjescode(k.nr); const mid = 170 + bc.W / 2;
   const fs = String(k.nr).length > 8 ? 7 : 10; const w = String(k.nr).length * 0.556 * fs; let links = mid - w / 2; if (links + w > 240) links = 240 - w;
   const at = (cls, y, html, extra = '') => `<div class="t ${cls}" style="bottom:${(y - 0.27 * 10 - 0.6).toFixed(2)}pt;${extra}">${html}</div>`;
-  return `<div class="pk">${at('oms', 65.62, esc(k.oms))}${k.maat ? at('maat', 42.72, esc(k.maat)) : ''}${at('prijs', 19.2, esc(k.prijs))}${at('', 24.04, esc(k.nr), `left:${links.toFixed(2)}pt;font-size:${fs}pt`)}${bc.svg}</div>`;
+  return `<div class="pk">${at('oms', 65.62, esc(k.oms))}${k.maat ? at('maat', 42.72, esc(k.maat)) : ''}${at('prijs', 19.2, esc(k.prijs))}${k.inkoop && k.inkoop !== WEG ? `<div class="t ink">${esc(k.inkoop)}</div>` : ''}${at('', 24.04, esc(k.nr), `left:${links.toFixed(2)}pt;font-size:${fs}pt`)}${bc.svg}</div>`;
 }
 
 // ---------- Wandkaart ----------
@@ -155,7 +156,7 @@ function wandkaartVoorArtikel(a) {
 // ---------- Venster vanuit het artikel ----------
 export async function kaartenModal(a) {
   const logoUrl = new URL('img/logo-k-maastricht.png', document.baseURI).href;
-  const pk = { oms: titelZonderMaat(a.naam) || a.naam || '', maat: maatTekst(a), prijs: prijsKaartje(a.verkoopprijs), nr: String(a.artikelnummer ?? ''), n: 1 };
+  const pk = { oms: titelZonderMaat(a.naam) || a.naam || '', maat: maatTekst(a), prijs: prijsKaartje(a.verkoopprijs), inkoop: '', nr: String(a.artikelnummer ?? ''), n: 1 };
   const wk = { ...wandkaartVoorArtikel(a), formaat: onthoud.get('formaat', 'A5') };
   const optCol = Object.entries(COLLECTIES).map(([g, subs]) => `<optgroup label="${esc(g)}">${subs.map((s) => `<option ${wk.collectie === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</optgroup>`).join('');
   const veld = (id, label, v, extra = '') => `<label>${label}<input id="${id}" value="${esc(v)}" ${extra}></label>`;
@@ -185,7 +186,8 @@ export async function kaartenModal(a) {
     <div class="kt-pane" data-pane="pk" hidden>
       <div class="kt-prev"><div class="schaal" id="pk-prev"></div></div>
       <div class="kt-form">
-        ${veld('pk-oms', 'Omschrijving', pk.oms)}${veld('pk-maat', 'Maat', pk.maat, 'placeholder="250 x 200"')}${veld('pk-prijs', 'Prijs', pk.prijs)}
+        ${veld('pk-oms', 'Omschrijving', pk.oms)}${veld('pk-maat', 'Maat', pk.maat, 'placeholder="250 x 200"')}${veld('pk-prijs', 'Prijs', pk.prijs)}${veld('pk-inkoop', 'Inkoopcode (60 + inkoopprijs per m² + 4)', pk.inkoop, 'placeholder="wordt opgehaald…"')}
+        <p id="pk-inkoopinfo" class="small muted" style="margin:-4px 0 8px"></p>
         <label>Aantal<input id="pk-n" type="number" min="1" value="1"></label>
         <button type="button" class="btn primary" id="pk-print" style="width:100%"><i data-lucide="printer"></i> Print prijskaartje</button>
         <p class="small muted" style="margin-top:8px">Formaat 85,7 × 54 mm, opmaak "Meubelen" uit IOne. Kies de labelprinter en schaal 100%.</p>
@@ -203,10 +205,18 @@ export async function kaartenModal(a) {
       activeerKeuzes(form);
       volgGebruiker(form);
       naVinkjes(form, ['wk-maat', 'wk-pool', 'wk-knoop', 'wk-herkomst', 'wk-prijs'], `wk-${a.artikelnummer ?? a.id}`);
+      naVinkjes(form, ['pk-inkoop'], `pk-${a.artikelnummer ?? a.id}`);
+      inkoopInfo(a).then((x) => {
+        const inp = $('#pk-inkoop', form); const info = $('#pk-inkoopinfo', form);
+        if (inp && !inp.value) inp.value = inkoopcode(x.m2);
+        if (inp) inp.placeholder = 'geen inkoopprijs bekend';
+        if (info) info.textContent = x.m2 != null ? `€ ${Math.round(x.m2)} per m² (${x.bron})` : 'Vul bij het artikel de inkoopprijs per m² in.';
+        if (!$('[data-pane=pk]', form).hidden) toonPk();
+      }).catch(() => {});
       const v = (id) => kaartWaarde($('#' + id, form));
       const schaal = (el, breedtePx) => { el.style.transform = 'none'; const kaart = el.firstElementChild; const k = breedtePx / kaart.offsetWidth; el.style.transform = `scale(${k})`; el.parentElement.style.height = `${kaart.offsetHeight * k + 24}px`; };
       const leesWk = () => ({ collectie: v('wk-collectie'), titel: v('wk-titel'), maat: v('wk-maat'), pool: v('wk-pool'), knoop: v('wk-knoop'), herkomst: v('wk-herkomst'), prijs: v('wk-prijs'), formaat: v('wk-formaat'), n: Math.max(1, parseInt(v('wk-n'), 10) || 1) });
-      const leesPk = () => ({ oms: v('pk-oms'), maat: v('pk-maat'), prijs: v('pk-prijs'), nr: pk.nr, n: Math.max(1, parseInt(v('pk-n'), 10) || 1) });
+      const leesPk = () => ({ oms: v('pk-oms'), maat: v('pk-maat'), prijs: v('pk-prijs'), inkoop: v('pk-inkoop'), nr: pk.nr, n: Math.max(1, parseInt(v('pk-n'), 10) || 1) });
       const zetPerVel = () => {
         const twee = v('wk-pervel') === '2'; const wacht = wkWacht.lees(); const f = v('wk-formaat');
         $('#wk-bewaar', form).hidden = !twee;
@@ -265,7 +275,7 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261119110855');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261119150808');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',

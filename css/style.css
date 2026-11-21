@@ -712,3 +712,6 @@ table.list tr.gescand td { background: #e8f6ec; }
 .kies-kop select { width: auto; flex: 0 0 auto; }
 .kies-kop label.check { flex: 0 0 auto; min-height: 0; }
 .laat { color: var(--red-fg); font-weight: 600; }
+.art-ink small { font-size: 11.5px; font-weight: 500; color: var(--navy-400); }
+.staal-uitleg { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 0; padding: 12px 14px; background: var(--navy-50); border-radius: 10px; color: var(--navy-600); font-size: 13.5px; line-height: 1.45; }
+.staal-uitleg svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--navy-400); }

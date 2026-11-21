@@ -1,5 +1,5 @@
 // Rapportage: inkomsten en uitgaven per periode, vergeleken met dezelfde periode een jaar eerder.
-import { sb, esc, money, $, setTitle, alles, vandaag, toast } from '../ui.js?v=20261121154928';
+import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261121155201';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -82,7 +82,7 @@ export async function render(c) {
 
   // ---- alles één keer ophalen, daarna rekenen in de browser ----
   const [orders, soTot, soBet, pos, poTot, poBet, kosten, reinig] = await Promise.all([
-    alles(() => sb.from('verkooporders').select('id, orderdatum, status, bron').not('status', 'in', '(offerte,geannuleerd)').order('id')),
+    alles(() => sb.from('verkooporders').select('id, orderdatum, status, bron, orderbev_nummer, factuurnummer, klanten(naam)').not('status', 'in', '(offerte,geannuleerd)').order('id')),
     alles(() => sb.from('v_verkooporder_totalen').select('verkooporder_id, netto, totaal, betaald').order('verkooporder_id')),
     alles(() => sb.from('verkoop_betalingen').select('verkooporder_id, datum, bedrag').order('id')),
     alles(() => sb.from('inkooporders').select('id, orderdatum, status, bron, valuta, leveranciers(naam)').neq('status', 'geannuleerd').order('id')),
@@ -163,7 +163,14 @@ export async function render(c) {
     const uGroep = (x) => (x.g === 'Inkoop' ? `Inkoop · ${x.lev}` : x.g);
 
     // openstaand (stand van nu, los van de gekozen periode)
-    const teOntv = orders.filter((o) => o.status !== 'betaald').map((o) => Number(soT.get(o.id)?.totaal || 0) - Number(soT.get(o.id)?.betaald || 0)).filter((v) => v > 0.005);
+    // Verkooporders met een open bedrag, in drie soorten: lopend (nog niet gefactureerd), open factuur, en oude facturen uit IOne.
+    // IOne geeft alleen de aanbetaling door, niet de betaling van de factuur zelf: oude IOne-facturen zijn dus meestal allang betaald.
+    const ditJaar = vandaag().slice(0, 4);
+    const openO = orders.filter((o) => o.status !== 'betaald').map((o) => ({ o, open: Number(soT.get(o.id)?.totaal || 0) - Number(soT.get(o.id)?.betaald || 0) })).filter((x) => x.open > 0.005);
+    const oud = openO.filter((x) => x.o.bron === 'ione' && x.o.status === 'gefactureerd' && x.o.orderdatum.slice(0, 4) < ditJaar);
+    const facturen = openO.filter((x) => x.o.status === 'gefactureerd' && !oud.includes(x));
+    const lopend = openO.filter((x) => x.o.status !== 'gefactureerd');
+    const somO = (l) => l.reduce((t, x) => t + x.open, 0);
     const rnOpen = reinig.filter((r) => !r.betaald_op).map(rnTotaal).filter((v) => v > 0);
     const teBet = pos.filter((p) => p.bron !== 'ione').map((p) => Number(poT.get(p.id)?.totaal || 0) - Number(poT.get(p.id)?.betaald || 0)).filter((v) => v > 0.005);
 
@@ -194,10 +201,17 @@ export async function render(c) {
       </div>
       <div class="card"><h2>Waar het geld heen gaat</h2>${tabel(groepeer(uNu, uGroep), groepeer(uToen, uGroep), 'uit', 10)}</div>
       <div class="card"><h2>Nog openstaand <span class="muted small" style="font-weight:400">· stand van vandaag</span></h2>
-        <div class="rap-open">
-          <div><span class="rap-lbl">Nog te ontvangen van klanten</span><b class="rap-num">${money(teOntv.reduce((s, v) => s + v, 0) + rnOpen.reduce((s, v) => s + v, 0))}</b><span class="small muted">${teOntv.length} verkooporder${teOntv.length === 1 ? '' : 's'}${rnOpen.length ? ` en ${rnOpen.length} reiniging${rnOpen.length === 1 ? '' : 'en'}` : ''} · incl. btw</span><a class="small" href="#/verkoop">Naar verkooporders</a></div>
-          <div><span class="rap-lbl">Nog te betalen aan leveranciers</span><b class="rap-num">${money(teBet.reduce((s, v) => s + v, 0))}</b><span class="small muted">${teBet.length} inkooporder${teBet.length === 1 ? '' : 's'} · orders uit IOne tellen hier niet mee</span><a class="small" href="#/inkoop">Naar inkooporders</a></div>
+        <div class="rap-open drie">
+          <div><span class="rap-lbl">Open facturen</span><b class="rap-num">${money(somO(facturen) + rnOpen.reduce((t, v) => t + v, 0))}</b><span class="small muted">${facturen.length} factu${facturen.length === 1 ? 'ur' : 'ren'}${rnOpen.length ? ` en ${rnOpen.length} reiniging${rnOpen.length === 1 ? '' : 'en'}` : ''} · gefactureerd, nog niet (helemaal) betaald</span><a class="small" href="#/verkoop?status=gefactureerd">Bekijken</a></div>
+          <div><span class="rap-lbl">Lopende orders, nog te factureren</span><b class="rap-num">${money(somO(lopend))}</b><span class="small muted">${lopend.length} order${lopend.length === 1 ? '' : 's'} · bevestigd maar nog niet geleverd of gefactureerd; dit komt binnen bij levering</span><a class="small" href="#/verkoop?status=bevestigd">Bekijken</a></div>
+          <div><span class="rap-lbl">Nog te betalen aan leveranciers</span><b class="rap-num">${money(teBet.reduce((t, v) => t + v, 0))}</b><span class="small muted">${teBet.length} inkooporder${teBet.length === 1 ? '' : 's'} · orders uit IOne tellen hier niet mee</span><a class="small" href="#/inkoop">Bekijken</a></div>
         </div>
+        <p class="small muted" style="margin-top:10px">Bedragen incl. btw.</p>
+        ${oud.length ? `<div class="warnbox" style="margin-top:12px"><div><b>${oud.length} oude facturen uit IOne staan nog als onbetaald: ${money(somO(oud))}.</b> Ze tellen hierboven niet mee. IOne gaf alleen de aanbetaling door, niet de betaling van de factuur zelf, dus deze zijn waarschijnlijk allang betaald.
+          <details style="margin-top:8px"><summary>Toon de ${oud.length} facturen</summary>
+            <table class="list" style="margin-top:8px;background:#fff;border-radius:8px"><thead><tr><th>Order</th><th>Klant</th><th>Datum</th><th class="num">Open</th></tr></thead><tbody>
+            ${oud.sort((x, y) => x.o.orderdatum.localeCompare(y.o.orderdatum)).map((x) => `<tr><td><a href="#/verkoop/${x.o.id}">${x.o.orderbev_nummer ?? ''}</a></td><td>${esc(x.o.klanten?.naam || '')}</td><td>${dn(x.o.orderdatum)}</td><td class="num">${money(x.open)}</td></tr>`).join('')}</tbody></table></details></div>
+          <button class="btn small" id="oudbetaald">Alle ${oud.length} op betaald zetten</button></div>` : ''}
       </div>
       <div class="card"><h2>Cijfers per ${perDag ? 'dag' : 'maand'}<span class="spacer"></span><button class="btn small" id="download"><i data-lucide="download"></i> Download als bestand</button></h2>
         <div class="table-wrap"><table class="list rap-cijfers"><thead><tr><th rowspan="2">${perDag ? 'Dag' : 'Maand'}</th><th colspan="3" class="mid">Deze periode</th><th colspan="3" class="mid">Een jaar eerder</th></tr>
@@ -207,6 +221,13 @@ export async function render(c) {
       </div>`}
       <p class="small muted" style="margin:4px 4px 24px">Alle bedragen zijn exclusief btw. ${basis === 'order' ? 'Een verkoop telt mee op de orderdatum, een inkoop op de datum van de inkooporder. Offertes en geannuleerde orders tellen niet mee.' : ''} Vaste lasten zoals huur, personeel en energie staan niet in deze app en zitten dus niet in de uitgaven.</p>`;
 
+    const ob = $('#oudbetaald', c);
+    if (ob) ob.onclick = async () => {
+      if (!await confirmBox(`${oud.length} oude facturen uit IOne (samen ${money(somO(oud))}) op betaald zetten? Controleer eerst de lijst: staat er een factuur tussen die echt nog open is, laat die dan staan en zet de rest per order op betaald.`, 'Op betaald zetten')) return;
+      const ids = oud.map((x) => x.o.id);
+      check(await sb.from('verkooporders').update({ status: 'betaald' }).in('id', ids));
+      toast(`${ids.length} facturen op betaald gezet`, 'ok'); refresh();
+    };
     const dl = $('#download', c);
     if (dl) dl.onclick = () => {
       const g = (x) => String(r2(x)).replace('.', ',');

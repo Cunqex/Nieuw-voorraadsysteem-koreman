@@ -1,8 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
- bewaakFormulier} from '../ui.js?v=20261121154928';
-import { metRegels, vkKaart } from '../orderkaart.js?v=20261121154928';
+ bewaakFormulier} from '../ui.js?v=20261121155201';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261121155201';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
@@ -35,6 +35,7 @@ export async function renderList(c, _p, query) {
     </div>
     <div id="klantfilter"></div>
     <div id="tbl"></div>`;
+  if (query.status && SO_STATUS[query.status]) $('#status', c).value = query.status;
   let modus = query.modus === 'klanten' ? 'klanten' : 'orders';
   const klantFilter = query.klant_id ? Number(query.klant_id) : null;
   const zetModus = () => {

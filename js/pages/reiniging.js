@@ -2,7 +2,7 @@
 import {
   sb, check, esc, money, datum, $, on, toast, modal, confirmBox, formFields, readForm, setTitle, vandaag, alles, refresh,
   loadImages, uploadFile, levOpt, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
- bewaakFormulier} from '../ui.js?v=20261121154928';
+ bewaakFormulier} from '../ui.js?v=20261121155201';
 
 export const RN_STATUS = { aangenomen: 'Aangenomen', bij_reiniger: 'Bij reiniger', klaar: 'Klaar om op te halen', opgehaald: 'Opgehaald', geannuleerd: 'Geannuleerd' };
 const KLEUR = { aangenomen: 'blue', bij_reiniger: 'orange', klaar: 'green', opgehaald: '', geannuleerd: 'red' };

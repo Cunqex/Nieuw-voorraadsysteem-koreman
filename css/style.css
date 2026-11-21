@@ -767,3 +767,9 @@ table.rap-tbl .rap-balk { width: 16%; min-width: 36px; padding-left: 0; padding-
 table.rap-tbl td, table.rap-tbl th { padding-left: 10px; padding-right: 10px; }
 table.rap-tbl td:first-child, table.rap-tbl th:first-child { padding-left: 20px; overflow-wrap: anywhere; }
 table.rap-tbl td:last-child, table.rap-tbl th:last-child { padding-right: 20px; }
+
+.rap-open.drie { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rap-open > div .small.muted { line-height: 1.4; }
+.warnbox:has(#oudbetaald) { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.warnbox:has(#oudbetaald) > div { flex: 1 1 420px; min-width: 0; }
+@media (max-width: 900px) { .rap-open.drie { grid-template-columns: 1fr; } }

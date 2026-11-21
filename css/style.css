@@ -629,3 +629,30 @@ table.list tr.gescand td { background: #e8f6ec; }
 .vr-tegel.vr-let b, .vr-tegel.vr-let span { color: var(--amber-fg); }
 .vr-tegels + p { margin-top: 12px; }
 @media (max-width: 1000px) { .vr-tegels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- Overzicht (dashboard) ---------- */
+.db-kop h1 { margin: 0; }
+.db-datum { margin: 2px 0 0; font-size: 13.5px; text-transform: capitalize; }
+.db-tegels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.db-tegel { text-decoration: none; box-shadow: var(--shadow-card); transition: box-shadow .15s, transform .15s; }
+.db-tegel:hover { text-decoration: none; box-shadow: var(--shadow-pop); transform: translateY(-1px); }
+.db-tegel b em { font-style: normal; font-size: 14px; font-weight: 500; color: inherit; opacity: .7; }
+.db-tegel small { color: var(--navy-400); }
+.db-grid { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+.db-grid > .card { margin-bottom: 16px; }
+.db-acties { display: flex; flex-direction: column; gap: 8px; }
+.db-actie { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 10px; text-decoration: none; color: var(--navy-900); font-size: 14px; background: var(--canvas, #f6f7f9); }
+.db-actie:hover { text-decoration: none; filter: brightness(.97); }
+.db-actie svg { width: 16px; height: 16px; flex-shrink: 0; }
+.db-actie span { flex: 1; }
+.db-actie b { min-width: 28px; text-align: center; padding: 2px 8px; border-radius: 999px; background: #fff; font-variant-numeric: tabular-nums; }
+.db-actie.oranje { background: var(--amber-bg); color: var(--amber-fg); }
+.db-actie.blauw { background: var(--blue-bg); color: var(--blue-fg); }
+.db-actie.rood { background: var(--red-bg); color: var(--red-fg); }
+.db-actie.rustig { color: var(--navy-400); }
+.db-actie.rustig b { background: transparent; }
+.db-filter { display: inline-flex; gap: 6px; margin-right: 8px; }
+.db-filter .chip { font-size: 12.5px; padding: 3px 10px; }
+.db-balk { height: 6px; border-radius: 999px; background: var(--navy-50, #eef0f4); overflow: hidden; }
+.db-balk i { display: block; height: 100%; background: #16a34a; border-radius: 999px; }
+@media (max-width: 1100px) { .db-tegels { grid-template-columns: repeat(2, minmax(0, 1fr)); } .db-grid { grid-template-columns: 1fr; } }

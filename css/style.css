@@ -739,3 +739,4 @@ table.list tr.gescand td { background: #e8f6ec; }
 @media (max-width: 900px) { .line.rn-line { grid-template-columns: 1fr; } .rn-rechts { align-items: stretch; } .rn-del { position: absolute; top: 12px; right: 12px; } }
 .rn-line .rn-del, .rn-rep .line-del { margin: 0; }
 .rn-line .rn-del { margin-top: 18px; }
+.art-m2 { font-size: 12px; font-weight: 500; color: var(--navy-400); }

@@ -1,5 +1,5 @@
 // Rapportage: inkomsten en uitgaven per periode, vergeleken met dezelfde periode een jaar eerder.
-import { sb, esc, money, $, setTitle, alles, vandaag, toast } from '../ui.js?v=20261121154619';
+import { sb, esc, money, $, setTitle, alles, vandaag, toast } from '../ui.js?v=20261121154928';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -192,10 +192,7 @@ export async function render(c) {
         ${lijnen('res', labels, [{ kl: 'toen', waarden: cRes0 }, { kl: 'res', waarden: cRes }])}
         <p class="small muted" style="margin-top:8px">De lijn telt per ${perDag ? 'dag' : 'maand'} het resultaat op. Ligt de donkere lijn boven de grijze, dan sta je er beter voor dan een jaar geleden.</p>
       </div>
-      <div class="cols-2">
-        <div class="card"><h2>Waar de inkomsten vandaan komen</h2>${tabel(groepeer(iNu, (x) => x.g), groepeer(iToen, (x) => x.g), 'ink')}</div>
-        <div class="card"><h2>Waar het geld heen gaat</h2>${tabel(groepeer(uNu, uGroep), groepeer(uToen, uGroep), 'uit')}</div>
-      </div>
+      <div class="card"><h2>Waar het geld heen gaat</h2>${tabel(groepeer(uNu, uGroep), groepeer(uToen, uGroep), 'uit', 10)}</div>
       <div class="card"><h2>Nog openstaand <span class="muted small" style="font-weight:400">· stand van vandaag</span></h2>
         <div class="rap-open">
           <div><span class="rap-lbl">Nog te ontvangen van klanten</span><b class="rap-num">${money(teOntv.reduce((s, v) => s + v, 0) + rnOpen.reduce((s, v) => s + v, 0))}</b><span class="small muted">${teOntv.length} verkooporder${teOntv.length === 1 ? '' : 's'}${rnOpen.length ? ` en ${rnOpen.length} reiniging${rnOpen.length === 1 ? '' : 'en'}` : ''} · incl. btw</span><a class="small" href="#/verkoop">Naar verkooporders</a></div>

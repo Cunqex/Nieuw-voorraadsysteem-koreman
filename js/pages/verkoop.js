@@ -1,8 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
- bewaakFormulier} from '../ui.js?v=20261121151247';
-import { metRegels, vkKaart } from '../orderkaart.js?v=20261121151247';
+ bewaakFormulier} from '../ui.js?v=20261121151811';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261121151811';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];

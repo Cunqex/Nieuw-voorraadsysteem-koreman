@@ -1,8 +1,16 @@
 // Overzicht: de lopende verkoop- en inkooporders.
-import { sb, check, esc, money, setTitle, withTotals, alles, loadImages } from '../ui.js?v=20261121151247';
-import { metRegels, vkKaart, ikKaart } from '../orderkaart.js?v=20261121151247';
+import { sb, check, esc, money, setTitle, withTotals, alles, loadImages } from '../ui.js?v=20261121151811';
+import { metRegels, vkKaart, ikKaart } from '../orderkaart.js?v=20261121151811';
 
-const STAP = 8;
+// Aantal kaartjes altijd een veelvoud van het aantal kolommen, zodat rijen vol zijn
+const kolommen = () => {
+  const sec = document.querySelector('.db-sectie');
+  let w = sec?.isConnected ? sec.clientWidth : 0;
+  if (!w) { const m = document.querySelector('#main'); const cs = m ? getComputedStyle(m) : null; w = m ? m.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) : 1200; }
+  return Math.max(1, Math.floor((w - 48 + 16) / (260 + 16)));
+};
+const STAP = () => kolommen() * 2;
+const MEER = () => kolommen() * 3;
 
 export async function render(c) {
   setTitle('Overzicht');
@@ -25,7 +33,7 @@ export async function render(c) {
     <section class="card db-sectie" id="db-ik"></section>`;
 
   // ---------- Verkoop ----------
-  const vk = { f: 'alle', n: STAP };
+  const vk = { f: 'alle', n: 0 };
   const VK_F = [['alle', 'Alle'], ['offerte', 'Offertes'], ['bevestigd', 'Bevestigd'], ['geleverd', 'Geleverd'], ['gefactureerd', 'Gefactureerd']];
   const tekenVk = async () => {
     const lijst = sos.filter((s) => vk.f === 'alle' || s.status === vk.f);
@@ -42,12 +50,12 @@ export async function render(c) {
     loadImages($('#db-vk'));
   };
   $('#db-vk').addEventListener('click', (e) => {
-    const f = e.target.closest('[data-f]'); if (f) { vk.f = f.dataset.f; vk.n = STAP; tekenVk(); }
-    if (e.target.closest('[data-meer]')) { vk.n += 16; tekenVk(); }
+    const f = e.target.closest('[data-f]'); if (f) { vk.f = f.dataset.f; vk.n = STAP(); tekenVk(); }
+    if (e.target.closest('[data-meer]')) { vk.n += MEER(); tekenVk(); }
   });
 
   // ---------- Inkoop ----------
-  const ik = { f: 'alle', n: STAP };
+  const ik = { f: 'alle', n: 0 };
   const IK_F = [['alle', 'Alle'], ['concept', 'Concept'], ['verstuurd', 'Verstuurd'], ['bevestigd', 'Bevestigd'], ['in_productie', 'In productie'], ['verzonden', 'Verzonden']];
   const tekenIk = async () => {
     const lijst = pos.filter((p) => ik.f === 'alle' || p.status === ik.f);
@@ -63,10 +71,11 @@ export async function render(c) {
     loadImages($('#db-ik'));
   };
   $('#db-ik').addEventListener('click', (e) => {
-    const f = e.target.closest('[data-f]'); if (f) { ik.f = f.dataset.f; ik.n = STAP; tekenIk(); }
-    if (e.target.closest('[data-meer]')) { ik.n += 16; tekenIk(); }
+    const f = e.target.closest('[data-f]'); if (f) { ik.f = f.dataset.f; ik.n = STAP(); tekenIk(); }
+    if (e.target.closest('[data-meer]')) { ik.n += MEER(); tekenIk(); }
   });
 
   function $(sel) { return c.querySelector(sel); }
+  vk.n = STAP(); ik.n = STAP();
   await Promise.all([tekenVk(), tekenIk()]);
 }

@@ -1,5 +1,5 @@
 // Overzicht: de lopende verkoop- en inkooporders.
-import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles } from '../ui.js?v=20261121130301';
+import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles } from '../ui.js?v=20261121130353';
 
 const nrVan = (s) => (s.factuurnummer ? 'F ' + s.factuurnummer : s.orderbev_nummer ? 'OB ' + s.orderbev_nummer : s.offertenummer ? 'OF ' + s.offertenummer : 'Concept');
 const STAP = 12;

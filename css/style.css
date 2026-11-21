@@ -650,7 +650,8 @@ table.list tr.gescand td { background: #e8f6ec; }
 .db-tabel th:last-child, .db-tabel td:last-child { padding-right: 20px; }
 .db-nr { font-weight: 600; white-space: nowrap; }
 .db-bet { width: 150px; }
-td.db-bet { display: flex; align-items: center; gap: 8px; }
+.db-betaald { display: flex; align-items: center; gap: 8px; }
+.db-tabs { scrollbar-width: none; }
 .db-balk { flex: 1; height: 6px; border-radius: 999px; background: var(--navy-50, #eef0f4); overflow: hidden; }
 .db-balk i { display: block; height: 100%; background: #16a34a; border-radius: 999px; }
 .db-pct { font-size: 12px; color: var(--navy-400); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }

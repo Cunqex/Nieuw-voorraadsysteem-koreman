@@ -1,5 +1,5 @@
 // Rapportage: inkomsten en uitgaven per periode, vergeleken met dezelfde periode een jaar eerder.
-import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261121160537';
+import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261121161153';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 export const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -100,35 +100,39 @@ export async function render(c) {
     alles(() => sb.from('verkooporders').select('id, orderdatum, status, bron, orderbev_nummer, factuurnummer, klanten(naam)').not('status', 'in', '(offerte,geannuleerd)').order('id')),
     alles(() => sb.from('v_verkooporder_totalen').select('verkooporder_id, netto, totaal, betaald').order('verkooporder_id')),
     alles(() => sb.from('verkoop_betalingen').select('verkooporder_id, datum, bedrag').order('id')),
-    alles(() => sb.from('inkooporders').select('id, orderdatum, status, bron, valuta, leveranciers(naam)').neq('status', 'geannuleerd').order('id')),
+    alles(() => sb.from('inkooporders').select('id, ordernummer, orderdatum, status, bron, valuta, leverancier_id, leveranciers(naam)').neq('status', 'geannuleerd').order('id')),
     alles(() => sb.from('v_inkooporder_totalen').select('inkooporder_id, totaal, betaald, betaald_eur').order('inkooporder_id')),
     alles(() => sb.from('inkoop_betalingen').select('inkooporder_id, datum, bedrag_eur').order('id')),
     alles(() => sb.from('inkoop_kosten').select('inkooporder_id, datum, soort, bedrag_eur').order('id')),
-    alles(() => sb.from('reinigingen').select('id, status, datum_binnen, factuur_datum, naar_reiniger_op, betaald_op, kosten_reiniger, leveranciers(naam), reiniging_regels(prijs, reparatie_prijs)').neq('status', 'geannuleerd').order('id')),
+    alles(() => sb.from('reinigingen').select('id, nummer, klanten(naam), status, datum_binnen, factuur_datum, naar_reiniger_op, betaald_op, kosten_reiniger, leveranciers(naam), reiniging_regels(prijs, reparatie_prijs)').neq('status', 'geannuleerd').order('id')),
   ]);
   const soT = new Map(soTot.map((t) => [t.verkooporder_id, t])); const soMap = new Map(orders.map((o) => [o.id, o]));
   const poT = new Map(poTot.map((t) => [t.inkooporder_id, t])); const poMap = new Map(pos.map((p) => [p.id, p]));
   const KOSTEN = { vracht: 'Vracht', invoerrechten: 'Invoerrechten', inklaring: 'Inklaring', verzekering: 'Verzekering', overig: 'Overige kosten' };
   const rnTotaal = (r) => (r.reiniging_regels || []).reduce((s, x) => s + Number(x.prijs || 0) + Number(x.reparatie_prijs || 0), 0);
 
-  // Boekingen: { d: datum, b: bedrag excl. btw, g: groep }
+  // Boekingen: { d: datum, b: bedrag excl. btw, g: groep, t: tekst, h: link, lev: leverancier, levId }
+  const soRef = (o) => ({ t: `Verkooporder ${o.orderbev_nummer ?? o.factuurnummer ?? ''} · ${o.klanten?.naam || ''}`, h: `#/verkoop/${o.id}` });
+  const poRef = (p) => ({ t: `Inkooporder ${p.ordernummer} · ${p.leveranciers?.naam || ''}`, h: `#/inkoop/${p.id}`, lev: p.leveranciers?.naam || 'Onbekend', levId: p.leverancier_id });
+  const rnRef = (r) => ({ t: `Reiniging ${r.nummer} · ${r.klanten?.naam || ''}`, h: `#/reiniging/${r.id}` });
   const boekingen = (basis) => {
     const ink = []; const uit = [];
     if (basis === 'order') {
-      orders.forEach((o) => ink.push({ d: o.orderdatum, b: Number(soT.get(o.id)?.netto || 0), g: 'Verkoop tapijten' }));
-      reinig.forEach((r) => ink.push({ d: r.factuur_datum || r.datum_binnen, b: rnTotaal(r) / 1.21, g: 'Reiniging' }));
-      pos.forEach((p) => { const t = poT.get(p.id) || {}; uit.push({ d: p.orderdatum, b: p.valuta === 'EUR' ? Number(t.totaal || 0) : Number(t.betaald_eur || 0), g: 'Inkoop', lev: p.leveranciers?.naam || 'Onbekend' }); });
+      orders.forEach((o) => ink.push({ d: o.orderdatum, b: Number(soT.get(o.id)?.netto || 0), g: 'Verkoop tapijten', ...soRef(o) }));
+      reinig.forEach((r) => ink.push({ d: r.factuur_datum || r.datum_binnen, b: rnTotaal(r) / 1.21, g: 'Reiniging', ...rnRef(r) }));
+      pos.forEach((p) => { const t = poT.get(p.id) || {}; uit.push({ d: p.orderdatum, b: p.valuta === 'EUR' ? Number(t.totaal || 0) : Number(t.betaald_eur || 0), g: 'Inkoop', ...poRef(p) }); });
     } else {
-      soBet.forEach((b) => { const o = soMap.get(b.verkooporder_id); const t = soT.get(b.verkooporder_id); if (!o || !t) return; const f = Number(t.totaal) ? Number(t.netto) / Number(t.totaal) : 1; ink.push({ d: b.datum, b: Number(b.bedrag) * f, g: 'Verkoop tapijten' }); });
-      reinig.filter((r) => r.betaald_op).forEach((r) => ink.push({ d: r.betaald_op, b: rnTotaal(r) / 1.21, g: 'Reiniging' }));
-      poBet.forEach((b) => { const p = poMap.get(b.inkooporder_id); if (p) uit.push({ d: b.datum, b: Number(b.bedrag_eur), g: 'Inkoop', lev: p.leveranciers?.naam || 'Onbekend' }); });
+      soBet.forEach((b) => { const o = soMap.get(b.verkooporder_id); const t = soT.get(b.verkooporder_id); if (!o || !t) return; const f = Number(t.totaal) ? Number(t.netto) / Number(t.totaal) : 1; const ref = soRef(o); ink.push({ d: b.datum, b: Number(b.bedrag) * f, g: 'Verkoop tapijten', ...ref, t: `Betaling op ${ref.t.toLowerCase()}` }); });
+      reinig.filter((r) => r.betaald_op).forEach((r) => ink.push({ d: r.betaald_op, b: rnTotaal(r) / 1.21, g: 'Reiniging', ...rnRef(r) }));
+      poBet.forEach((b) => { const p = poMap.get(b.inkooporder_id); if (p) { const ref = poRef(p); uit.push({ d: b.datum, b: Number(b.bedrag_eur), g: 'Inkoop', ...ref, t: `Betaling op ${ref.t.toLowerCase()}` }); } });
     }
-    kosten.forEach((k) => { if (poMap.has(k.inkooporder_id)) uit.push({ d: k.datum, b: Number(k.bedrag_eur), g: KOSTEN[k.soort] || 'Overige kosten' }); });
-    reinig.filter((r) => Number(r.kosten_reiniger)).forEach((r) => uit.push({ d: r.naar_reiniger_op || r.datum_binnen, b: Number(r.kosten_reiniger), g: 'Reiniging (uitbesteed)', lev: r.leveranciers?.naam }));
+    kosten.forEach((k) => { const p = poMap.get(k.inkooporder_id); if (p) uit.push({ d: k.datum, b: Number(k.bedrag_eur), g: KOSTEN[k.soort] || 'Overige kosten', t: `${KOSTEN[k.soort] || 'Kosten'} bij inkooporder ${p.ordernummer} · ${p.leveranciers?.naam || ''}`, h: `#/inkoop/${p.id}` }); });
+    reinig.filter((r) => Number(r.kosten_reiniger)).forEach((r) => uit.push({ d: r.naar_reiniger_op || r.datum_binnen, b: Number(r.kosten_reiniger), g: 'Reiniging (uitbesteed)', ...rnRef(r), t: `Uitbesteed: reiniging ${r.nummer}${r.leveranciers?.naam ? ' · ' + r.leveranciers.naam : ''}` }));
     return { ink, uit };
   };
 
   let tips = {}; // per grafiek: zweeftekst per tijdvak
+  let alleUit = false; let openVak = null; // uitgeklapte 'Overig' en uitgeklapte maand/dag
   const teken = () => {
     const keuze = $('#periode', c).value; const basis = $('#basis', c).value;
     const [van, tm] = periode(keuze, $('#van', c).value, $('#tot', c).value);
@@ -154,6 +158,14 @@ export async function render(c) {
     const cRes = opgeteld(rRes); const cRes0 = opgeteld(rRes0);
     const labels = vakken.map((v) => v.l);
 
+    // wat zit er in één tijdvak: de onderliggende orders, hoogste bedrag eerst
+    const vakSleutel = (x) => (perDag ? x.d : x.d.slice(0, 7));
+    const vakDetail = (i) => {
+      const k = vakken[i].k;
+      const lijst = (bron, kl, kop) => { const l = bron.filter((x) => vakSleutel(x) === k).sort((a, b) => b.b - a.b);
+        return `<div><h3 class="sub" style="margin-top:0"><i class="${kl}"></i>${kop} · ${l.length}</h3>${l.length ? `<div class="vak-lijst">${l.map((x) => `<a href="${x.h}"><span>${esc(x.t)}</span><b>${money(x.b)}</b></a>`).join('')}</div>` : '<p class="muted small">Niets.</p>'}</div>`; };
+      return `<tr class="vak-detail"><td colspan="7"><div class="vak-cols">${lijst(iNu, 'ink', 'Inkomsten')}${lijst(uNu, 'uit', 'Uitgaven')}</div></td></tr>`;
+    };
     const rij = (kl, naam, v) => `<div><span><i class="${kl}"></i>${naam}</span><b>${money(v)}</b></div>`;
     tips = {
       beide: labels.map((l, i) => `<b>${esc(l)}</b>${rij('ink', 'Inkomsten', rI[i])}${rij('uit', 'Uitgaven', rU[i])}<div class="tip-som"><span>Resultaat</span><b>${money(rRes[i])}</b></div>`),
@@ -164,18 +176,20 @@ export async function render(c) {
 
     // waar het vandaan komt en heen gaat
     const groepeer = (lijst, fn) => { const m = new Map(); lijst.forEach((x) => { const k = fn(x); m.set(k, (m.get(k) || 0) + x.b); }); return m; };
-    const tabel = (nuM, toenM, kl, max = 8) => {
+    const tabel = (nuM, toenM, kl, max, linkVan) => {
       const namen = [...new Set([...nuM.keys(), ...toenM.keys()])].sort((a, b) => (nuM.get(b) || 0) - (nuM.get(a) || 0) || (toenM.get(b) || 0) - (toenM.get(a) || 0));
       const top = namen.slice(0, max); const rest = namen.slice(max);
       const rijen = top.map((n) => [n, nuM.get(n) || 0, toenM.get(n) || 0]);
-      if (rest.length) rijen.push([`Overig (${rest.length})`, rest.reduce((s, n) => s + (nuM.get(n) || 0), 0), rest.reduce((s, n) => s + (toenM.get(n) || 0), 0)]);
       const mx = Math.max(1, ...rijen.map((r) => r[1]));
-      const tNu = rijen.reduce((s, r) => s + r[1], 0); const tToen = rijen.reduce((s, r) => s + r[2], 0);
-      return rijen.length ? `<table class="list rap-tbl"><thead><tr><th>Post</th><th></th><th class="num">Deze periode</th><th class="num">Een jaar eerder</th></tr></thead><tbody>
-        ${rijen.map(([n, a, b]) => `<tr><td>${esc(n)}</td><td class="rap-balk"><i class="${kl}" style="width:${Math.max(0, (a / mx) * 100).toFixed(1)}%"></i></td><td class="num"><b>${money(a)}</b></td><td class="num muted">${b ? money(b) : '–'}</td></tr>`).join('')}
+      const rNu = rest.reduce((t, n) => t + (nuM.get(n) || 0), 0); const rToen = rest.reduce((t, n) => t + (toenM.get(n) || 0), 0);
+      const tNu = rijen.reduce((t, r) => t + r[1], 0) + rNu; const tToen = rijen.reduce((t, r) => t + r[2], 0) + rToen;
+      return namen.length ? `<table class="list rap-tbl"><thead><tr><th>Post</th><th></th><th class="num">Deze periode</th><th class="num">Een jaar eerder</th></tr></thead><tbody>
+        ${rijen.map(([n, a, b]) => { const h = linkVan(n); return `<tr ${h ? `class="click" data-href="${h}" tabindex="0" title="Openen"` : ''}><td>${esc(n)}</td><td class="rap-balk"><i class="${kl}" style="width:${Math.max(0, (a / mx) * 100).toFixed(1)}%"></i></td><td class="num"><b>${money(a)}</b></td><td class="num muted">${b ? money(b) : '–'}</td></tr>`; }).join('')}
+        ${rest.length ? `<tr class="click" data-meeruit tabindex="0"><td>Overig (${rest.length}) <span class="small muted">· klik om alles te tonen</span></td><td></td><td class="num"><b>${money(rNu)}</b></td><td class="num muted">${rToen ? money(rToen) : '–'}</td></tr>` : ''}
         <tr class="tot"><td>Totaal</td><td></td><td class="num">${money(tNu)}</td><td class="num">${money(tToen)}</td></tr></tbody></table>` : '<p class="muted">Niets in deze periode.</p>';
     };
     const uGroep = (x) => (x.g === 'Inkoop' ? `Inkoop · ${x.lev}` : x.g);
+    const levLink = new Map(); [...uNu, ...uToen].forEach((x) => { if (x.g === 'Inkoop' && x.levId) levLink.set(uGroep(x), `#/leverancier/${x.levId}`); });
 
     // openstaand (stand van nu, los van de gekozen periode)
     // Verkooporders met een open bedrag, in drie soorten: lopend (nog niet gefactureerd), open factuur, en oude facturen uit IOne.
@@ -214,7 +228,7 @@ export async function render(c) {
         ${lijnen('res', labels, [{ kl: 'toen', waarden: cRes0 }, { kl: 'res', waarden: cRes }])}
         <p class="small muted" style="margin-top:8px">De lijn telt per ${perDag ? 'dag' : 'maand'} het resultaat op. Ligt de donkere lijn boven de grijze, dan sta je er beter voor dan een jaar geleden.</p>
       </div>
-      <div class="card"><h2>Waar het geld heen gaat</h2>${tabel(groepeer(uNu, uGroep), groepeer(uToen, uGroep), 'uit', 10)}</div>
+      <div class="card"><h2>Waar het geld heen gaat<span class="spacer"></span><span class="muted small" style="font-weight:400">klik op een leverancier voor alles wat je daar besteld hebt</span></h2>${tabel(groepeer(uNu, uGroep), groepeer(uToen, uGroep), 'uit', alleUit ? 9999 : 10, (n) => levLink.get(n))}</div>
       <div class="card"><h2>Nog openstaand <span class="muted small" style="font-weight:400">· stand van vandaag</span></h2>
         <div class="rap-open drie">
           <div><span class="rap-lbl">Open facturen</span><b class="rap-num">${money(somO(facturen) + rnOpen.reduce((t, v) => t + v, 0))}</b><span class="small muted">${facturen.length} factu${facturen.length === 1 ? 'ur' : 'ren'}${rnOpen.length ? ` en ${rnOpen.length} reiniging${rnOpen.length === 1 ? '' : 'en'}` : ''} · gefactureerd, nog niet (helemaal) betaald</span><a class="small" href="#/verkoop?status=gefactureerd">Bekijken</a></div>
@@ -228,10 +242,10 @@ export async function render(c) {
             ${oud.sort((x, y) => x.o.orderdatum.localeCompare(y.o.orderdatum)).map((x) => `<tr><td><a href="#/verkoop/${x.o.id}">${x.o.orderbev_nummer ?? ''}</a></td><td>${esc(x.o.klanten?.naam || '')}</td><td>${dn(x.o.orderdatum)}</td><td class="num">${money(x.open)}</td></tr>`).join('')}</tbody></table></details></div>
           <button class="btn small" id="oudbetaald">Alle ${oud.length} op betaald zetten</button></div>` : ''}
       </div>
-      <div class="card"><h2>Cijfers per ${perDag ? 'dag' : 'maand'}<span class="spacer"></span><button class="btn small" id="download"><i data-lucide="download"></i> Download als bestand</button></h2>
+      <div class="card" id="cijfers"><h2>Cijfers per ${perDag ? 'dag' : 'maand'} <span class="muted small" style="font-weight:400">· klik op een regel of op een staaf in de grafiek om de orders te zien</span><span class="spacer"></span><button class="btn small" id="download"><i data-lucide="download"></i> Download als bestand</button></h2>
         <div class="table-wrap"><table class="list rap-cijfers"><thead><tr><th rowspan="2">${perDag ? 'Dag' : 'Maand'}</th><th colspan="3" class="mid">Deze periode</th><th colspan="3" class="mid">Een jaar eerder</th></tr>
           <tr><th class="num">Inkomsten</th><th class="num">Uitgaven</th><th class="num">Resultaat</th><th class="num">Inkomsten</th><th class="num">Uitgaven</th><th class="num">Resultaat</th></tr></thead><tbody>
-          ${labels.map((l, i) => `<tr><td>${esc(l)}</td><td class="num">${money(rI[i])}</td><td class="num">${money(rU[i])}</td><td class="num"><b class="${rRes[i] < 0 ? 'neg' : ''}">${money(rRes[i])}</b></td><td class="num muted">${money(rI0[i])}</td><td class="num muted">${money(rU0[i])}</td><td class="num muted">${money(rRes0[i])}</td></tr>`).join('')}
+          ${labels.map((l, i) => `<tr class="click ${openVak === i ? 'open' : ''}" data-vak="${i}" tabindex="0" title="Toon wat hierin zit"><td><i data-lucide="${openVak === i ? 'chevron-down' : 'chevron-right'}" class="vak-pijl"></i>${esc(l)}</td><td class="num">${money(rI[i])}</td><td class="num">${money(rU[i])}</td><td class="num"><b class="${rRes[i] < 0 ? 'neg' : ''}">${money(rRes[i])}</b></td><td class="num muted">${money(rI0[i])}</td><td class="num muted">${money(rU0[i])}</td><td class="num muted">${money(rRes0[i])}</td></tr>${openVak === i ? vakDetail(i) : ''}`).join('')}
           <tr class="tot"><td>Totaal</td><td class="num">${money(I)}</td><td class="num">${money(U)}</td><td class="num">${money(Res)}</td><td class="num">${money(I0)}</td><td class="num">${money(U0)}</td><td class="num">${money(Res0)}</td></tr></tbody></table></div>
       </div>`}
       <p class="small muted" style="margin:4px 4px 24px">Alle bedragen zijn exclusief btw. ${basis === 'order' ? 'Een verkoop telt mee op de orderdatum, een inkoop op de datum van de inkooporder. Offertes en geannuleerde orders tellen niet mee.' : ''} Vaste lasten zoals huur, personeel en energie staan niet in deze app en zitten dus niet in de uitgaven.</p>`;
@@ -255,12 +269,24 @@ export async function render(c) {
   };
 
   koppelZweef(c, () => tips);
+  // ---- doorklikken: leverancier openen, 'Overig' uitklappen, maand uitklappen (ook via de grafiek) ----
+  const klik = (el) => {
+    if (el.dataset.href) { location.hash = el.dataset.href; return; }
+    if (el.dataset.meeruit !== undefined) { alleUit = true; teken(); return; }
+    if (el.dataset.vak !== undefined) { const i = Number(el.dataset.vak); openVak = openVak === i ? null : i; teken(); }
+  };
+  c.addEventListener('click', (e) => {
+    const raak = e.target.closest('.raak');
+    if (raak) { openVak = Number(raak.dataset.i); teken(); $(`#cijfers tr[data-vak="${openVak}"]`, c)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    const tr = e.target.closest('tr.click'); if (tr) klik(tr);
+  });
+  c.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches?.('tr.click')) klik(e.target); });
 
   $('#periode', c).addEventListener('change', () => {
     const eigen = $('#periode', c).value === 'eigen'; $('#eigen', c).style.display = eigen ? 'inline-flex' : 'none';
     if (eigen && !$('#van', c).value) { $('#van', c).value = `${new Date().getFullYear()}-01-01`; $('#tot', c).value = vandaag(); }
-    teken();
+    openVak = null; teken();
   });
-  ['#basis', '#van', '#tot'].forEach((s) => $(s, c).addEventListener('change', teken));
+  ['#basis', '#van', '#tot'].forEach((s) => $(s, c).addEventListener('change', () => { openVak = null; teken(); }));
   teken();
 }

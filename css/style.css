@@ -783,3 +783,32 @@ td.neg { color: var(--red-fg); font-weight: 600; }
 .vw-foto img, .vw-foto span { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; display: flex; align-items: center; justify-content: center; background: var(--navy-50); border: 1px solid var(--line); color: var(--navy-300); }
 .vw-foto svg.lucide { width: 16px; height: 16px; }
 table.list tr.click:focus-visible td { background: var(--navy-50); }
+
+/* doorklikken in de rapportage, leverancierspagina */
+.grafiek .raak { cursor: pointer; }
+.vak-pijl { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--navy-400); }
+tr.click.open td { background: var(--navy-50); }
+tr.vak-detail > td { background: var(--navy-50); padding: 16px 20px 20px !important; white-space: normal !important; }
+.vak-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.vak-cols h3 i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+.vak-lijst { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); border-radius: 10px; max-height: 340px; overflow-y: auto; }
+.vak-lijst a { display: flex; justify-content: space-between; gap: 16px; padding: 9px 12px; border-bottom: 1px solid var(--line); color: var(--navy-700); font-size: 13.5px; }
+.vak-lijst a:last-child { border-bottom: 0; }
+.vak-lijst a:hover { background: #fafbfc; text-decoration: none; }
+.vak-lijst a span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vak-lijst a b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 900px) { .vak-cols { grid-template-columns: 1fr; } }
+.jaren { display: flex; align-items: flex-end; gap: 14px; overflow-x: auto; padding-top: 6px; }
+.jaar { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1 1 0; min-width: 48px; }
+.jaar i { display: block; width: 100%; max-width: 64px; background: var(--navy-950); border-radius: 4px 4px 0 0; }
+.jaar-bedrag { font-size: 12px; font-weight: 600; color: var(--navy-700); }
+.jaar-lbl { font-size: 11px; color: var(--navy-400); }
+.lev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.lev-kaart { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: inherit; transition: box-shadow .15s, border-color .15s; }
+.lev-kaart:hover { text-decoration: none; border-color: var(--navy-200); box-shadow: var(--shadow-card); }
+.lev-foto { width: 104px; height: 104px; border-radius: 10px; background: var(--navy-50); border: 1px solid var(--line); overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--navy-300); }
+.lev-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lev-tekst { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lev-tekst > b { font-size: 15px; color: var(--navy-950); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lev-cijfers { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--navy-600); margin: 2px 0 4px; }
+.lev-cijfers b { color: var(--navy-950); }

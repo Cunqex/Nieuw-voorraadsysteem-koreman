@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SOORT_KLANT, BTW, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles, vandaag, refresh,
-} from '../ui.js?v=20261121160537';
+  SOORT_KLANT, BTW, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles, vandaag, refresh, loadImages,
+} from '../ui.js?v=20261121161153';
 
 const KLANT_FIELDS = [
   { name: 'aanhef', label: 'Aanhef', placeholder: 'bv. Familie, De heer, Mevrouw' },
@@ -181,16 +181,97 @@ export async function renderKlant(c, [id]) {
 export async function renderLeverancier(c, [id]) {
   const r = check(await sb.from('leveranciers').select('*').eq('id', id).single());
   setTitle(r.naam);
-  const [pos, designs] = await Promise.all([
-    sb.from('inkooporders').select('id, ordernummer, status, orderdatum, valuta').eq('leverancier_id', id).order('orderdatum', { ascending: false }),
-    sb.from('designs').select('id, naam, design_code_lev').eq('leverancier_id', id).order('naam'),
-  ]).then((x) => x.map(check));
+  const [pos, designs, eigen] = await Promise.all([
+    alles(() => sb.from('inkooporders').select('id, ordernummer, status, orderdatum, valuta, bron').eq('leverancier_id', id).order('orderdatum', { ascending: false }).order('id')),
+    sb.from('designs').select('id, naam, design_code_lev').eq('leverancier_id', id).order('naam').then(check),
+    alles(() => sb.from('artikelen').select('id').eq('leverancier_id', id).order('id')),
+  ]);
   await withTotals(pos, 'v_inkooporder_totalen', 'inkooporder_id');
+  const perDeel = async (ids, fn) => { const uit = []; for (let i = 0; i < ids.length; i += 150) uit.push(...check(await fn(ids.slice(i, i + 150)))); return uit; };
+  const actief = pos.filter((p) => p.status !== 'geannuleerd');
+  const regels = await perDeel(actief.map((p) => p.id), (d) => sb.from('inkooporder_regels').select('id, inkooporder_id, artikel_id, omschrijving, aantal, prijs, foto_pad').in('inkooporder_id', d));
+  const kost = new Map((await perDeel(regels.map((x) => x.id), (d) => sb.from('v_inkoopregel_kostprijs').select('inkoopregel_id, kostprijs_eur_stuk').in('inkoopregel_id', d))).map((k) => [k.inkoopregel_id, k.kostprijs_eur_stuk]));
+  const artIds = [...new Set([...eigen.map((a) => a.id), ...regels.map((x) => x.artikel_id).filter(Boolean)])];
+  const [arts, vrd] = await Promise.all([
+    perDeel(artIds, (d) => sb.from('artikelen').select('id, artikelnummer, naam, soort, lengte_cm, breedte_cm, materiaal, foto_pad, actief, designs(hoofdfoto_pad)').in('id', d)),
+    perDeel(artIds, (d) => sb.from('v_voorraad').select('artikel_id, voorraad_totaal, voorraadwaarde_eur').in('artikel_id', d)),
+  ]);
+  const vrdVan = new Map(vrd.map((v) => [v.artikel_id, v])); const poVan = new Map(pos.map((p) => [p.id, p]));
+  const eur = (x) => { const po = poVan.get(x.inkooporder_id); const k = kost.get(x.id); return Number(x.aantal) * Number(k ?? (po.valuta === 'EUR' ? x.prijs : 0)); };
+
+  // per artikel: wat is er besteld
+  const perArt = new Map(arts.map((a) => [a.id, { a, aantal: 0, bedrag: 0, orders: new Set(), laatst: null, foto: a.foto_pad || a.designs?.hoofdfoto_pad || null }]));
+  const los = [];
+  regels.forEach((x) => {
+    const po = poVan.get(x.inkooporder_id); const g = x.artikel_id && perArt.get(x.artikel_id);
+    if (!g) { los.push({ x, po }); return; }
+    g.aantal += Number(x.aantal); g.bedrag += eur(x); g.orders.add(po.id);
+    if (!g.laatst || po.orderdatum > g.laatst) g.laatst = po.orderdatum;
+    if (!g.foto && x.foto_pad) g.foto = x.foto_pad;
+  });
+  const producten = [...perArt.values()];
+  const totaalBesteld = regels.reduce((t, x) => t + eur(x), 0);
+  const opVoorraad = producten.reduce((t, g) => t + Number(vrdVan.get(g.a.id)?.voorraad_totaal || 0), 0);
+  const voorraadWaarde = producten.reduce((t, g) => t + Number(vrdVan.get(g.a.id)?.voorraadwaarde_eur || 0), 0);
+  const datums = actief.map((p) => p.orderdatum).filter(Boolean).sort();
+  const perJaar = new Map(); regels.forEach((x) => { const j = poVan.get(x.inkooporder_id).orderdatum?.slice(0, 4); if (j) perJaar.set(j, (perJaar.get(j) || 0) + eur(x)); });
+  const jaren = [...perJaar.keys()].sort(); const maxJ = Math.max(1, ...perJaar.values());
+  const kortBedrag = (n) => (n >= 10000 ? `${Math.round(n / 1000).toLocaleString('nl-NL')}k` : n >= 1000 ? `${(n / 1000).toLocaleString('nl-NL', { maximumFractionDigits: 1 })}k` : Math.round(n).toLocaleString('nl-NL'));
+  const n0 = (x) => Number(x).toLocaleString('nl-NL', { maximumFractionDigits: 2 });
+  const maat = (a) => (a.lengte_cm && a.breedte_cm ? `${Number(a.lengte_cm)} × ${Number(a.breedte_cm)} cm` : '');
+  const kpi = (lbl, w, sub) => `<div class="rap-kpi"><span class="rap-lbl">${lbl}</span><b class="rap-num">${w}</b><span class="rap-sub muted">${sub}</span></div>`;
+
   c.innerHTML = kopHtml(r, 'leveranciers', `<div><span>Valuta</span><b>${r.valuta}</b></div>`) + `
+    <div class="rap-kpis">
+      ${kpi('Totaal besteld', money(totaalBesteld), `${actief.length} inkooporder${actief.length === 1 ? '' : 's'}${datums.length ? ` · ${datum(datums[0])} t/m ${datum(datums[datums.length - 1])}` : ''}`)}
+      ${kpi('Verschillende artikelen', n0(producten.length), `${n0(regels.reduce((t, x) => t + Number(x.aantal), 0))} stuks besteld`)}
+      ${kpi('Nu op voorraad', n0(opVoorraad), `stuks van deze leverancier`)}
+      ${kpi('Voorraadwaarde nu', money(voorraadWaarde), 'inkoopwaarde van wat er nog ligt')}
+    </div>
+    ${jaren.length > 1 ? `<div class="card"><h2>Besteld per jaar</h2><div class="jaren">${jaren.map((j) => `<div class="jaar"><span class="jaar-bedrag">${kortBedrag(perJaar.get(j))}</span><i style="height:${Math.max(2, (perJaar.get(j) / maxJ) * 120).toFixed(0)}px" title="${j}: ${money(perJaar.get(j))}"></i><span class="jaar-lbl">${j}</span></div>`).join('')}</div></div>` : ''}
+
+    <div class="card"><h2>Wat je bij ${esc(r.naam)} hebt besteld<span class="spacer"></span><span class="muted small" style="font-weight:400" id="lev-aantal"></span></h2>
+      <div class="toolbar" style="margin-bottom:12px">
+        <div class="search"><i data-lucide="search"></i><input id="lev-q" placeholder="Zoek op artikelnummer of naam…"></div>
+        <select id="lev-sort" aria-label="Volgorde"><option value="laatst">Laatst besteld eerst</option><option value="bedrag">Hoogste bedrag eerst</option><option value="aantal">Meeste stuks eerst</option><option value="voorraad">Meeste op voorraad eerst</option></select>
+        <label class="check"><input type="checkbox" id="lev-vrd"> Alleen wat nog op voorraad ligt</label>
+      </div>
+      <div class="lev-grid" id="lev-grid"></div>
+      <div class="meer" id="lev-meer" hidden><button class="btn"></button></div>
+    </div>
+    ${los.length ? `<div class="card"><h2>Besteld zonder artikel<span class="spacer"></span><span class="muted small" style="font-weight:400">${los.length} regel${los.length === 1 ? '' : 's'} die niet aan een artikel gekoppeld zijn</span></h2>
+      <div class="table-wrap"><table class="list"><thead><tr><th>Order</th><th>Datum</th><th>Omschrijving</th><th class="num">Aantal</th><th class="num">Bedrag</th></tr></thead><tbody>
+      ${los.slice(0, 40).map(({ x, po }) => `<tr class="click" data-href="#/inkoop/${po.id}"><td><b>${po.ordernummer}</b></td><td>${datum(po.orderdatum)}</td><td>${esc((x.omschrijving || '').split('\n')[0])}</td><td class="num">${n0(x.aantal)}</td><td class="num">${money(eur(x))}</td></tr>`).join('')}
+      </tbody></table></div>${los.length > 40 ? `<p class="small muted" style="margin-top:8px">De eerste 40 van ${los.length}.</p>` : ''}</div>` : ''}
     <div class="card"><h2>Inkooporders<span class="spacer"></span><a class="btn small primary" href="#/inkoop?nieuw=1&leverancier=${r.id}"><i data-lucide="plus"></i> Inkooporder</a></h2>
-      ${pos.length ? `<table class="list"><thead><tr><th>Nr.</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th></tr></thead><tbody>
-      ${pos.map((p) => `<tr class="click" onclick="location.hash='#/inkoop/${p.id}'"><td>${p.ordernummer}</td><td>${datum(p.orderdatum)}</td><td>${badge(PO_STATUS, p.status)}</td><td class="num">${money(p._t.totaal, p.valuta)}</td><td class="num">${money(p._t.betaald, p.valuta)}</td></tr>`).join('')}
-      </tbody></table>` : '<p class="muted">Nog geen inkooporders.</p>'}</div>
+      ${pos.length ? `<div class="table-wrap"><table class="list"><thead><tr><th>Nr.</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th></tr></thead><tbody>
+      ${pos.map((p) => `<tr class="click" data-href="#/inkoop/${p.id}"><td><b>${p.ordernummer}</b></td><td>${datum(p.orderdatum)}</td><td>${badge(PO_STATUS, p.status)}</td><td class="num">${money(p._t.totaal, p.valuta)}</td><td class="num">${p.bron === 'ione' ? '<span class="muted">onbekend</span>' : money(p._t.betaald, p.valuta)}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="muted">Nog geen inkooporders.</p>'}</div>
     <div class="card"><h2>Designs</h2>${designs.length ? designs.map((d) => `<a class="badge blue" style="margin:2px" href="#/design/${d.id}">${esc(d.naam)} ${esc(d.design_code_lev || '')}</a>`).join('') : '<p class="muted">Geen.</p>'}</div>`;
   bindKop(c, 'leveranciers', r, refresh);
+
+  let toon = 24;
+  const teken = () => {
+    const q = $('#lev-q', c).value.trim().toLowerCase(); const sort = $('#lev-sort', c).value; const alleenVrd = $('#lev-vrd', c).checked;
+    const vr = (g) => Number(vrdVan.get(g.a.id)?.voorraad_totaal || 0);
+    let lijst = producten.filter((g) => (!q || `${g.a.artikelnummer} ${g.a.naam}`.toLowerCase().includes(q)) && (!alleenVrd || vr(g) > 0));
+    const sleutel = { laatst: (g) => g.laatst || '', bedrag: (g) => g.bedrag, aantal: (g) => g.aantal, voorraad: vr }[sort];
+    lijst = lijst.sort((x, y) => (sleutel(y) > sleutel(x) ? 1 : sleutel(y) < sleutel(x) ? -1 : String(y.a.artikelnummer).localeCompare(String(x.a.artikelnummer))));
+    $('#lev-aantal', c).textContent = `${lijst.length} artikel${lijst.length === 1 ? '' : 'en'}`;
+    $('#lev-grid', c).innerHTML = lijst.length ? lijst.slice(0, toon).map((g) => { const v = vr(g);
+      return `<a class="lev-kaart" href="#/artikel/${g.a.id}">
+        <span class="lev-foto">${g.foto ? `<img data-path="${esc(g.foto)}" alt="">` : '<i data-lucide="image-off"></i>'}</span>
+        <span class="lev-tekst"><span class="kies-nr">${esc(g.a.artikelnummer)}${g.a.actief === false ? ' · inactief' : ''}</span><b>${esc(g.a.naam)}</b>
+          <span class="small muted">${esc([maat(g.a), g.a.materiaal].filter(Boolean).join(' · ')) || '&nbsp;'}</span>
+          <span class="lev-cijfers">${g.aantal ? `<span><b>${n0(g.aantal)}×</b> besteld</span><span><b>${money(g.bedrag)}</b></span><span>laatst ${datum(g.laatst)}</span>` : '<span class="muted">Niet via een inkooporder besteld</span>'}</span>
+          <span><span class="badge ${v > 0 ? 'green' : ''}">${v > 0 ? `${n0(v)} op voorraad` : 'Niet op voorraad'}</span></span></span></a>`; }).join('')
+      : '<p class="empty">Geen artikelen gevonden.</p>';
+    $('#lev-meer', c).hidden = lijst.length <= toon; $('#lev-meer button', c).textContent = `Toon meer (${Math.min(toon, lijst.length)} van ${lijst.length})`;
+    loadImages($('#lev-grid', c));
+  };
+  let t; $('#lev-q', c).addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { toon = 24; teken(); }, 200); });
+  ['#lev-sort', '#lev-vrd'].forEach((sel) => $(sel, c).addEventListener('change', () => { toon = 24; teken(); }));
+  $('#lev-meer button', c).onclick = () => { toon += 48; teken(); };
+  c.addEventListener('click', (e) => { const tr = e.target.closest('tr.click[data-href]'); if (tr) location.hash = tr.dataset.href; });
+  teken();
 }

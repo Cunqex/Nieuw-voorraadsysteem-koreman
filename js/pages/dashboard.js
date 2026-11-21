@@ -1,5 +1,5 @@
 // Overzicht: de lopende verkoop- en inkooporders.
-import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles } from '../ui.js?v=20261121130353';
+import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles } from '../ui.js?v=20261121130409';
 
 const nrVan = (s) => (s.factuurnummer ? 'F ' + s.factuurnummer : s.orderbev_nummer ? 'OB ' + s.orderbev_nummer : s.offertenummer ? 'OF ' + s.offertenummer : 'Concept');
 const STAP = 12;
@@ -40,7 +40,7 @@ export async function render(c) {
       ${lijst.slice(0, vk.n).map((s) => { const tot = Number(t(s).totaal || 0); const pct = tot ? Math.min(100, Math.round((Number(t(s).betaald || 0) / tot) * 100)) : 0; const off = s.status === 'offerte';
         return `<tr class="click" onclick="location.hash='#/verkoop/${s.id}'"><td class="db-nr">${nrVan(s)}</td><td>${esc(s.klanten?.naam || '–')}</td><td class="muted">${datum(s.orderdatum)}</td><td>${badge(SO_STATUS, s.status)}</td>
         <td class="num">${money(tot)}</td><td class="num">${off ? '<span class="muted">–</span>' : open(s) > 0.005 ? `<b>${money(open(s))}</b>` : '<span class="db-voldaan">voldaan</span>'}</td>
-        <td class="db-bet">${off ? '' : `<div class="db-balk" title="${pct}% betaald"><i style="width:${pct}%"></i></div><span class="db-pct">${pct}%</span>`}</td></tr>`; }).join('') || '<tr><td colspan="7" class="empty">Geen orders.</td></tr>'}
+        <td class="db-bet">${off ? '' : `<div class="db-betaald"><div class="db-balk" title="${pct}% betaald"><i style="width:${pct}%"></i></div><span class="db-pct">${pct}%</span></div>`}</td></tr>`; }).join('') || '<tr><td colspan="7" class="empty">Geen orders.</td></tr>'}
       </tbody></table></div>
       ${lijst.length > vk.n ? `<button type="button" class="db-meer" data-meer>Toon meer (${lijst.length - vk.n} van ${lijst.length})</button>` : ''}`;
   };

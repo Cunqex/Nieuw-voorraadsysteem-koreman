@@ -2,9 +2,9 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261121123748';
-import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261121123748';
-import { kaartenModal } from '../kaarten.js?v=20261121123748';
+} from '../ui.js?v=20261121124217';
+import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261121124217';
+import { kaartenModal } from '../kaarten.js?v=20261121124217';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -136,7 +136,7 @@ export async function renderList(c, _p, query) {
   $('#sel-wis', c).onclick = () => { gekozen.clear(); werkSelectieBij(); };
   $('#sel-alles', c).onclick = () => { zichtbaar.forEach((r) => gekozen.set(r.id, r.artikelnummer)); werkSelectieBij(); };
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261121123748');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261121124217');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -235,9 +235,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121123748'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121123748'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261121123748'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121124217'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121124217'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261121124217'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -526,12 +526,12 @@ async function renderExtra(el, a, reload) {
     ${dienst ? '' : `<div class="card"><h2>Voorraad<span class="spacer"></span>
         <button class="btn small" id="corr">Voorraad corrigeren</button>
         <button class="btn small" id="uitlenen">Uitlenen / op zicht</button></h2>
-      <div class="kv">
-        <div><span>Totaal op voorraad</span><b>${num(v.voorraad_totaal)}</b></div>
-        <div><span>Uitgeleend / op zicht</span><b>${num(v.uitgeleend)}</b></div>
-        <div><span>In showroom</span><b>${num(v.in_showroom)}</b></div>
-        <div><span>Kostprijs per stuk (EUR)</span><b>${money(v.gem_kostprijs_eur)}${v.bevat_schatting ? ' <span class="badge orange">geschat</span>' : ''}</b></div>
-        <div><span>Voorraadwaarde</span><b>${money(v.voorraadwaarde_eur)}</b></div>
+      <div class="vr-tegels">
+        <div class="vr-tegel ${Number(v.voorraad_totaal) > 0 ? 'vr-ok' : 'vr-nul'}"><span><i data-lucide="package"></i> Op voorraad</span><b>${num(v.voorraad_totaal || 0)}</b><small>${Number(v.voorraad_totaal) > 0 ? 'stuks in totaal' : 'niet op voorraad'}</small></div>
+        <div class="vr-tegel"><span><i data-lucide="store"></i> In showroom</span><b>${num(v.in_showroom || 0)}</b><small>direct beschikbaar</small></div>
+        <div class="vr-tegel ${Number(v.uitgeleend) > 0 ? 'vr-let' : ''}"><span><i data-lucide="arrow-left-right"></i> Uitgeleend / op zicht</span><b>${num(v.uitgeleend || 0)}</b><small>${Number(v.uitgeleend) > 0 ? 'bij een klant' : 'niets uitgeleend'}</small></div>
+        <div class="vr-tegel vr-geld"><span><i data-lucide="tag"></i> Kostprijs per stuk</span><b>${v.gem_kostprijs_eur != null ? money(v.gem_kostprijs_eur) : '–'}</b><small>${v.bevat_schatting ? '<span class="badge orange">geschat</span>' : 'gemiddeld, in euro'}</small></div>
+        <div class="vr-tegel vr-geld"><span><i data-lucide="wallet"></i> Voorraadwaarde</span><b>${v.voorraadwaarde_eur != null ? money(v.voorraadwaarde_eur) : '–'}</b><small>kostprijs × voorraad</small></div>
       </div>
       ${v.bevat_schatting ? '<p class="small muted">"Geschat": de dollarinkoop is nog niet (helemaal) betaald. Na betaling telt het werkelijk afgeschreven eurobedrag.</p>' : ''}
     </div>`}
@@ -588,7 +588,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261121123748');
+      const { artikelPicker } = await import('../ui.js?v=20261121124217');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

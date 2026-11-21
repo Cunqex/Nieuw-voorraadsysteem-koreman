@@ -613,3 +613,19 @@ table.list tr.gescand td { background: #e8f6ec; }
 .veld-info a { color: var(--navy-700); }
 .form-grid .lbl { display: inline-flex; align-items: center; gap: 6px; }
 @media (max-width: 900px) { .art-kaart .art-groep .form-grid, .art-maat { grid-template-columns: 1fr; } }
+
+/* ---------- Artikel: voorraadtegels ---------- */
+.vr-tegels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.vr-tegel { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; background: #fff; }
+.vr-tegel span { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--navy-400); }
+.vr-tegel span svg { width: 14px; height: 14px; }
+.vr-tegel b { font-size: 26px; font-weight: 600; line-height: 1.15; color: var(--navy-900); font-variant-numeric: tabular-nums; }
+.vr-tegel.vr-geld b { font-size: 20px; padding: 3px 0; }
+.vr-tegel small { font-size: 12px; color: var(--navy-300); }
+.vr-tegel.vr-ok { background: var(--green-bg); border-color: transparent; }
+.vr-tegel.vr-ok b, .vr-tegel.vr-ok span { color: var(--green-fg); }
+.vr-tegel.vr-nul { background: var(--grey-bg); border-color: transparent; }
+.vr-tegel.vr-let { background: var(--amber-bg); border-color: transparent; }
+.vr-tegel.vr-let b, .vr-tegel.vr-let span { color: var(--amber-fg); }
+.vr-tegels + p { margin-top: 12px; }
+@media (max-width: 1000px) { .vr-tegels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

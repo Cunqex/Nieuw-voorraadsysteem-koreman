@@ -1,5 +1,5 @@
-import { sb, check, esc, num, datum, $, on, toast, setTitle, vandaag, SOORT_ARTIKEL } from '../ui.js?v=20261121133622';
-import { uitleenModal } from './artikelen.js?v=20261121133622';
+import { sb, check, esc, num, datum, $, on, toast, setTitle, vandaag, SOORT_ARTIKEL } from '../ui.js?v=20261121133631';
+import { uitleenModal } from './artikelen.js?v=20261121133631';
 
 export async function render(c) {
   setTitle('Uitgeleend / op zicht');

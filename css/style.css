@@ -709,3 +709,5 @@ table.list tr.gescand td { background: #e8f6ec; }
 .kies-rechts { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; white-space: nowrap; }
 .kies-meer { align-self: center; margin-top: 10px; }
 @media (max-width: 640px) { .modal-bg:has(.kies-venster) { padding: 12px 8px; } .modal.kies-venster { max-height: calc(100vh - 24px); } .kies-item { grid-template-columns: 52px minmax(0, 1fr); } .kies-foto { width: 52px; height: 52px; } .kies-rechts { grid-column: 2; flex-direction: row; align-items: center; } }
+.kies-kop select { width: auto; flex: 0 0 auto; }
+.kies-kop label.check { flex: 0 0 auto; min-height: 0; }

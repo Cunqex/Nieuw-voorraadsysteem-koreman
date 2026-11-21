@@ -1,19 +1,21 @@
 // Voorraadwaarde (inkoop): wat is de voorraad waard, vandaag of op een gekozen datum in het verleden.
 // Rekent met de voorraadmutaties tot en met de gekozen dag, op dezelfde manier als de rest van de app:
 // aantal op voorraad × gemiddelde inkoopprijs. Vracht en invoerrechten tellen niet mee.
-import { sb, esc, money, $, setTitle, alles, vandaag, toast, SOORT_ARTIKEL } from '../ui.js?v=20261121160302';
-import { lijnen, legenda, koppelZweef, iso, dn, r2 } from './rapportage.js?v=20261121160302';
+import { sb, esc, money, $, setTitle, alles, vandaag, toast, SOORT_ARTIKEL, loadImages } from '../ui.js?v=20261121160537';
+import { lijnen, legenda, koppelZweef, iso, dn, r2 } from './rapportage.js?v=20261121160537';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 const lokaleDag = (ts) => iso(new Date(ts));
 const n0 = (x) => Number(x).toLocaleString('nl-NL', { maximumFractionDigits: 2 });
 
 export async function render(c) {
-  setTitle('Voorraadwaarde');
+  setTitle('Rapportage');
+  if (location.hash.startsWith('#/voorraadwaarde')) history.replaceState(null, '', '#/rapportage/voorraad');
   const nu = new Date(); const j = nu.getFullYear();
   c.innerHTML = `
-    <div class="page-head"><h1>Voorraadwaarde</h1><span class="spacer"></span>
+    <div class="page-head"><h1>Rapportage</h1><span class="spacer"></span>
       <button class="btn primary" id="download"><i data-lucide="download"></i> Voorraadlijst van deze datum</button></div>
+    <div class="segmented rap-tabs"><a class="btn " href="#/rapportage">Inkomsten en uitgaven</a><a class="btn primary" href="#/rapportage/voorraad">Voorraadwaarde</a></div>
     <div class="toolbar">
       <label class="vw-datum">Stand op <input type="date" id="datum" value="${vandaag()}" max="${vandaag()}"></label>
       <button class="btn small" data-d="${vandaag()}">Vandaag</button>
@@ -27,7 +29,7 @@ export async function render(c) {
   const [mut, kost, arts] = await Promise.all([
     alles(() => sb.from('voorraad_mutaties').select('id, artikel_id, aantal, soort, inkoopregel_id, waarde_eur_stuk, datum').order('id')),
     alles(() => sb.from('v_inkoopregel_kostprijs').select('inkoopregel_id, kostprijs_eur_stuk, is_schatting').order('inkoopregel_id')),
-    alles(() => sb.from('artikelen').select('id, artikelnummer, naam, soort, omzetgroep, lengte_cm, breedte_cm, leveranciers(naam)').order('id')),
+    alles(() => sb.from('artikelen').select('id, artikelnummer, naam, soort, omzetgroep, lengte_cm, breedte_cm, materiaal, foto_pad, leveranciers(naam), designs(hoofdfoto_pad)').order('id')),
   ]);
   const kostVan = new Map(kost.map((k) => [k.inkoopregel_id, k]));
   const art = new Map(arts.map((a) => [a.id, a]));
@@ -107,16 +109,21 @@ export async function render(c) {
         <div class="card"><h2>Per leverancier</h2>${tabel(groepeer((r) => r.a.leveranciers?.naam || 'Zonder leverancier'), 'Leverancier')}</div>
         <div class="card"><h2>Per soort artikel</h2>${tabel(groepeer((r) => SOORT_ARTIKEL[r.a.soort] || 'Onbekend'), 'Soort')}</div>
       </div>
-      <div class="card"><h2>Artikelen op voorraad op ${dn(dag)}<span class="spacer"></span><span class="muted small" style="font-weight:400">${rijen.length} artikelen, hoogste waarde eerst</span></h2>
-        <div class="table-wrap"><table class="list"><thead><tr><th>Artikel</th><th>Naam</th><th>Leverancier</th><th class="num">Aantal</th><th class="num">Inkoopprijs per stuk</th><th class="num">Waarde</th></tr></thead><tbody>
-          ${toon.map((r) => `<tr><td><a href="#/artikel/${r.id}">${esc(r.a.artikelnummer || '')}</a></td><td>${esc(r.a.naam || '')}</td><td>${esc(r.a.leveranciers?.naam || '')}</td><td class="num ${r.aantal < 0 ? 'neg' : ''}">${n0(r.aantal)}</td><td class="num">${r.prijs === null ? '<span class="badge orange">Onbekend</span>' : money(r.prijs)}${r.schatting ? ' <span class="badge" title="Dollarorder nog niet betaald: omgerekend met een geschatte koers">schatting</span>' : ''}</td><td class="num"><b>${money(r.waarde)}</b></td></tr>`).join('')}
-          <tr class="tot"><td>Totaal</td><td></td><td></td><td class="num">${n0(stuks)}</td><td></td><td class="num">${money(waarde)}</td></tr></tbody></table></div>
+      <div class="card"><h2>Artikelen op voorraad op ${dn(dag)}<span class="spacer"></span><span class="muted small" style="font-weight:400">${rijen.length} artikelen, hoogste waarde eerst · klik op een regel om het artikel te openen</span></h2>
+        <div class="table-wrap"><table class="list"><thead><tr><th></th><th>Artikel</th><th>Naam</th><th>Leverancier</th><th class="num">Aantal</th><th class="num">Inkoopprijs per stuk</th><th class="num">Waarde</th></tr></thead><tbody>
+          ${toon.map((r) => { const foto = r.a.foto_pad || r.a.designs?.hoofdfoto_pad; const maat = r.a.lengte_cm && r.a.breedte_cm ? `${Number(r.a.lengte_cm)} × ${Number(r.a.breedte_cm)} cm` : '';
+            return `<tr class="click" data-href="#/artikel/${r.id}" tabindex="0" title="Artikel ${esc(r.a.artikelnummer || '')} openen"><td class="vw-foto">${foto ? `<img data-path="${esc(foto)}" alt="">` : '<span><i data-lucide="image-off"></i></span>'}</td><td><b>${esc(r.a.artikelnummer || '')}</b></td><td>${esc(r.a.naam || '')}${[maat, r.a.materiaal].filter(Boolean).length ? `<br><span class="small muted">${esc([maat, r.a.materiaal].filter(Boolean).join(' · '))}</span>` : ''}</td><td>${esc(r.a.leveranciers?.naam || '')}</td><td class="num ${r.aantal < 0 ? 'neg' : ''}">${n0(r.aantal)}</td><td class="num">${r.prijs === null ? '<span class="badge orange">Onbekend</span>' : money(r.prijs)}${r.schatting ? ' <span class="badge" title="Dollarorder nog niet betaald: omgerekend met een geschatte koers">schatting</span>' : ''}</td><td class="num"><b>${money(r.waarde)}</b></td></tr>`; }).join('')}
+          <tr class="tot"><td></td><td>Totaal</td><td></td><td></td><td class="num">${n0(stuks)}</td><td></td><td class="num">${money(waarde)}</td></tr></tbody></table></div>
         ${rijen.length > toon.length ? `<div class="meer"><button class="btn" id="alles">Toon alle ${rijen.length} artikelen</button></div>` : ''}
       </div>`;
+    loadImages($('#inhoud', c));
     const al = $('#alles', c); if (al) al.onclick = () => { toonAlles = true; teken(); };
   };
 
   koppelZweef(c, () => tips);
+  const open = (tr) => { location.hash = tr.dataset.href; };
+  c.addEventListener('click', (e) => { const tr = e.target.closest('tr.click'); if (tr) open(tr); });
+  c.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches?.('tr.click')) open(e.target); });
   $('#datum', c).addEventListener('change', () => { toonAlles = false; teken(); });
   c.addEventListener('click', (e) => { const b = e.target.closest('[data-d]'); if (b) { $('#datum', c).value = b.dataset.d; toonAlles = false; teken(); } });
 

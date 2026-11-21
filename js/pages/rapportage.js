@@ -1,5 +1,5 @@
 // Rapportage: inkomsten en uitgaven per periode, vergeleken met dezelfde periode een jaar eerder.
-import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261121160302';
+import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261121160537';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 export const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -79,7 +79,8 @@ export function koppelZweef(c, tips) {
 export async function render(c) {
   setTitle('Rapportage');
   c.innerHTML = `
-    <div class="page-head"><h1>Inkomsten en uitgaven</h1></div>
+    <div class="page-head"><h1>Rapportage</h1></div>
+    <div class="segmented rap-tabs"><a class="btn primary" href="#/rapportage">Inkomsten en uitgaven</a><a class="btn " href="#/rapportage/voorraad">Voorraadwaarde</a></div>
     <div class="toolbar">
       <select id="periode" aria-label="Periode">
         <option value="totnu">Dit jaar tot vandaag</option><option value="jaar">Heel dit jaar</option><option value="kwartaal">Dit kwartaal</option><option value="maand">Deze maand</option><option value="vorigemaand">Vorige maand</option>

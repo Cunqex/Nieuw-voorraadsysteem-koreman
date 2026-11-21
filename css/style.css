@@ -776,3 +776,10 @@ table.rap-tbl td:last-child, table.rap-tbl th:last-child { padding-right: 20px; 
 .vw-datum { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
 .vw-datum input { width: auto; }
 td.neg { color: var(--red-fg); font-weight: 600; }
+
+.rap-tabs { margin-bottom: 16px; }
+.rap-tabs .btn { padding: 0 16px; text-decoration: none; }
+.vw-foto { width: 56px; padding-right: 0 !important; }
+.vw-foto img, .vw-foto span { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; display: flex; align-items: center; justify-content: center; background: var(--navy-50); border: 1px solid var(--line); color: var(--navy-300); }
+.vw-foto svg.lucide { width: 16px; height: 16px; }
+table.list tr.click:focus-visible td { background: var(--navy-50); }

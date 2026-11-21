@@ -740,3 +740,7 @@ table.list tr.gescand td { background: #e8f6ec; }
 .rn-line .rn-del, .rn-rep .line-del { margin: 0; }
 .rn-line .rn-del { margin-top: 18px; }
 .art-m2 { font-size: 12px; font-weight: 500; color: var(--navy-400); }
+/* Niet-opgeslagen wijzigingen */
+.onopg { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--amber-fg); white-space: nowrap; }
+.onopg[hidden], .onopg-knop[hidden] { display: none; }
+.onopg i { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 3px rgb(245 158 11 / .2); }

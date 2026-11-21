@@ -1,4 +1,4 @@
-import { sb, check, $, toast, formFields, readForm, setTitle } from '../ui.js?v=20261121150420';
+import { sb, check, $, toast, formFields, readForm, setTitle , bewaakFormulier} from '../ui.js?v=20261121151247';
 
 export async function render(c) {
   setTitle('Instellingen');
@@ -33,4 +33,5 @@ export async function render(c) {
     check(await sb.from('instellingen').update({ ...readForm(e.target), bijgewerkt_op: new Date().toISOString() }).eq('id', 1));
     toast('Opgeslagen', 'ok');
   };
+  bewaakFormulier($('#f', c), c);
 }

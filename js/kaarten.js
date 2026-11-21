@@ -3,9 +3,9 @@
 //   met omschrijving, maat, prijs, artikelnummer en een Code 128-streepjescode.
 // - Wandkaart: de kaart die aan de muur bij het tapijt hangt (standaard A5 liggend),
 //   met collectielogo, titel, afmeting, poolmateriaal, knoopdichtheid, herkomst, prijs en het K-logo.
-import { esc, $, modal, toast } from './ui.js?v=20261121150420';
-import { WEG, leegWaarde, volgGebruiker, kaartWaarde, naVinkjes, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261121150420';
-import { staalPaneHtml, staalPaneInit, SK_CSS, inkoopInfo, inkoopcode } from './staalkaart.js?v=20261121150420';
+import { esc, $, modal, toast } from './ui.js?v=20261121151247';
+import { WEG, leegWaarde, volgGebruiker, kaartWaarde, naVinkjes, keuzeSelect, materiaalKeuze, activeerKeuzes, KNOOP_NL, MATERIALEN_NL } from './keuzes.js?v=20261121151247';
+import { staalPaneHtml, staalPaneInit, SK_CSS, inkoopInfo, inkoopcode } from './staalkaart.js?v=20261121151247';
 
 // ---------- Collecties zoals op koremanmaastricht.nl ----------
 export const COLLECTIES = {
@@ -275,7 +275,7 @@ export async function kaartenModal(a) {
 // en in één keer printen (zelfde lijst als "Bewaar voor het vel" in het artikel).
 // =====================================================================
 export async function wandVelModal(ids = []) {
-  const { sb, check, artikelPicker } = await import('./ui.js?v=20261121150420');
+  const { sb, check, artikelPicker } = await import('./ui.js?v=20261121151247');
   const SEL = '*, designs(naam), leveranciers(land)';
   await modal({
     title: 'Wandkaarten printen',

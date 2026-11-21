@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121150420';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121151247';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -472,4 +472,38 @@ export async function klantKiezerWaarde(v, form, klanten) {
     naam: v.nk_naam, email: v.nk_email, telefoon: v.nk_telefoon, adres: v.nk_adres, postcode_plaats: v.nk_postcode_plaats,
     land, soort: v.nk_soort, taal: nl || /^(belgi|belgium)/i.test(land) ? 'nl' : 'en',
   }).select('id, naam, nummer, postcode_plaats, taal, btw_regeling, soort').single());
+}
+
+// ---------- Niet-opgeslagen wijzigingen ----------
+// bewaakFormulier(form, root): toont "Opslaan" bovenin zodra er iets gewijzigd is en
+// waarschuwt bij het verlaten van de pagina (zie app.js) zolang het niet is opgeslagen.
+let bewaker = null;
+export function zetBewaker(fn) { bewaker = fn; }
+export function onopgeslagen() { try { return !!bewaker?.(); } catch { return false; } }
+export function bewaakFormulier(form, root, { negeer = [], extra = () => '' } = {}) {
+  if (!form) return null;
+  const snap = () => { const v = readForm(form); negeer.forEach((k) => delete v[k]); return JSON.stringify(v) + '|' + extra(); };
+  let basis = snap();
+  if (!form.id) form.id = 'f' + Math.random().toString(36).slice(2, 8);
+  const kop = root.querySelector('.page-head');
+  if (kop) {
+    const html = `<span class="onopg" hidden><i></i> Niet opgeslagen</span><button type="submit" form="${form.id}" class="btn primary onopg-knop" hidden><i data-lucide="save"></i> Opslaan</button>`;
+    const sp = kop.querySelector('.spacer');
+    if (sp) sp.insertAdjacentHTML('afterend', html); else kop.insertAdjacentHTML('beforeend', '<span class="spacer"></span>' + html);
+  }
+  const vuil = () => form.isConnected && snap() !== basis;
+  const toon = () => { const d = vuil(); root.querySelectorAll('.onopg, .onopg-knop').forEach((e) => { e.hidden = !d; }); };
+  ['input', 'change', 'click', 'keyup'].forEach((ev) => form.addEventListener(ev, () => setTimeout(toon, 0)));
+  setTimeout(toon, 80); setTimeout(toon, 600);
+  // Na een geslaagde opslag is alles weer "schoon"
+  const orig = form.onsubmit;
+  if (orig) {
+    form.onsubmit = async (e) => {
+      const voor = snap();
+      await orig.call(form, e);
+      basis = voor; toon();
+    };
+  }
+  zetBewaker(vuil);
+  return { opgeslagen: () => { basis = snap(); toon(); }, toon };
 }

@@ -2,7 +2,7 @@
 import {
   sb, check, esc, money, datum, $, on, toast, modal, confirmBox, formFields, readForm, setTitle, vandaag, alles, refresh,
   loadImages, uploadFile, levOpt, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261121150420';
+ bewaakFormulier} from '../ui.js?v=20261121151247';
 
 export const RN_STATUS = { aangenomen: 'Aangenomen', bij_reiniger: 'Bij reiniger', klaar: 'Klaar om op te halen', opgehaald: 'Opgehaald', geannuleerd: 'Geannuleerd' };
 const KLEUR = { aangenomen: 'blue', bij_reiniger: 'orange', klaar: 'green', opgehaald: '', geannuleerd: 'red' };
@@ -331,4 +331,5 @@ export async function renderDetail(c, [id]) {
     check(await sb.from('reinigingen').update(v).eq('id', id));
     toast('Opgeslagen', 'ok'); reload();
   };
+  bewaakFormulier($('#kop', c), c);
 }

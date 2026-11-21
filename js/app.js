@@ -1,18 +1,18 @@
-import { sb, $, $$, toast, esc, comboSet } from './ui.js?v=20261121150420';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121150420';
-import * as dashboard from './pages/dashboard.js?v=20261121150420';
-import * as artikelen from './pages/artikelen.js?v=20261121150420';
-import * as designs from './pages/designs.js?v=20261121150420';
-import * as relaties from './pages/relaties.js?v=20261121150420';
-import * as inkoop from './pages/inkoop.js?v=20261121150420';
-import * as verkoop from './pages/verkoop.js?v=20261121150420';
-import * as stalen from './pages/stalen.js?v=20261121150420';
-import * as instellingen from './pages/instellingen.js?v=20261121150420';
-import * as importeren from './pages/importeren.js?v=20261121150420';
-import * as rapportage from './pages/rapportage.js?v=20261121150420';
-import * as reiniging from './pages/reiniging.js?v=20261121150420';
-import * as telling from './pages/telling.js?v=20261121150420';
-import * as docs from './docs.js?v=20261121150420';
+import { sb, $, $$, toast, esc, comboSet, onopgeslagen, zetBewaker, confirmBox } from './ui.js?v=20261121151247';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121151247';
+import * as dashboard from './pages/dashboard.js?v=20261121151247';
+import * as artikelen from './pages/artikelen.js?v=20261121151247';
+import * as designs from './pages/designs.js?v=20261121151247';
+import * as relaties from './pages/relaties.js?v=20261121151247';
+import * as inkoop from './pages/inkoop.js?v=20261121151247';
+import * as verkoop from './pages/verkoop.js?v=20261121151247';
+import * as stalen from './pages/stalen.js?v=20261121151247';
+import * as instellingen from './pages/instellingen.js?v=20261121151247';
+import * as importeren from './pages/importeren.js?v=20261121151247';
+import * as rapportage from './pages/rapportage.js?v=20261121151247';
+import * as reiniging from './pages/reiniging.js?v=20261121151247';
+import * as telling from './pages/telling.js?v=20261121151247';
+import * as docs from './docs.js?v=20261121151247';
 
 // route-patroon → handler(container, params)
 const routes = [
@@ -185,7 +185,24 @@ if (SUPABASE_URL.includes('JOUW-PROJECT') || SUPABASE_ANON_KEY.includes('JOUW-')
     current = id;
     showApp(session);
   });
-  window.addEventListener('hashchange', () => { if (current) route(); });
+  // Waarschuwen als je weggaat terwijl er nog niet-opgeslagen wijzigingen zijn
+  let vorigeHash = location.hash;
+  window.addEventListener('hashchange', async () => {
+    if (!current) return;
+    if (onopgeslagen()) {
+      const doel = location.hash;
+      history.replaceState(null, '', vorigeHash || '#/');
+      const ok = await confirmBox('Je hebt wijzigingen die nog niet zijn opgeslagen. Wil je deze pagina verlaten zonder op te slaan?', 'Verlaten zonder opslaan');
+      if (!ok) return;
+      zetBewaker(null);
+      location.hash = doel;
+      return;
+    }
+    vorigeHash = location.hash;
+    zetBewaker(null);
+    route();
+  });
+  window.addEventListener('beforeunload', (e) => { if (onopgeslagen()) { e.preventDefault(); e.returnValue = ''; } });
   window.addEventListener('app:refresh', () => { if (current) route({ keepScroll: true }); });
   const { data } = await sb.auth.getSession();
   if (!data.session) showApp(null);

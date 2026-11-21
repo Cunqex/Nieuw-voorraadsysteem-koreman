@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, maat, $, on, toast, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, isImage, mediaUrl, setTitle, refresh, levOpt,
-} from '../ui.js?v=20261121150420';
+ bewaakFormulier} from '../ui.js?v=20261121151247';
 
 // =============================== LIJST ===============================
 export async function renderList(c) {
@@ -69,6 +69,7 @@ export async function renderDetail(c, [idStr]) {
       toast('Opgeslagen', 'ok');
     }
   };
+  bewaakFormulier($('#f', c), c);
   if (isNew) return;
 
   $('#del', c).onclick = async () => {

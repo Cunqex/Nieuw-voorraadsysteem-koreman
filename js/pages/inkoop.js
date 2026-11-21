@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, artikelKiezer, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261121150420';
-import { metRegels, ikKaart } from '../orderkaart.js?v=20261121150420';
+  PO_STATUS, badge, artikelPicker, artikelKiezer, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde , bewaakFormulier} from '../ui.js?v=20261121151247';
+import { metRegels, ikKaart } from '../orderkaart.js?v=20261121151247';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -248,6 +248,7 @@ export async function renderDetail(c, [id]) {
     check(await sb.from('inkooporders').update(v).eq('id', po.id));
     toast('Opgeslagen', 'ok'); reload();
   };
+  bewaakFormulier($('#kop', c), c);
   $('#ecb', c)?.addEventListener('click', async () => {
     try {
       const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=EUR').then((x) => x.json());

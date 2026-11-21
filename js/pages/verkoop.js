@@ -1,8 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261121150420';
-import { metRegels, vkKaart } from '../orderkaart.js?v=20261121150420';
+ bewaakFormulier} from '../ui.js?v=20261121151247';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261121151247';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
@@ -469,6 +469,7 @@ export async function renderDetail(c, [id]) {
     check(await sb.from('verkooporders').update(v).eq('id', so.id));
     toast('Opgeslagen', 'ok'); reload();
   };
+  bewaakFormulier($('#kop', c), c);
 
   // ---- regels ----
   artikelKiezer($('#zoek', c), async (a) => {

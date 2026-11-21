@@ -1,7 +1,7 @@
 // Gegevens uit IOne overnemen: artikelen, beginvoorraad, foto's, inkoop- en verkooporders.
 // De import voegt alleen toe. Wat al in de app staat (zelfde artikel- of ordernummer) blijft ongemoeid,
 // dus opnieuw importeren kan geen werk overschrijven.
-import { sb, check, esc, $, toast, setTitle, alles, confirmBox } from '../ui.js?v=20261121172358';
+import { sb, check, esc, $, toast, setTitle, alles, confirmBox } from '../ui.js?v=20261121172428';
 
 const BEGIN = 'Beginvoorraad uit IOne';
 

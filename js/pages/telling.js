@@ -1,6 +1,6 @@
 // Balans / voorraadtelling: barcodes scannen en de voorraad meteen gelijk zetten.
 // Elke scan telt 1 stuk. De voorraad van dat artikel wordt direct: getelde stuks + wat uitgeleend is.
-import { sb, check, esc, num, datum, $, on, toast, setTitle, modal, confirmBox, artikelPicker, alles, SOORT_ARTIKEL, money, loadImages } from '../ui.js?v=20261121172358';
+import { sb, check, esc, num, datum, $, on, toast, setTitle, modal, confirmBox, artikelPicker, alles, SOORT_ARTIKEL, money, loadImages } from '../ui.js?v=20261121172428';
 
 const maatTxt = (a) => (a?.breedte_cm && a?.lengte_cm ? `${num(a.lengte_cm)} x ${num(a.breedte_cm)} cm` : '');
 
@@ -220,14 +220,14 @@ export async function renderCorrecties(c) {
       <div class="rap-kpi plus"><span class="rap-lbl">Omhoog gezet</span><b class="rap-num">${num(op.length)} artikelen</b><span class="rap-sub">${num(som(op, (r) => r.n))} stuks</span></div>
       <div class="rap-kpi plus"><span class="rap-lbl">Waarde omhoog</span><b class="rap-num">${money(som(op, (r) => r.waarde))}</b><span class="rap-sub">inkoopwaarde</span></div>`;
     const lijst = selectie(); const deel = lijst.slice(0, toonMax);
-    $('#tbl', c).innerHTML = lijst.length ? `<table class="list"><thead><tr><th></th><th>Artikel</th><th>Leverancier</th><th>Wat is er gebeurd</th><th class="num">Voor de telling</th><th class="num">Nu</th><th class="num">Inkoopwaarde</th><th></th></tr></thead><tbody>
+    $('#tbl', c).innerHTML = lijst.length ? `<table class="list"><thead><tr><th></th><th>Artikel</th><th>Wat is er gebeurd</th><th class="num">Was</th><th class="num">Nu</th><th class="num">Inkoopwaarde</th><th></th></tr></thead><tbody>
       ${deel.map((r) => { const foto = r.a.foto_pad || r.a.designs?.hoofdfoto_pad;
         return `<tr><td style="width:56px">${foto ? `<img class="thumb" data-path="${esc(foto)}" alt="">` : '<span class="thumb"></span>'}</td>
-          <td><a href="#/artikel/${r.artikel_id}"><b>${esc(r.a.artikelnummer)}</b> ${esc(r.a.naam)}</a><br><span class="muted small">${esc([SOORT_ARTIKEL[r.a.soort], maatTxt(r.a)].filter(Boolean).join(' · '))}</span></td>
-          <td>${esc(r.a.leveranciers?.naam || '')}</td><td>${esc(r.reden)}</td>
+          <td><a href="#/artikel/${r.artikel_id}"><b>${esc(r.a.artikelnummer)}</b> ${esc(r.a.naam)}</a><br><span class="muted small">${esc([SOORT_ARTIKEL[r.a.soort], maatTxt(r.a), r.a.leveranciers?.naam].filter(Boolean).join(' · '))}</span></td>
+          <td>${esc(r.reden)}</td>
           <td class="num">${num(r.nu - r.n)}</td><td class="num"><b>${num(r.nu)}</b></td>
           <td class="num">${r.prijs === null ? '<span class="muted">geen prijs</span>' : money(r.waarde)}</td>
-          <td style="text-align:right"><button class="btn small" data-terug="${r.id}"><i data-lucide="undo-2"></i> Terugzetten</button></td></tr>`; }).join('')}
+          <td style="text-align:right;white-space:nowrap"><button class="btn small" data-terug="${r.id}"><i data-lucide="undo-2"></i> Terugzetten</button></td></tr>`; }).join('')}
       </tbody></table>${lijst.length > toonMax ? `<div style="padding:12px 16px"><button class="btn" id="meer">Toon meer (nog ${num(lijst.length - toonMax)})</button></div>` : ''}`
       : `<p class="empty">${$('#q', c).value.trim() ? 'Niets gevonden.' : richting === 'omlaag' ? 'Bij deze telling is niets omlaag gezet.' : 'Bij deze telling is niets omhoog gezet.'}</p>`;
     window.lucide?.createIcons();

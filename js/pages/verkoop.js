@@ -1,7 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261121130503';
+} from '../ui.js?v=20261121131715';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261121131715';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
@@ -33,7 +34,7 @@ export async function renderList(c, _p, query) {
         ${Object.entries(SO_STATUS).map(([k, [l]]) => `<option value="${k}">${l}</option>`).join('')}</select>
     </div>
     <div id="klantfilter"></div>
-    <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
+    <div id="tbl"></div>`;
   let modus = query.modus === 'klanten' ? 'klanten' : 'orders';
   const klantFilter = query.klant_id ? Number(query.klant_id) : null;
   const zetModus = () => {
@@ -52,11 +53,14 @@ export async function renderList(c, _p, query) {
     const s = $('#q', c).value.trim().toLowerCase();
     const lijst = [...per.values()].filter((k) => !s || k.naam.toLowerCase().includes(s)).sort((a2, b2) => b2.open - a2.open);
     const tot = lijst.reduce((x, k) => x + k.open, 0);
-    $('#tbl', c).innerHTML = lijst.length ? `<table class="list"><thead><tr><th>Klant</th><th class="num">Open orders</th><th>Oudste order</th><th class="num">Nog te betalen</th></tr></thead><tbody>
-      ${lijst.map((k) => `<tr class="click" onclick="location.hash='#/verkoop?klant_id=${k.id}'"><td><b>${esc(k.naam)}</b></td><td class="num">${k.orders}</td><td>${datum(k.oudste)}</td><td class="num"><b>${money(k.open)}</b></td></tr>`).join('')}
-      </tbody><tfoot><tr><td><b>Totaal</b> <span class="muted small">(${lijst.length} klant${lijst.length === 1 ? '' : 'en'})</span></td><td class="num">${lijst.reduce((x, k) => x + k.orders, 0)}</td><td></td><td class="num"><b>${money(tot)}</b></td></tr></tfoot></table>
-      <p class="small muted" style="padding:10px 16px">Telt bevestigde, geleverde en gefactureerde orders waarop nog niet alles is betaald. Klik op een klant voor de orders.</p>`
-      : '<p class="empty">Er staat bij geen enkele klant nog iets open.</p>';
+    $('#tbl', c).innerHTML = lijst.length ? `<p class="ord-samen"><b>${money(tot)}</b> nog te ontvangen van ${lijst.length} klant${lijst.length === 1 ? '' : 'en'} · telt bevestigde, geleverde en gefactureerde orders</p>
+      <div class="art-grid ord-grid">${lijst.map((k) => `<a class="art-card ord-card klant-card" href="#/verkoop?klant_id=${k.id}"><div class="art-body">
+        <div class="ord-top"><span class="art-nr">${k.orders} open order${k.orders === 1 ? '' : 's'}</span><i data-lucide="wallet" class="ord-ic"></i></div>
+        <div class="art-naam">${esc(k.naam)}</div>
+        <div class="art-meta">Oudste order ${datum(k.oudste)}</div>
+        <div class="art-foot ord-foot"><div><span class="art-prijs open-bedrag">${money(k.open)}</span><small class="muted">nog te betalen</small></div></div>
+      </div></a>`).join('')}</div>`
+      : '<div class="card"><p class="empty">Er staat bij geen enkele klant nog iets open.</p></div>';
   };
   const load = async () => {
     if (modus === 'klanten') return loadKlanten();
@@ -69,14 +73,19 @@ export async function renderList(c, _p, query) {
     });
     const s = $('#q', c).value.trim().toLowerCase();
     if (s) rows = rows.filter((r) => `${r.offertenummer} ${r.orderbev_nummer} ${r.factuurnummer} ${r.klanten?.naam} ${r.klant_referentie}`.toLowerCase().includes(s));
-    const aantal = rows.length;
-    rows = rows.slice(0, 400);
-    await withTotals(rows, 'v_verkooporder_totalen', 'verkooporder_id');
-    $('#tbl', c).innerHTML = rows.length ? `<table class="list"><thead><tr><th>Offerte</th><th>Orderbev.</th><th>Factuur</th><th>Klant</th><th>Referentie</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th><th class="num">Openstaand</th></tr></thead><tbody>
-      ${rows.map((r) => `<tr class="click" onclick="location.hash='#/verkoop/${r.id}'"><td>${r.offertenummer || '–'}</td><td>${r.orderbev_nummer || '–'}</td><td>${r.factuurnummer || '–'}</td>
-        <td><b>${esc(r.klanten?.naam)}</b></td><td>${esc(r.klant_referentie || '')}</td><td>${datum(r.orderdatum)}</td><td>${badge(SO_STATUS, r.status)}</td>
-        <td class="num">${money(r._t.totaal)}</td><td class="num">${money(r._t.betaald)}</td><td class="num">${openBedrag(r) > 0.005 ? `<b class="open-bedrag">${money(openBedrag(r))}</b>` : '<span class="muted">–</span>'}</td></tr>`).join('')}
-    </tbody></table>${aantal > rows.length ? `<p class="small muted" style="padding:12px 16px">De nieuwste ${rows.length} van ${aantal} orders. Zoek op nummer of klant om een oudere order te vinden.</p>` : ''}` : '<p class="empty">Geen verkooporders gevonden.</p>';
+    lijstRows = rows; toon = 24;
+    await teken();
+  };
+  let lijstRows = [], toon = 24;
+  const teken = async () => {
+    const rows = lijstRows.slice(0, toon);
+    await Promise.all([withTotals(rows.filter((r) => !r._t), 'v_verkooporder_totalen', 'verkooporder_id'), metRegels(rows, 'verkooporder_regels', 'verkooporder_id')]);
+    $('#tbl', c).innerHTML = rows.length ? `<p class="ord-samen">${lijstRows.length} order${lijstRows.length === 1 ? '' : 's'}</p>
+      <div class="art-grid ord-grid">${rows.map(vkKaart).join('')}</div>
+      ${lijstRows.length > toon ? `<button type="button" class="db-meer" id="meer">Toon meer (nog ${lijstRows.length - toon})</button>` : ''}`
+      : '<div class="card"><p class="empty">Geen verkooporders gevonden.</p></div>';
+    loadImages($('#tbl', c));
+    const m = $('#meer', c); if (m) m.onclick = () => { toon += 24; teken(); };
   };
   const nieuw = async () => {
     const klanten = check(await sb.from('klanten').select('id, naam, nummer, postcode_plaats, taal, btw_regeling, soort').eq('actief', true).order('naam'));

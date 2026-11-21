@@ -1,6 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261121130503';
+  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261121131715';
+import { metRegels, ikKaart } from '../orderkaart.js?v=20261121131715';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -15,25 +16,31 @@ export async function renderList(c, _p, query) {
         ${Object.entries(PO_STATUS).map(([k, [l]]) => `<option value="${k}" ${query.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
       ${comboHtml({ name: 'lev', id: 'lev', options: levs.map(levOpt), empty: 'Alle leveranciers' })}
     </div>
-    <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
+    <div id="tbl"></div>`;
 
+  let lijstRows = [], toon = 24;
+  const teken = async () => {
+    const rows = lijstRows.slice(0, toon);
+    await Promise.all([withTotals(rows.filter((r) => !r._t), 'v_inkooporder_totalen', 'inkooporder_id'), metRegels(rows, 'inkooporder_regels', 'inkooporder_id')]);
+    $('#tbl', c).innerHTML = rows.length ? `<p class="ord-samen">${lijstRows.length} inkooporder${lijstRows.length === 1 ? '' : 's'}</p>
+      <div class="art-grid ord-grid">${rows.map(ikKaart).join('')}</div>
+      ${lijstRows.length > toon ? `<button type="button" class="db-meer" id="meer">Toon meer (nog ${lijstRows.length - toon})</button>` : ''}`
+      : '<div class="card"><p class="empty">Geen inkooporders gevonden.</p></div>';
+    loadImages($('#tbl', c));
+    const m = $('#meer', c); if (m) m.onclick = () => { toon += 24; teken(); };
+  };
   const load = async () => {
     const st = $('#status', c).value;
     const s = $('#q', c).value.trim().replace(/[%,()]/g, '');
     const rows = await alles(() => {
-      let q = sb.from('inkooporders').select('id, ordernummer, status, orderdatum, voor_wie, referentie, valuta, leveranciers(naam), klanten(naam)').order('orderdatum', { ascending: false }).order('ordernummer', { ascending: false });
+      let q = sb.from('inkooporders').select('id, ordernummer, status, orderdatum, leverdatum, voor_wie, referentie, valuta, leveranciers(naam), klanten(naam), verkooporders(id, orderbev_nummer, offertenummer, klanten(naam))').order('orderdatum', { ascending: false }).order('ordernummer', { ascending: false });
       if (st === 'open') q = q.not('status', 'in', '(ontvangen,geannuleerd)'); else if (st) q = q.eq('status', st);
       if ($('#lev input', c).value) q = q.eq('leverancier_id', $('#lev input', c).value);
       if (s) q = /^\d+$/.test(s) ? q.eq('ordernummer', Number(s)) : q.ilike('referentie', `%${s}%`);
       return q;
     });
-    await withTotals(rows, 'v_inkooporder_totalen', 'inkooporder_id');
-    $('#tbl', c).innerHTML = rows.length ? `<table class="list"><thead><tr><th>Nr.</th><th>Leverancier</th><th>Voor</th><th>Referentie</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Betaald</th></tr></thead><tbody>
-      ${rows.map((r) => `<tr class="click" onclick="location.hash='#/inkoop/${r.id}'"><td><b>${r.ordernummer}</b></td><td>${esc(r.leveranciers?.naam)}</td>
-        <td>${r.voor_wie === 'klant' ? esc(r.klanten?.naam || 'klant') : 'Eigen voorraad'}</td><td>${esc(r.referentie || '')}</td>
-        <td>${datum(r.orderdatum)}</td><td>${badge(PO_STATUS, r.status)}</td>
-        <td class="num">${money(r._t.totaal, r.valuta)}</td><td class="num">${money(r._t.betaald, r.valuta)}</td></tr>`).join('')}
-    </tbody></table>` : '<p class="empty">Geen inkooporders gevonden.</p>';
+    lijstRows = rows; toon = 24;
+    await teken();
   };
   const nieuw = async () => {
     const klanten = check(await sb.from('klanten').select('id, naam, nummer, postcode_plaats').eq('actief', true).order('naam'));

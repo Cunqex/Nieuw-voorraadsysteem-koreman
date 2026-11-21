@@ -1,4 +1,4 @@
-import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261121133631';
+import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261121135200';
 
 const T = {
   nl: {
@@ -111,6 +111,50 @@ export async function render(el, type, id, soort, query) {
         <table class="d-totals">${totRij('Total (excl. VAT)', tot, cur, true)}${totRij('VAT 0%', 0, cur)}${totRij('Total order amount', tot, cur, true)}</table>
       </div>
       <div class="d-foot">Page 1 of 1</div></div>`;
+  } else if (type === 'rn') {
+    taal = 'nl';
+    const rn = check(await sb.from('reinigingen').select('*, klanten(*)').eq('id', id).single());
+    const regels = check(await sb.from('reiniging_regels').select('*').eq('reiniging_id', id).order('volgorde').order('id'));
+    const k = rn.klanten; const isFactuur = soort === 'factuur';
+    const totaal = regels.reduce((s, r) => s + Number(r.prijs || 0), 0);
+    const netto = Math.round((totaal / 1.21) * 100) / 100;
+    const metFoto = regels.some((r) => r.foto_pad);
+    if (isFactuur && !rn.factuurnummer) {
+      el.innerHTML = `<div class="doc-bar"><b>Nog geen factuur</b><span style="flex:1"></span><button class="btn small" onclick="history.back()">Terug</button></div>
+        <div class="a4"><h1 class="d-title">Factuur</h1><p>Voor deze reiniging is nog geen factuur gemaakt. Gebruik de knop "Factuur maken" bij de reiniging.</p></div>`;
+      return;
+    }
+    document.title = isFactuur ? `Factuur ${rn.factuurnummer}` : `Afgiftebewijs reiniging ${rn.nummer}`;
+    bestandsnaam = `${isFactuur ? 'Factuur-' + rn.factuurnummer : 'Reiniging-' + rn.nummer}.pdf`;
+    html = `<div class="a4">${kop(inst, 'nl')}
+      <h1 class="d-title">${isFactuur ? 'Factuur' : 'Afgiftebewijs reiniging'}</h1>
+      <div class="d-meta">
+        ${meta([
+          isFactuur ? ['Factuurnr.', rn.factuurnummer] : ['Reiniging nr.', rn.nummer],
+          ['Klant nr.', k.nummer],
+          isFactuur ? ['Factuurdatum', d(rn.factuur_datum)] : ['Binnengebracht', d(rn.datum_binnen)],
+          isFactuur && ['Reiniging nr.', rn.nummer],
+          !isFactuur && rn.verwacht_klaar && ['Verwacht klaar', d(rn.verwacht_klaar)],
+          ['Verkoper', esc(inst.verkoper || '')],
+        ])}
+        ${adresblok(isFactuur ? 'Factuuradres' : 'Klant', [[k.aanhef, k.naam].filter(Boolean).join(' '), k.adres, k.postcode_plaats], [['T', k.telefoon], ['M', k.mobiel], ['@', k.email]])}
+      </div>
+      <table class="d-lines"><thead><tr>${metFoto ? '<th class="d-fotokol"></th>' : ''}<th>Tapijt</th><th>Behandeling</th><th class="num">Prijs</th></tr></thead><tbody>
+      ${regels.map((r) => `<tr>${metFoto ? `<td class="d-fotokol">${r.foto_pad ? `<img class="d-img" data-path="${esc(r.foto_pad)}" alt="">` : ''}</td>` : ''}
+        <td>${esc(r.omschrijving || '')}${r.lengte_cm && r.breedte_cm ? `<br>${Number(r.lengte_cm)} x ${Number(r.breedte_cm)} cm` : ''}</td>
+        <td>${esc(r.behandeling || '')}</td><td class="num">${getal(r.prijs)}</td></tr>`).join('')}
+      </tbody></table>
+      ${rn.opmerking ? `<div class="d-note">${esc(rn.opmerking)}</div>` : ''}
+      ${isFactuur
+        ? (rn.betaald_op ? `<div class="d-note">Voldaan op ${d(rn.betaald_op)}${rn.betaalwijze ? ' (' + esc(rn.betaalwijze) + ')' : ''}.</div>` : `<div class="d-note">Gelieve te betalen op ${esc(inst.iban || '')} onder vermelding van factuurnr. ${rn.factuurnummer}.</div>`)
+        : '<div class="d-note">Bewaar dit bewijs en neem het mee als u het tapijt komt ophalen.</div>'}
+      <div class="d-bottom">
+        <table class="d-totals d-links"><tr><td>Netto:</td><td>€</td><td class="num">${getal(netto)}</td></tr><tr><td>BTW 21%</td><td>€</td><td class="num">${getal(totaal - netto)}</td></tr></table>
+        <table class="d-totals">${totRij(isFactuur ? 'Totaal factuurbedrag' : 'Totaal incl. btw', totaal, 'EUR', true)}
+          ${isFactuur && rn.betaald_op ? totRij(`Betaald ${d(rn.betaald_op)}:`, totaal, 'EUR') + totRij('Nog te voldoen', 0, 'EUR', true) : ''}</table>
+      </div>
+      ${isFactuur && inst.voorwaarden_nl ? `<div class="d-klein">${esc(inst.voorwaarden_nl)}</div>` : ''}
+      <div class="d-foot">Pagina 1 van 1</div></div>`;
   } else {
     const t = T[taal];
     const so = check(await sb.from('verkooporders').select('*, klanten(*)').eq('id', id).single());

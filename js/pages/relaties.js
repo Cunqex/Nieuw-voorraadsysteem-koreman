@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_KLANT, BTW, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles, vandaag, refresh,
-} from '../ui.js?v=20261121133631';
+} from '../ui.js?v=20261121135200';
 
 const KLANT_FIELDS = [
   { name: 'aanhef', label: 'Aanhef', placeholder: 'bv. Familie, De heer, Mevrouw' },
@@ -40,7 +40,7 @@ function kleur(naam) {
 }
 
 const cfg = {
-  klanten: { titel: 'Klanten & architecten', enkel: 'klant', fields: KLANT_FIELDS, route: 'klant' },
+  klanten: { titel: 'Klanten', enkel: 'klant', fields: KLANT_FIELDS, route: 'klant' },
   leveranciers: { titel: 'Leveranciers', enkel: 'leverancier', fields: LEV_FIELDS, route: 'leverancier' },
 };
 

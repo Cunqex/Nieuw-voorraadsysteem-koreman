@@ -1,5 +1,5 @@
 // Overzicht: de lopende verkoop- en inkooporders.
-import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles } from '../ui.js?v=20261121130409';
+import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles } from '../ui.js?v=20261121130503';
 
 const nrVan = (s) => (s.factuurnummer ? 'F ' + s.factuurnummer : s.orderbev_nummer ? 'OB ' + s.orderbev_nummer : s.offertenummer ? 'OF ' + s.offertenummer : 'Concept');
 const STAP = 12;
@@ -42,7 +42,7 @@ export async function render(c) {
         <td class="num">${money(tot)}</td><td class="num">${off ? '<span class="muted">–</span>' : open(s) > 0.005 ? `<b>${money(open(s))}</b>` : '<span class="db-voldaan">voldaan</span>'}</td>
         <td class="db-bet">${off ? '' : `<div class="db-betaald"><div class="db-balk" title="${pct}% betaald"><i style="width:${pct}%"></i></div><span class="db-pct">${pct}%</span></div>`}</td></tr>`; }).join('') || '<tr><td colspan="7" class="empty">Geen orders.</td></tr>'}
       </tbody></table></div>
-      ${lijst.length > vk.n ? `<button type="button" class="db-meer" data-meer>Toon meer (${lijst.length - vk.n} van ${lijst.length})</button>` : ''}`;
+      ${lijst.length > vk.n ? `<button type="button" class="db-meer" data-meer>Toon meer (nog ${lijst.length - vk.n})</button>` : ''}`;
   };
   $('#db-vk').addEventListener('click', (e) => {
     const f = e.target.closest('[data-f]'); if (f) { vk.f = f.dataset.f; vk.n = STAP; tekenVk(); }
@@ -63,9 +63,9 @@ export async function render(c) {
       <div class="db-tabs">${IK_F.map(([k, l]) => `<button type="button" class="db-tab ${ik.f === k ? 'aan' : ''}" data-f="${k}">${l} <span>${telling(k)}</span></button>`).join('')}</div>
       <div class="table-wrap"><table class="list db-tabel"><thead><tr><th>Nummer</th><th>Leverancier</th><th>Voor</th><th>Besteld</th><th>Levering</th><th>Status</th><th class="num">Bedrag</th></tr></thead><tbody>
       ${lijst.slice(0, ik.n).map((p) => `<tr class="click" onclick="location.hash='#/inkoop/${p.id}'"><td class="db-nr">PO ${p.ordernummer}</td><td>${esc(p.leveranciers?.naam || '–')}</td><td>${voorWie(p)}</td>
-        <td class="muted">${datum(p.orderdatum)}</td><td class="muted">${esc(p.leverdatum || '–')}</td><td>${badge(PO_STATUS, p.status)}</td><td class="num">${t(p).totaal != null ? money(t(p).totaal, p.valuta) : '–'}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Geen orders.</td></tr>'}
+        <td class="muted">${datum(p.orderdatum)}</td><td class="muted">${/^\d/.test(p.leverdatum || '') ? esc(p.leverdatum) : p.leverdatum ? 'z.s.m.' : '–'}</td><td>${badge(PO_STATUS, p.status)}</td><td class="num">${t(p).totaal != null ? money(t(p).totaal, p.valuta) : '–'}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Geen orders.</td></tr>'}
       </tbody></table></div>
-      ${lijst.length > ik.n ? `<button type="button" class="db-meer" data-meer>Toon meer (${lijst.length - ik.n} van ${lijst.length})</button>` : ''}`;
+      ${lijst.length > ik.n ? `<button type="button" class="db-meer" data-meer>Toon meer (nog ${lijst.length - ik.n})</button>` : ''}`;
   };
   $('#db-ik').addEventListener('click', (e) => {
     const f = e.target.closest('[data-f]'); if (f) { ik.f = f.dataset.f; ik.n = STAP; tekenIk(); }

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121123332';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121123748';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -122,24 +122,25 @@ export function formFields(fields, values = {}) {
     const req = f.required ? 'required' : '';
     const cls = f.full ? 'full' : '';
     const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : '';
+    const lbl = f.info ? `<span class="lbl">${esc(f.label)} <i class="info" title="${esc(f.info)}">i</i></span>` : esc(f.label);
     if (f.type === 'checkbox') {
       return `<label class="check ${cls}"><input type="checkbox" name="${f.name}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
     }
     if (f.type === 'textarea') {
-      return `<label class="${f.narrow ? '' : cls || 'full'}">${esc(f.label)}<textarea name="${f.name}" ${req}>${esc(v)}</textarea>${hint}</label>`;
+      return `<label class="${f.narrow ? '' : cls || 'full'}">${lbl}<textarea name="${f.name}" ${req}>${esc(v)}</textarea>${hint}</label>`;
     }
     if (f.type === 'combo') {
-      return `<div class="field ${cls}"><span>${esc(f.label)}</span>${comboHtml({ name: f.name, options: f.options, value: v, placeholder: f.placeholder, empty: f.empty, required: f.required })}${hint}</div>`;
+      return `<div class="field ${cls}"><span>${lbl}</span>${comboHtml({ name: f.name, options: f.options, value: v, placeholder: f.placeholder, empty: f.empty, required: f.required })}${hint}</div>`;
     }
     if (f.type === 'select') {
       const opts = Array.isArray(f.options) ? f.options : Object.entries(f.options);
-      return `<label class="${cls}">${esc(f.label)}<select name="${f.name}" ${req}>
+      return `<label class="${cls}">${lbl}<select name="${f.name}" ${req}>
         ${f.empty !== undefined ? `<option value="">${esc(f.empty)}</option>` : ''}
         ${opts.map(([ov, ol]) => `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`).join('')}
       </select>${hint}</label>`;
     }
     const step = f.type === 'number' ? `step="${f.step || 'any'}"` : '';
-    return `<label class="${cls}">${esc(f.label)}<input type="${f.type || 'text'}" name="${f.name}" value="${esc(v)}" ${step} ${req} ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ''}>${hint}</label>`;
+    return `<label class="${cls}">${lbl}<input type="${f.type || 'text'}" name="${f.name}" value="${esc(v)}" ${step} ${req} ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ''}>${hint}</label>`;
   }).join('')}</div>`;
 }
 

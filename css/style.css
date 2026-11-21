@@ -601,3 +601,15 @@ table.list tr.gescand td { background: #e8f6ec; }
 .switch input:checked + .switch-baan::after { transform: translateX(14px); }
 .switch input:focus-visible + .switch-baan { box-shadow: 0 0 0 3px rgb(59 130 246 / .25); }
 @media (max-width: 900px) { .art-alg-grid { grid-template-columns: 1fr; } .art-foto { max-width: 260px; } .art-groep .form-grid, .art-naam .form-grid { grid-template-columns: 1fr; } }
+
+/* ---------- Artikel: Maat en Prijzen ---------- */
+.art-kaart .art-groep .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.art-kwal .form-grid label.full { grid-column: 1 / -1; }
+.art-maat { display: grid; grid-template-columns: minmax(0, 3fr) minmax(140px, 1fr); gap: 20px; align-items: end; }
+.art-opp { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; font-weight: 500; color: var(--navy-700); }
+.art-opp b { height: 40px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; background: var(--canvas, #f6f7f9); font-weight: 600; color: var(--navy-900); }
+.h3-extra { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--navy-300); }
+.veld-info { font-size: 12px; font-weight: 400; color: var(--navy-400); min-height: 16px; }
+.veld-info a { color: var(--navy-700); }
+.form-grid .lbl { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 900px) { .art-kaart .art-groep .form-grid, .art-maat { grid-template-columns: 1fr; } }

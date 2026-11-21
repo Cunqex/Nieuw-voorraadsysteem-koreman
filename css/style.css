@@ -773,3 +773,6 @@ table.rap-tbl td:last-child, table.rap-tbl th:last-child { padding-right: 20px; 
 .warnbox:has(#oudbetaald) { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
 .warnbox:has(#oudbetaald) > div { flex: 1 1 420px; min-width: 0; }
 @media (max-width: 900px) { .rap-open.drie { grid-template-columns: 1fr; } }
+.vw-datum { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+.vw-datum input { width: auto; }
+td.neg { color: var(--red-fg); font-weight: 600; }

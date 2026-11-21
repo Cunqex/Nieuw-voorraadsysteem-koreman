@@ -1,6 +1,6 @@
 // Overzicht: de lopende verkoop- en inkooporders.
-import { sb, check, esc, money, setTitle, withTotals, alles, loadImages } from '../ui.js?v=20261121155201';
-import { metRegels, vkKaart, ikKaart } from '../orderkaart.js?v=20261121155201';
+import { sb, check, esc, money, setTitle, withTotals, alles, loadImages } from '../ui.js?v=20261121160302';
+import { metRegels, vkKaart, ikKaart } from '../orderkaart.js?v=20261121160302';
 
 // Aantal kaartjes altijd een veelvoud van het aantal kolommen, zodat rijen vol zijn
 const kolommen = () => {

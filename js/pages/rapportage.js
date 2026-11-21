@@ -1,13 +1,13 @@
 // Rapportage: inkomsten en uitgaven per periode, vergeleken met dezelfde periode een jaar eerder.
-import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261121155201';
+import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261121160302';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const jaarTerug = (s) => { const [j, m, d] = s.split('-').map(Number); return iso(new Date(j - 1, m - 1, Math.min(d, new Date(j - 1, m, 0).getDate()))); };
 const jaarVerder = (s) => `${Number(s.slice(0, 4)) + 1}${s.slice(4)}`;
-const kort = (n) => { const a = Math.abs(n); const t = a >= 1e6 ? `${(a / 1e6).toLocaleString('nl-NL', { maximumFractionDigits: 1 })} mln` : a >= 10000 ? `${Math.round(a / 1000).toLocaleString('nl-NL')}k` : a >= 1000 ? `${(a / 1000).toLocaleString('nl-NL', { maximumFractionDigits: 1 })}k` : Math.round(a).toLocaleString('nl-NL'); return (n < 0 ? '−' : '') + t; };
-const r2 = (x) => Math.round(x * 100) / 100;
-const dn = (s) => s.split('-').reverse().join('-');
+export const kort = (n) => { const a = Math.abs(n); const t = a >= 1e6 ? `${(a / 1e6).toLocaleString('nl-NL', { maximumFractionDigits: 1 })} mln` : a >= 10000 ? `${Math.round(a / 1000).toLocaleString('nl-NL')}k` : a >= 1000 ? `${(a / 1000).toLocaleString('nl-NL', { maximumFractionDigits: 1 })}k` : Math.round(a).toLocaleString('nl-NL'); return (n < 0 ? '−' : '') + t; };
+export const r2 = (x) => Math.round(x * 100) / 100;
+export const dn = (s) => s.split('-').reverse().join('-');
 
 function periode(keuze, van, tot) {
   const nu = new Date(); const j = nu.getFullYear(); const m = nu.getMonth();
@@ -34,10 +34,10 @@ function schaal(waarden, H) {
 const raster = (s) => s.ticks.map((v) => `<line x1="${L}" x2="${W - R}" y1="${s.y(v).toFixed(1)}" y2="${s.y(v).toFixed(1)}" class="${v === 0 ? 'nul' : 'raster'}"/><text x="${L - 8}" y="${(s.y(v) + 4).toFixed(1)}" text-anchor="end" class="as">${kort(v)}</text>`).join('');
 const asLabels = (labels, bw, H) => { const om = Math.ceil(labels.length / (W < 700 ? 8 : 14)); return labels.map((l, i) => (i % om === 0 ? `<text x="${(L + bw * i + bw / 2).toFixed(1)}" y="${H - 10}" text-anchor="middle" class="as">${esc(l)}</text>` : '')).join(''); };
 const vlak = (i, bw, H) => `<rect class="raak" data-i="${i}" x="${(L + bw * i).toFixed(1)}" y="${T}" width="${bw.toFixed(1)}" height="${H - T - B}"/>`;
-const legenda = (items) => `<div class="legenda">${items.map(([kl, t]) => `<span><i class="${kl}"></i>${esc(t)}</span>`).join('')}</div>`;
+export const legenda = (items) => `<div class="legenda">${items.map(([kl, t]) => `<span><i class="${kl}"></i>${esc(t)}</span>`).join('')}</div>`;
 
 // Staven naast elkaar. reeksen: [{ kl, waarden }]
-function staven(id, labels, reeksen, H = 280, breedte = 960) {
+export function staven(id, labels, reeksen, H = 280, breedte = 960) {
   W = breedte;
   const s = schaal(reeksen.flatMap((r) => r.waarden), H); const bw = (W - L - R) / labels.length;
   const n = reeksen.length; const sw = Math.min(24, (bw * 0.7) / n); const groep = sw * n + 2 * (n - 1);
@@ -47,7 +47,7 @@ function staven(id, labels, reeksen, H = 280, breedte = 960) {
     ${asLabels(labels, bw, H)}${labels.map((_, i) => vlak(i, bw, H)).join('')}</svg>`;
 }
 // Lijnen. reeksen: [{ kl, waarden }]
-function lijnen(id, labels, reeksen, H = 240) {
+export function lijnen(id, labels, reeksen, H = 240) {
   W = 960;
   const s = schaal(reeksen.flatMap((r) => r.waarden), H); const bw = (W - L - R) / labels.length;
   const x = (i) => L + bw * i + bw / 2;
@@ -61,6 +61,20 @@ const delta = (nu, toen, omgekeerd) => {
   const p = ((nu - toen) / Math.abs(toen)) * 100; const goed = omgekeerd ? p <= 0 : p >= 0;
   return `<span class="delta ${goed ? 'op' : 'neer'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p).toLocaleString('nl-NL', { maximumFractionDigits: 1 })}%</span>`;
 };
+
+// Zweeftekst bij de grafieken: tips() geeft per grafiek-id een lijst met tekst per tijdvak.
+export function koppelZweef(c, tips) {
+  const zweef = $('#zweef', c);
+  c.addEventListener('mousemove', (e) => {
+    const r = e.target.closest?.('.raak');
+    if (!r) { zweef.hidden = true; return; }
+    const id = r.closest('svg').dataset.grafiek;
+    zweef.innerHTML = tips()[id]?.[Number(r.dataset.i)] || ''; zweef.hidden = false;
+    const br = zweef.offsetWidth; const x = e.clientX + 16 + br > window.innerWidth ? e.clientX - br - 16 : e.clientX + 16;
+    zweef.style.left = `${Math.max(8, x)}px`; zweef.style.top = `${Math.max(8, e.clientY - zweef.offsetHeight - 12)}px`;
+  });
+  c.addEventListener('mouseleave', () => { zweef.hidden = true; });
+}
 
 export async function render(c) {
   setTitle('Rapportage');
@@ -239,17 +253,7 @@ export async function render(c) {
     };
   };
 
-  // ---- zweeftekst bij de grafieken ----
-  const zweef = $('#zweef', c);
-  c.addEventListener('mousemove', (e) => {
-    const r = e.target.closest?.('.raak');
-    if (!r) { zweef.hidden = true; return; }
-    const id = r.closest('svg').dataset.grafiek;
-    zweef.innerHTML = tips[id]?.[Number(r.dataset.i)] || ''; zweef.hidden = false;
-    const br = zweef.offsetWidth; const x = e.clientX + 16 + br > window.innerWidth ? e.clientX - br - 16 : e.clientX + 16;
-    zweef.style.left = `${Math.max(8, x)}px`; zweef.style.top = `${Math.max(8, e.clientY - zweef.offsetHeight - 12)}px`;
-  });
-  c.addEventListener('mouseleave', () => { zweef.hidden = true; });
+  koppelZweef(c, () => tips);
 
   $('#periode', c).addEventListener('change', () => {
     const eigen = $('#periode', c).value === 'eigen'; $('#eigen', c).style.display = eigen ? 'inline-flex' : 'none';

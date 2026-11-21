@@ -1,88 +1,77 @@
-// Overzicht: kerncijfers, wat er vandaag aandacht nodig heeft, en de lopende orders.
-import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, vandaag, withTotals, alles } from '../ui.js?v=20261121124712';
+// Overzicht: de lopende verkoop- en inkooporders.
+import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles } from '../ui.js?v=20261121130301';
 
 const nrVan = (s) => (s.factuurnummer ? 'F ' + s.factuurnummer : s.orderbev_nummer ? 'OB ' + s.orderbev_nummer : s.offertenummer ? 'OF ' + s.offertenummer : 'Concept');
-const groet = () => { const u = new Date().getHours(); return u < 12 ? 'Goedemorgen' : u < 18 ? 'Goedemiddag' : 'Goedenavond'; };
+const STAP = 12;
 
 export async function render(c) {
   setTitle('Overzicht');
-  const [voorraad, pos, sos, uit] = await Promise.all([
-    alles(() => sb.from('v_voorraad').select('artikel_id, voorraad_totaal, voorraadwaarde_eur, bevat_schatting').order('artikel_id')),
-    alles(() => sb.from('inkooporders').select('id, ordernummer, status, orderdatum, leveranciers(naam)').not('status', 'in', '(ontvangen,geannuleerd)').order('orderdatum', { ascending: false })),
+  const [pos, sos] = await Promise.all([
+    alles(() => sb.from('inkooporders').select('id, ordernummer, status, orderdatum, leverdatum, valuta, voor_wie, leveranciers(naam), klanten(naam), verkooporders(id, orderbev_nummer, offertenummer, klanten(naam))').not('status', 'in', '(ontvangen,geannuleerd)').order('orderdatum', { ascending: false })),
     alles(() => sb.from('verkooporders').select('id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klanten(naam)').not('status', 'in', '(betaald,geannuleerd)').order('orderdatum', { ascending: false })),
-    sb.from('uitleningen').select('id, aantal, datum_uit, verwacht_terug, klanten(naam), artikelen(id, artikelnummer, naam)').is('datum_terug', null).order('verwacht_terug').then(check),
   ]);
-  await withTotals(sos, 'v_verkooporder_totalen', 'verkooporder_id');
-
-  const metVoorraad = voorraad.filter((r) => Number(r.voorraad_totaal) > 0);
-  const waarde = metVoorraad.reduce((s, r) => s + Number(r.voorraadwaarde_eur || 0), 0);
-  const stuks = metVoorraad.reduce((s, r) => s + Number(r.voorraad_totaal || 0), 0);
-  const schatting = metVoorraad.some((r) => r.bevat_schatting);
-  const t = (s) => s._t || {};
-  const openBedrag = (s) => Math.max(0, Number(t(s).totaal || 0) - Number(t(s).betaald || 0));
-  const orders = sos.filter((s) => s.status !== 'offerte');
-  const offertes = sos.filter((s) => s.status === 'offerte');
-  const nogTeOntvangen = orders.reduce((x, s) => x + openBedrag(s), 0);
-  const wachtAanbetaling = sos.filter((s) => s.status === 'bevestigd' && Number(t(s).betaald || 0) === 0);
-  const teFactureren = sos.filter((s) => s.status === 'geleverd');
-  const concepten = pos.filter((p) => p.status === 'concept');
-  const onderweg = pos.filter((p) => ['in_productie', 'verzonden'].includes(p.status));
-  const teLaat = uit.filter((u) => u.verwacht_terug && u.verwacht_terug < vandaag());
-
-  const tegel = (href, icoon, label, waardeHtml, sub, cls = '') => `<a class="vr-tegel db-tegel ${cls}" href="${href}"><span><i data-lucide="${icoon}"></i> ${label}</span><b>${waardeHtml}</b><small>${sub}</small></a>`;
-  const actie = (href, icoon, n, tekst, kleur) => `<a class="db-actie ${n ? kleur : 'rustig'}" href="${href}"><i data-lucide="${icoon}"></i><span>${tekst}</span><b>${n}</b></a>`;
-  const voortgang = (s) => { const tot = Number(t(s).totaal || 0); const bet = Number(t(s).betaald || 0); const p = tot ? Math.min(100, Math.round((bet / tot) * 100)) : 0; return `<div class="db-balk" title="${p}% betaald"><i style="width:${p}%"></i></div>`; };
+  await Promise.all([withTotals(sos, 'v_verkooporder_totalen', 'verkooporder_id'), withTotals(pos, 'v_inkooporder_totalen', 'inkooporder_id')]);
+  const t = (r) => r._t || {};
+  const open = (s) => Math.max(0, Number(t(s).totaal || 0) - Number(t(s).betaald || 0));
 
   const nu = new Date();
   c.innerHTML = `
-    <div class="page-head db-kop"><div><h1>${groet()}</h1><p class="muted db-datum">${nu.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p></div><span class="spacer"></span>
+    <div class="page-head db-kop"><div><h1>Overzicht</h1><p class="muted db-datum">${nu.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p></div><span class="spacer"></span>
       <a class="btn" href="#/artikel/new"><i data-lucide="plus"></i> Nieuw artikel</a>
       <a class="btn" href="#/inkoop?nieuw=1"><i data-lucide="plus"></i> Inkooporder</a>
       <a class="btn primary" href="#/verkoop?nieuw=1"><i data-lucide="plus"></i> Verkooporder</a>
     </div>
+    <section class="card db-sectie" id="db-vk"></section>
+    <section class="card db-sectie" id="db-ik"></section>`;
 
-    <div class="db-tegels">
-      ${tegel('#/artikelen?voorraad=1', 'package', 'Voorraad', `${stuks.toLocaleString('nl-NL')} <em>stuks</em>`, `${metVoorraad.length.toLocaleString('nl-NL')} artikelen · ${money(waarde)}${schatting ? ' (deels geschat)' : ''}`, 'vr-ok')}
-      ${tegel('#/verkoop', 'receipt', 'Nog te ontvangen', money(nogTeOntvangen), `van ${orders.length} lopende verkooporder${orders.length === 1 ? '' : 's'}`)}
-      ${tegel('#/verkoop', 'file-text', 'Open offertes', offertes.length, `samen ${money(offertes.reduce((x, s) => x + Number(t(s).totaal || 0), 0))}`)}
-      ${tegel('#/inkoop', 'truck', 'Open inkoop', pos.length, `${onderweg.length} in productie of onderweg`)}
-      ${tegel('#/stalen', 'arrow-left-right', 'Uitgeleend / op zicht', uit.length, teLaat.length ? `${teLaat.length} te laat terug` : 'alles op tijd', teLaat.length ? 'vr-let' : '')}
-    </div>
-
-    <div class="db-grid">
-      <div class="card db-acties"><h2>Actie nodig</h2>
-        ${actie('#/verkoop', 'hourglass', wachtAanbetaling.length, 'Wachten op aanbetaling', 'oranje')}
-        ${actie('#/verkoop', 'file-check', teFactureren.length, 'Geleverd, nog factureren', 'oranje')}
-        ${actie('#/inkoop?status=concept', 'send', concepten.length, 'Inkooporders nog versturen', 'blauw')}
-        ${actie('#/stalen', 'alarm-clock', teLaat.length, 'Uitgeleend en te laat terug', 'rood')}
-      </div>
-      <div class="card"><h2>Uitgeleend / op zicht<span class="spacer"></span><a class="small" href="#/stalen">Alles bekijken</a></h2>
-        ${uit.length ? `<div class="table-wrap"><table class="list"><thead><tr><th>Artikel</th><th>Bij</th><th>Terug op</th></tr></thead><tbody>
-          ${uit.slice(0, 6).map((u) => `<tr class="click" onclick="location.hash='#/artikel/${u.artikelen?.id}'"><td><b>${esc(u.artikelen?.artikelnummer || '')}</b> ${esc(u.artikelen?.naam || '')}</td><td>${esc(u.klanten?.naam || '–')}</td>
-            <td>${u.verwacht_terug ? (u.verwacht_terug < vandaag() ? `<span class="badge red">${datum(u.verwacht_terug)}</span>` : datum(u.verwacht_terug)) : '<span class="muted">–</span>'}</td></tr>`).join('')}
-        </tbody></table></div>` : '<p class="empty">Niets uitgeleend.</p>'}
-      </div>
-    </div>
-
-    <div class="card"><h2>Lopende verkooporders<span class="spacer"></span>
-        <span class="db-filter">${[['alle', 'Alle'], ['offerte', 'Offertes'], ['orders', 'Orders']].map(([k, l], i) => `<button type="button" class="chip ${i ? '' : 'aan'}" data-f="${k}">${l}</button>`).join('')}</span>
-        <a class="small" href="#/verkoop">Alles bekijken</a></h2>
-      <div class="table-wrap"><table class="list"><thead><tr><th>Nr.</th><th>Klant</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Nog open</th><th style="width:110px">Betaald</th></tr></thead><tbody id="db-so"></tbody></table></div>
-    </div>
-
-    <div class="card"><h2>Open inkooporders<span class="spacer"></span><a class="small" href="#/inkoop">Alles bekijken</a></h2>
-      ${pos.length ? `<div class="table-wrap"><table class="list"><thead><tr><th>Nr.</th><th>Leverancier</th><th>Datum</th><th>Status</th></tr></thead><tbody>
-      ${pos.slice(0, 10).map((p) => `<tr class="click" onclick="location.hash='#/inkoop/${p.id}'"><td>${p.ordernummer}</td><td>${esc(p.leveranciers?.naam)}</td><td>${datum(p.orderdatum)}</td><td>${badge(PO_STATUS, p.status)}</td></tr>`).join('')}
-      </tbody></table></div>` : '<p class="empty">Geen open inkooporders.</p>'}
-    </div>`;
-
-  const tekenSo = (f) => {
-    const lijst = sos.filter((s) => f === 'alle' || (f === 'offerte' ? s.status === 'offerte' : s.status !== 'offerte')).slice(0, 12);
-    c.querySelector('#db-so').innerHTML = lijst.length ? lijst.map((s) => `<tr class="click" onclick="location.hash='#/verkoop/${s.id}'">
-      <td><b>${nrVan(s)}</b></td><td>${esc(s.klanten?.naam || '–')}</td><td>${datum(s.orderdatum)}</td><td>${badge(SO_STATUS, s.status)}</td>
-      <td class="num">${money(t(s).totaal)}</td><td class="num">${s.status === 'offerte' ? '<span class="muted">–</span>' : (openBedrag(s) > 0.005 ? `<b>${money(openBedrag(s))}</b>` : '<span class="badge green">voldaan</span>')}</td>
-      <td>${s.status === 'offerte' ? '' : voortgang(s)}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">Niets gevonden.</td></tr>';
+  // ---------- Verkoop ----------
+  const vk = { f: 'alle', n: STAP };
+  const VK_F = [['alle', 'Alle'], ['offerte', 'Offertes'], ['bevestigd', 'Bevestigd'], ['geleverd', 'Geleverd'], ['gefactureerd', 'Gefactureerd']];
+  const tekenVk = () => {
+    const lijst = sos.filter((s) => vk.f === 'alle' || s.status === vk.f);
+    const orders = sos.filter((s) => s.status !== 'offerte');
+    const telling = (k) => (k === 'alle' ? sos.length : sos.filter((s) => s.status === k).length);
+    $('#db-vk').innerHTML = `
+      <div class="db-sectie-kop"><div><h2><i data-lucide="file-text"></i> Lopende verkooporders</h2>
+        <p class="db-samen"><b>${sos.length}</b> lopend · <b>${money(orders.reduce((x, s) => x + open(s), 0))}</b> nog te ontvangen</p></div>
+        <a class="btn small" href="#/verkoop">Alle verkooporders</a></div>
+      <div class="db-tabs">${VK_F.map(([k, l]) => `<button type="button" class="db-tab ${vk.f === k ? 'aan' : ''}" data-f="${k}">${l} <span>${telling(k)}</span></button>`).join('')}</div>
+      <div class="table-wrap"><table class="list db-tabel"><thead><tr><th>Nummer</th><th>Klant</th><th>Datum</th><th>Status</th><th class="num">Totaal</th><th class="num">Nog open</th><th class="db-bet">Betaald</th></tr></thead><tbody>
+      ${lijst.slice(0, vk.n).map((s) => { const tot = Number(t(s).totaal || 0); const pct = tot ? Math.min(100, Math.round((Number(t(s).betaald || 0) / tot) * 100)) : 0; const off = s.status === 'offerte';
+        return `<tr class="click" onclick="location.hash='#/verkoop/${s.id}'"><td class="db-nr">${nrVan(s)}</td><td>${esc(s.klanten?.naam || '–')}</td><td class="muted">${datum(s.orderdatum)}</td><td>${badge(SO_STATUS, s.status)}</td>
+        <td class="num">${money(tot)}</td><td class="num">${off ? '<span class="muted">–</span>' : open(s) > 0.005 ? `<b>${money(open(s))}</b>` : '<span class="db-voldaan">voldaan</span>'}</td>
+        <td class="db-bet">${off ? '' : `<div class="db-balk" title="${pct}% betaald"><i style="width:${pct}%"></i></div><span class="db-pct">${pct}%</span>`}</td></tr>`; }).join('') || '<tr><td colspan="7" class="empty">Geen orders.</td></tr>'}
+      </tbody></table></div>
+      ${lijst.length > vk.n ? `<button type="button" class="db-meer" data-meer>Toon meer (${lijst.length - vk.n} van ${lijst.length})</button>` : ''}`;
   };
-  tekenSo('alle');
-  c.querySelector('.db-filter').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (!b) return; c.querySelectorAll('.db-filter .chip').forEach((x) => x.classList.toggle('aan', x === b)); tekenSo(b.dataset.f); });
+  $('#db-vk').addEventListener('click', (e) => {
+    const f = e.target.closest('[data-f]'); if (f) { vk.f = f.dataset.f; vk.n = STAP; tekenVk(); }
+    if (e.target.closest('[data-meer]')) { vk.n += 25; tekenVk(); }
+  });
+
+  // ---------- Inkoop ----------
+  const ik = { f: 'alle', n: STAP };
+  const IK_F = [['alle', 'Alle'], ['concept', 'Concept'], ['verstuurd', 'Verstuurd'], ['bevestigd', 'Bevestigd'], ['in_productie', 'In productie'], ['verzonden', 'Verzonden']];
+  const voorWie = (p) => { const v = p.verkooporders; if (v) return `${esc(v.klanten?.naam || '')} <span class="muted">${v.orderbev_nummer ? 'OB ' + v.orderbev_nummer : v.offertenummer ? 'OF ' + v.offertenummer : ''}</span>`; return esc(p.klanten?.naam || (p.voor_wie === 'voorraad' ? 'Voorraad' : p.voor_wie || '–')); };
+  const tekenIk = () => {
+    const lijst = pos.filter((p) => ik.f === 'alle' || p.status === ik.f);
+    const telling = (k) => (k === 'alle' ? pos.length : pos.filter((p) => p.status === k).length);
+    $('#db-ik').innerHTML = `
+      <div class="db-sectie-kop"><div><h2><i data-lucide="truck"></i> Lopende inkooporders</h2>
+        <p class="db-samen"><b>${pos.length}</b> lopend · <b>${telling('concept')}</b> nog te versturen · <b>${telling('in_productie') + telling('verzonden')}</b> in productie of onderweg</p></div>
+        <a class="btn small" href="#/inkoop">Alle inkooporders</a></div>
+      <div class="db-tabs">${IK_F.map(([k, l]) => `<button type="button" class="db-tab ${ik.f === k ? 'aan' : ''}" data-f="${k}">${l} <span>${telling(k)}</span></button>`).join('')}</div>
+      <div class="table-wrap"><table class="list db-tabel"><thead><tr><th>Nummer</th><th>Leverancier</th><th>Voor</th><th>Besteld</th><th>Levering</th><th>Status</th><th class="num">Bedrag</th></tr></thead><tbody>
+      ${lijst.slice(0, ik.n).map((p) => `<tr class="click" onclick="location.hash='#/inkoop/${p.id}'"><td class="db-nr">PO ${p.ordernummer}</td><td>${esc(p.leveranciers?.naam || '–')}</td><td>${voorWie(p)}</td>
+        <td class="muted">${datum(p.orderdatum)}</td><td class="muted">${esc(p.leverdatum || '–')}</td><td>${badge(PO_STATUS, p.status)}</td><td class="num">${t(p).totaal != null ? money(t(p).totaal, p.valuta) : '–'}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Geen orders.</td></tr>'}
+      </tbody></table></div>
+      ${lijst.length > ik.n ? `<button type="button" class="db-meer" data-meer>Toon meer (${lijst.length - ik.n} van ${lijst.length})</button>` : ''}`;
+  };
+  $('#db-ik').addEventListener('click', (e) => {
+    const f = e.target.closest('[data-f]'); if (f) { ik.f = f.dataset.f; ik.n = STAP; tekenIk(); }
+    if (e.target.closest('[data-meer]')) { ik.n += 25; tekenIk(); }
+  });
+
+  function $(sel) { return c.querySelector(sel); }
+  tekenVk(); tekenIk();
 }

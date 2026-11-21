@@ -632,27 +632,29 @@ table.list tr.gescand td { background: #e8f6ec; }
 
 /* ---------- Overzicht (dashboard) ---------- */
 .db-kop h1 { margin: 0; }
-.db-datum { margin: 2px 0 0; font-size: 13.5px; text-transform: capitalize; }
-.db-tegels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-.db-tegel { text-decoration: none; box-shadow: var(--shadow-card); transition: box-shadow .15s, transform .15s; }
-.db-tegel:hover { text-decoration: none; box-shadow: var(--shadow-pop); transform: translateY(-1px); }
-.db-tegel b em { font-style: normal; font-size: 14px; font-weight: 500; color: inherit; opacity: .7; }
-.db-tegel small { color: var(--navy-400); }
-.db-grid { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr); gap: 16px; align-items: start; }
-.db-grid > .card { margin-bottom: 16px; }
-.db-acties { display: flex; flex-direction: column; gap: 8px; }
-.db-actie { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 10px; text-decoration: none; color: var(--navy-900); font-size: 14px; background: var(--canvas, #f6f7f9); }
-.db-actie:hover { text-decoration: none; filter: brightness(.97); }
-.db-actie svg { width: 16px; height: 16px; flex-shrink: 0; }
-.db-actie span { flex: 1; }
-.db-actie b { min-width: 28px; text-align: center; padding: 2px 8px; border-radius: 999px; background: #fff; font-variant-numeric: tabular-nums; }
-.db-actie.oranje { background: var(--amber-bg); color: var(--amber-fg); }
-.db-actie.blauw { background: var(--blue-bg); color: var(--blue-fg); }
-.db-actie.rood { background: var(--red-bg); color: var(--red-fg); }
-.db-actie.rustig { color: var(--navy-400); }
-.db-actie.rustig b { background: transparent; }
-.db-filter { display: inline-flex; gap: 6px; margin-right: 8px; }
-.db-filter .chip { font-size: 12.5px; padding: 3px 10px; }
-.db-balk { height: 6px; border-radius: 999px; background: var(--navy-50, #eef0f4); overflow: hidden; }
+.db-datum { margin: 2px 0 0; font-size: 13.5px; }
+.db-sectie { padding: 0; overflow: hidden; }
+.db-sectie-kop { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px 14px; }
+.db-sectie-kop h2 { margin: 0; font-size: 17px; font-weight: 600; color: var(--navy-900); display: flex; align-items: center; gap: 8px; }
+.db-sectie-kop h2 svg { width: 18px; height: 18px; color: var(--navy-400); }
+.db-samen { margin: 4px 0 0; font-size: 13.5px; color: var(--navy-400); }
+.db-samen b { color: var(--navy-900); font-weight: 600; }
+.db-tabs { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.db-tab { border: 0; background: none; font: inherit; font-size: 13.5px; color: var(--navy-500, #64708a); padding: 10px 10px 11px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.db-tab span { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: var(--navy-50, #eef0f4); color: var(--navy-500, #64708a); font-variant-numeric: tabular-nums; }
+.db-tab:hover { color: var(--navy-900); }
+.db-tab.aan { color: var(--navy-900); font-weight: 600; border-bottom-color: var(--navy-950); }
+.db-tab.aan span { background: var(--navy-950); color: #fff; }
+.db-sectie .table-wrap { margin: 0 !important; width: 100% !important; }
+.db-tabel th:first-child, .db-tabel td:first-child { padding-left: 20px; }
+.db-tabel th:last-child, .db-tabel td:last-child { padding-right: 20px; }
+.db-nr { font-weight: 600; white-space: nowrap; }
+.db-bet { width: 150px; }
+td.db-bet { display: flex; align-items: center; gap: 8px; }
+.db-balk { flex: 1; height: 6px; border-radius: 999px; background: var(--navy-50, #eef0f4); overflow: hidden; }
 .db-balk i { display: block; height: 100%; background: #16a34a; border-radius: 999px; }
-@media (max-width: 1100px) { .db-tegels { grid-template-columns: repeat(2, minmax(0, 1fr)); } .db-grid { grid-template-columns: 1fr; } }
+.db-pct { font-size: 12px; color: var(--navy-400); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+.db-voldaan { font-size: 12px; font-weight: 500; color: var(--green-fg); background: var(--green-bg); padding: 2px 8px; border-radius: 999px; }
+.db-meer { display: block; width: 100%; border: 0; border-top: 1px solid var(--line); background: #fff; font: inherit; font-size: 13.5px; color: var(--navy-600, #4a5570); padding: 12px; cursor: pointer; }
+.db-meer:hover { background: var(--canvas, #f6f7f9); color: var(--navy-900); }
+@media (max-width: 800px) { .db-sectie-kop { flex-direction: column; } }

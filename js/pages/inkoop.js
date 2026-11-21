@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261121132955';
-import { metRegels, ikKaart } from '../orderkaart.js?v=20261121132955';
+  PO_STATUS, badge, artikelPicker, artikelKiezer, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde } from '../ui.js?v=20261121133622';
+import { metRegels, ikKaart } from '../orderkaart.js?v=20261121133622';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -181,7 +181,7 @@ export async function renderDetail(c, [id]) {
         </div></div>`; }).join('') : '<p class="empty">Nog geen regels. Zoek hieronder een artikel om toe te voegen.</p>'}
       </div>
       <div class="add-line">
-        <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: typ artikelnummer of naam…" autocomplete="off"></div>
+        <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: klik om te zoeken en te kiezen…" autocomplete="off"></div>
         <button class="btn" id="vrij"><i data-lucide="plus"></i> Vrije regel</button>
       </div>
       <div class="totals"><div class="strong"><span>Totaal</span><span>${money(totaal, cur)}</span></div></div>
@@ -312,7 +312,7 @@ export async function renderDetail(c, [id]) {
   };
 
   // ---- regels ----
-  artikelPicker($('#zoek', c), async (a) => {
+  artikelKiezer($('#zoek', c), async (a) => {
     const oms = [a.naam, a.omschrijving, a.designs?.design_code_lev ? 'Design: ' + a.designs.design_code_lev : null].filter(Boolean).join('\n');
     check(await sb.from('inkooporder_regels').insert({
       inkooporder_id: po.id, artikel_id: a.id, omschrijving: oms, aantal: 1, prijs: a.inkoopprijs || 0,

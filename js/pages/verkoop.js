@@ -1,8 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261121132955';
-import { metRegels, vkKaart } from '../orderkaart.js?v=20261121132955';
+  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
+} from '../ui.js?v=20261121133622';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261121133622';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
@@ -272,7 +272,7 @@ export async function renderDetail(c, [id]) {
         </div></div>`; }).join('') : '<p class="empty">Nog geen regels. Zoek hieronder een artikel om toe te voegen.</p>'}
       </div>
       <div class="add-line">
-        <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: typ artikelnummer of naam…" autocomplete="off"></div>
+        <div class="search"><i data-lucide="search"></i><input id="zoek" placeholder="Artikel toevoegen: klik om te zoeken en te kiezen…" autocomplete="off"></div>
         <button class="btn" id="vrij"><i data-lucide="plus"></i> Vrije regel</button>
       </div>
       <div class="regel-voet">
@@ -471,7 +471,7 @@ export async function renderDetail(c, [id]) {
   };
 
   // ---- regels ----
-  artikelPicker($('#zoek', c), async (a) => {
+  artikelKiezer($('#zoek', c), async (a) => {
     const v = check(await sb.from('v_voorraad').select('in_showroom').eq('artikel_id', a.id).maybeSingle());
     const bestellen = a.soort === 'maatwerk' || ((a.soort === 'voorraad') && Number(v?.in_showroom || 0) < 1);
     const prijsExcl = a.verkoopprijs ? (incl ? Number(a.verkoopprijs) : Math.round((a.verkoopprijs / 1.21) * 100) / 100) : 0;

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121132955';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121133622';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -247,6 +247,79 @@ export async function alles(maak, max = 20000) {
     if (deel.length < 1000) break;
   }
   return out;
+}
+
+// ---------- Artikel kiezen in een venster: zoeken, foto's, nieuwste bovenaan ----------
+// Koppelt het venster aan een zoekveld: klikken (of Enter) opent het venster.
+export function artikelKiezer(input, onPick, { filter, titel = 'Artikel toevoegen' } = {}) {
+  input.readOnly = true; input.style.cursor = 'pointer';
+  const open = () => {
+    if (document.querySelector('.kies-venster')) return;
+    const root = $('#modal-root');
+    const bg = document.createElement('div');
+    bg.className = 'modal-bg';
+    bg.innerHTML = `<div class="modal kies-venster" role="dialog" aria-label="${esc(titel)}">
+      <h2>${esc(titel)}<button type="button" class="btn small" data-sluit style="float:right;margin-top:-4px">Sluiten</button></h2>
+      <div class="kies-kop">
+        <div class="search"><i data-lucide="search"></i><input id="kies-q" placeholder="Zoek op artikelnummer, naam of omschrijving…" autocomplete="off"></div>
+        <select id="kies-soort" aria-label="Soort"><option value="">Alle soorten</option>${Object.entries(SOORT_ARTIKEL).map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select>
+        <label class="check"><input type="checkbox" id="kies-vrd"> Alleen op voorraad</label>
+      </div>
+      <p class="small muted kies-info" id="kies-info"></p>
+      <div class="kies-lijst" id="kies-lijst"></div>
+    </div>`;
+    root.appendChild(bg);
+    const sluit = () => { document.removeEventListener('keydown', onKey); bg.remove(); };
+    const onKey = (e) => { if (e.key === 'Escape' && root.lastElementChild === bg) { e.preventDefault(); sluit(); } };
+    document.addEventListener('keydown', onKey);
+    $('[data-sluit]', bg).onclick = sluit;
+    bg.addEventListener('mousedown', (e) => { if (e.target === bg) sluit(); });
+
+    let rijen = []; let seq = 0; let toon = 40;
+    const laad = async () => {
+      const mine = ++seq;
+      const q = $('#kies-q', bg).value.trim().replace(/[%,()]/g, '');
+      const soort = $('#kies-soort', bg).value; const opVrd = $('#kies-vrd', bg).checked;
+      let ids = null;
+      if (opVrd) ids = (await alles(() => sb.from('v_voorraad').select('artikel_id').gt('voorraad_totaal', 0).order('artikel_id'))).map((v) => v.artikel_id);
+      let query = sb.from('artikelen').select('id, artikelnummer, naam, omschrijving, soort, leverancier_id, inkoopprijs, verkoopprijs, breedte_cm, lengte_cm, materiaal, foto_pad, design_id, designs(hoofdfoto_pad, design_code_lev), leveranciers(naam)', { count: 'exact' })
+        .eq('actief', true).order('artikelnummer', { ascending: false }).order('id', { ascending: false }).limit(toon);
+      if (q) query = /^\d+$/.test(q) ? query.or(`artikelnummer.ilike.${q}%,productnr_lev.ilike.%${q}%`) : query.or(`naam.ilike.%${q}%,omschrijving.ilike.%${q}%,productnr_lev.ilike.%${q}%`);
+      if (soort) query = query.eq('soort', soort);
+      if (ids) query = query.in('id', ids.length ? ids : [-1]);
+      if (filter) query = filter(query);
+      const res = await query;
+      if (mine !== seq) return;
+      rijen = check(res); const totaal = res.count ?? rijen.length;
+      await withTotals(rijen, 'v_voorraad', 'artikel_id');
+      if (mine !== seq) return;
+      $('#kies-info', bg).textContent = rijen.length ? `${q || soort || opVrd ? `${totaal} gevonden` : `${totaal} artikelen`}, nieuwste bovenaan. Klik op een artikel om het toe te voegen.` : '';
+      $('#kies-lijst', bg).innerHTML = rijen.length ? rijen.map((r, i) => {
+        const foto = r.foto_pad || r.designs?.hoofdfoto_pad; const v = Number(r._t?.in_showroom ?? r._t?.voorraad_totaal ?? 0);
+        return `<button type="button" class="kies-item" data-i="${i}">
+          <span class="kies-foto">${foto ? `<img data-path="${esc(foto)}" alt="">` : '<i data-lucide="image-off"></i>'}</span>
+          <span class="kies-tekst"><span class="kies-nr">${esc(r.artikelnummer)} · ${esc(SOORT_ARTIKEL[r.soort] || '')}</span><b>${esc(r.naam)}</b>
+            <span class="small muted">${esc([maat(r), r.materiaal, r.leveranciers?.naam].filter(Boolean).join(' · '))}</span></span>
+          <span class="kies-rechts"><b>${r.verkoopprijs ? money(r.verkoopprijs) : ''}</b><span class="badge ${v > 0 ? 'green' : ''}">${v > 0 ? `${num(v)} in showroom` : 'Niet op voorraad'}</span></span>
+        </button>`; }).join('') + (totaal > rijen.length ? `<button type="button" class="btn kies-meer" data-meer>Toon meer (${rijen.length} van ${totaal})</button>` : '')
+        : '<p class="empty">Niets gevonden. Probeer een ander nummer of een deel van de naam.</p>';
+      loadImages($('#kies-lijst', bg));
+    };
+    let t;
+    $('#kies-q', bg).addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { toon = 40; laad(); }, 220); });
+    ['#kies-soort', '#kies-vrd'].forEach((s) => $(s, bg).addEventListener('change', () => { toon = 40; laad(); }));
+    $('#kies-q', bg).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (rijen.length === 1) $('.kies-item', bg).click(); } });
+    $('#kies-lijst', bg).addEventListener('click', (e) => {
+      if (e.target.closest('[data-meer]')) { toon += 60; laad(); return; }
+      const it = e.target.closest('.kies-item'); if (!it) return;
+      const r = rijen[Number(it.dataset.i)];
+      sluit(); onPick(r);
+    });
+    laad();
+    setTimeout(() => $('#kies-q', bg).focus(), 30);
+  };
+  input.addEventListener('click', open);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
 }
 
 // Opties voor de zoekbare keuzelijsten

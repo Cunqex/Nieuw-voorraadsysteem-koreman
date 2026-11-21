@@ -1,4 +1,4 @@
-import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261121142910';
+import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261121143249';
 
 const T = {
   nl: {
@@ -142,7 +142,7 @@ export async function render(el, type, id, soort, query) {
       <table class="d-lines"><thead><tr>${metFoto ? '<th class="d-fotokol"></th>' : ''}<th>Tapijt</th><th>Behandeling</th><th class="num">Prijs</th></tr></thead><tbody>
       ${regels.map((r) => `<tr>${metFoto ? `<td class="d-fotokol">${r.foto_pad ? `<img class="d-img" data-path="${esc(r.foto_pad)}" alt="">` : ''}</td>` : ''}
         <td>${esc(r.omschrijving || '')}${r.lengte_cm && r.breedte_cm ? `<br>${Number(r.lengte_cm)} x ${Number(r.breedte_cm)} cm` : ''}</td>
-        <td>${esc(r.behandeling || '')}</td><td class="num">${getal(r.prijs)}</td></tr>`).join('')}
+        <td>${esc(r.behandeling || '')}${[r.scotchgard && 'Scotchgard', r.antimot && 'antimot'].filter(Boolean).length ? `<br>+ ${[r.scotchgard && 'Scotchgard', r.antimot && 'antimot'].filter(Boolean).join(' en ')}` : ''}</td><td class="num">${getal(r.prijs)}</td></tr>`).join('')}
       </tbody></table>
       ${rn.opmerking ? `<div class="d-note">${esc(rn.opmerking)}</div>` : ''}
       ${isFactuur

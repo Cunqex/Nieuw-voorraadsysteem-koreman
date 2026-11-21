@@ -1,19 +1,19 @@
-import { sb, $, $$, toast, esc, comboSet, onopgeslagen, zetBewaker, confirmBox } from './ui.js?v=20261121162355';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121162355';
-import * as dashboard from './pages/dashboard.js?v=20261121162355';
-import * as artikelen from './pages/artikelen.js?v=20261121162355';
-import * as designs from './pages/designs.js?v=20261121162355';
-import * as relaties from './pages/relaties.js?v=20261121162355';
-import * as inkoop from './pages/inkoop.js?v=20261121162355';
-import * as verkoop from './pages/verkoop.js?v=20261121162355';
-import * as stalen from './pages/stalen.js?v=20261121162355';
-import * as instellingen from './pages/instellingen.js?v=20261121162355';
-import * as importeren from './pages/importeren.js?v=20261121162355';
-import * as rapportage from './pages/rapportage.js?v=20261121162355';
-import * as voorraadwaarde from './pages/voorraadwaarde.js?v=20261121162355';
-import * as reiniging from './pages/reiniging.js?v=20261121162355';
-import * as telling from './pages/telling.js?v=20261121162355';
-import * as docs from './docs.js?v=20261121162355';
+import { sb, $, $$, toast, esc, comboSet, onopgeslagen, zetBewaker, confirmBox } from './ui.js?v=20261121172358';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121172358';
+import * as dashboard from './pages/dashboard.js?v=20261121172358';
+import * as artikelen from './pages/artikelen.js?v=20261121172358';
+import * as designs from './pages/designs.js?v=20261121172358';
+import * as relaties from './pages/relaties.js?v=20261121172358';
+import * as inkoop from './pages/inkoop.js?v=20261121172358';
+import * as verkoop from './pages/verkoop.js?v=20261121172358';
+import * as stalen from './pages/stalen.js?v=20261121172358';
+import * as instellingen from './pages/instellingen.js?v=20261121172358';
+import * as importeren from './pages/importeren.js?v=20261121172358';
+import * as rapportage from './pages/rapportage.js?v=20261121172358';
+import * as voorraadwaarde from './pages/voorraadwaarde.js?v=20261121172358';
+import * as reiniging from './pages/reiniging.js?v=20261121172358';
+import * as telling from './pages/telling.js?v=20261121172358';
+import * as docs from './docs.js?v=20261121172358';
 
 // route-patroon → handler(container, params)
 const routes = [
@@ -39,6 +39,7 @@ const routes = [
   [/^\/reiniging$/, reiniging.renderList],
   [/^\/reiniging\/(\d+)$/, reiniging.renderDetail],
   [/^\/telling$/, telling.render],
+  [/^\/telling\/correcties$/, telling.renderCorrecties],
 ];
 
 let routeToken = 0;

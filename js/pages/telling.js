@@ -1,6 +1,6 @@
 // Balans / voorraadtelling: barcodes scannen en de voorraad meteen gelijk zetten.
 // Elke scan telt 1 stuk. De voorraad van dat artikel wordt direct: getelde stuks + wat uitgeleend is.
-import { sb, check, esc, num, datum, $, on, toast, setTitle, modal, confirmBox, artikelPicker, alles, SOORT_ARTIKEL } from '../ui.js?v=20261121162355';
+import { sb, check, esc, num, datum, $, on, toast, setTitle, modal, confirmBox, artikelPicker, alles, SOORT_ARTIKEL, money, loadImages } from '../ui.js?v=20261121172358';
 
 const maatTxt = (a) => (a?.breedte_cm && a?.lengte_cm ? `${num(a.lengte_cm)} x ${num(a.breedte_cm)} cm` : '');
 
@@ -28,6 +28,9 @@ export async function render(c) {
     <div class="help">Scan alle tapijten en stalen in de showroom. Bij elke scan wordt de voorraad van dat artikel meteen aangepast:
       <b>voorraad = aantal keer gescand + wat uitgeleend is</b>. Zo klopt de voorraad direct na het scannen.
       Aan het eind kun je alles wat niet gescand is (en niet uitgeleend) op 0 zetten.</div>
+    <a class="card tel-link" href="#/telling/correcties"><i data-lucide="list-checks"></i>
+      <span><b>Wat is er bij een telling aangepast?</b><br><span class="muted">Bekijk per artikel wat omlaag of omhoog is gezet en zet het zo nodig terug.</span></span>
+      <i data-lucide="chevron-right"></i></a>
     <div class="card" style="max-width:560px">
       <h2>Nieuwe telling starten</h2>
       <label class="field">Naam<input id="naam" value="${esc(naam)}"></label>
@@ -152,4 +155,114 @@ async function renderTelling(c, t) {
 
   await laad();
   scan.focus();
+}
+
+// ---------------------------------------------------------------------------
+// Overzicht van wat een telling heeft aangepast, met per artikel "Terugzetten".
+// Een telling boekt correcties in voorraad_mutaties; terugzetten haalt die correctie weer weg.
+const splits = (o) => {
+  const t = String(o || '');
+  let m = t.match(/^(Telling [^:]+):\s*(.*)$/); if (m) return [m[1], m[2]];
+  m = t.match(/^Balans:\s*(.*?)\s*(?:\(([^)]*)\))?$/); if (m) return [m[1] || 'Balans', m[2] || 'gescand'];
+  return ['Overig', t];
+};
+const csvCel = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
+export async function renderCorrecties(c) {
+  setTitle('Telling: aanpassingen');
+  c.innerHTML = `<div class="page-head"><a class="btn small" href="#/telling"><i data-lucide="arrow-left"></i> Balans / telling</a><h1>Aangepast bij telling</h1></div><p class="muted">Gegevens laden…</p>`;
+  window.lucide?.createIcons();
+  const [mut, vv] = await Promise.all([
+    alles(() => sb.from('voorraad_mutaties').select('id, artikel_id, aantal, omschrijving, datum, artikelen(id, artikelnummer, naam, soort, lengte_cm, breedte_cm, foto_pad, leveranciers(naam), designs(hoofdfoto_pad))')
+      .eq('soort', 'correctie').or('omschrijving.ilike.Telling %,omschrijving.ilike.Balans:%').order('id')),
+    alles(() => sb.from('v_voorraad').select('artikel_id, voorraad_totaal, gem_kostprijs_eur').order('artikel_id')),
+  ]);
+  const stand = new Map(vv.map((v) => [v.artikel_id, v]));
+  let rijen = mut.map((m) => {
+    const [telling, reden] = splits(m.omschrijving); const v = stand.get(m.artikel_id) || {}; const n = Number(m.aantal);
+    const prijs = v.gem_kostprijs_eur === null || v.gem_kostprijs_eur === undefined ? null : Number(v.gem_kostprijs_eur);
+    return { id: m.id, a: m.artikelen || {}, artikel_id: m.artikel_id, n, telling, reden, nu: Number(v.voorraad_totaal || 0), prijs, waarde: prijs === null ? 0 : Math.abs(n) * prijs };
+  });
+  const tellingen = [...new Set(rijen.map((r) => r.telling))].reverse();
+  if (!rijen.length) {
+    c.innerHTML = `<div class="page-head"><a class="btn small" href="#/telling"><i data-lucide="arrow-left"></i> Balans / telling</a><h1>Aangepast bij telling</h1></div>
+      <p class="empty">Er is nog geen telling geweest die de voorraad heeft aangepast.</p>`;
+    window.lucide?.createIcons(); return;
+  }
+  let kies = tellingen[0]; let richting = 'omlaag'; let toonMax = 60;
+  c.innerHTML = `
+    <div class="page-head"><a class="btn small" href="#/telling"><i data-lucide="arrow-left"></i> Balans / telling</a><h1>Aangepast bij telling</h1><span class="spacer"></span>
+      <button class="btn" id="csv"><i data-lucide="download"></i> Download lijst</button></div>
+    <div class="help">Hier staat alles wat bij een telling is aangepast. Er is niets verwijderd: het artikel bestaat nog, alleen het aantal op voorraad is veranderd.
+      Ligt een tapijt er toch nog? Klik op <b>Terugzetten</b>, dan staat het weer op het oude aantal.</div>
+    <div class="rap-kpis" id="kpis"></div>
+    <div class="toolbar">
+      ${tellingen.length > 1 ? `<select id="welke">${tellingen.map((t) => `<option>${esc(t)}</option>`).join('')}</select>` : `<b>${esc(kies)}</b>`}
+      <div class="segmented" id="richting"><button class="btn primary" data-r="omlaag">Omlaag gezet</button><button class="btn" data-r="omhoog">Omhoog gezet</button></div>
+      <input type="search" id="q" placeholder="Zoek op nummer, naam of leverancier…" style="flex:1;min-width:200px">
+    </div>
+    <div class="card flush"><div class="table-wrap" id="tbl"></div></div>`;
+  window.lucide?.createIcons();
+
+  const selectie = () => {
+    const q = $('#q', c).value.trim().toLowerCase();
+    return rijen.filter((r) => r.telling === kies && (richting === 'omlaag' ? r.n < 0 : r.n > 0)
+      && (!q || `${r.a.artikelnummer} ${r.a.naam} ${r.a.leveranciers?.naam || ''}`.toLowerCase().includes(q)))
+      .sort((x, y) => y.waarde - x.waarde);
+  };
+  const toon = () => {
+    const van = rijen.filter((r) => r.telling === kies);
+    const om = van.filter((r) => r.n < 0); const op = van.filter((r) => r.n > 0);
+    const som = (l, f) => l.reduce((t, r) => t + f(r), 0);
+    $('#kpis', c).innerHTML = `
+      <div class="rap-kpi min"><span class="rap-lbl">Omlaag gezet</span><b class="rap-num">${num(om.length)} artikelen</b><span class="rap-sub">${num(som(om, (r) => -r.n))} stuks</span></div>
+      <div class="rap-kpi min"><span class="rap-lbl">Waarde omlaag</span><b class="rap-num">${money(som(om, (r) => r.waarde))}</b><span class="rap-sub">inkoopwaarde</span></div>
+      <div class="rap-kpi plus"><span class="rap-lbl">Omhoog gezet</span><b class="rap-num">${num(op.length)} artikelen</b><span class="rap-sub">${num(som(op, (r) => r.n))} stuks</span></div>
+      <div class="rap-kpi plus"><span class="rap-lbl">Waarde omhoog</span><b class="rap-num">${money(som(op, (r) => r.waarde))}</b><span class="rap-sub">inkoopwaarde</span></div>`;
+    const lijst = selectie(); const deel = lijst.slice(0, toonMax);
+    $('#tbl', c).innerHTML = lijst.length ? `<table class="list"><thead><tr><th></th><th>Artikel</th><th>Leverancier</th><th>Wat is er gebeurd</th><th class="num">Voor de telling</th><th class="num">Nu</th><th class="num">Inkoopwaarde</th><th></th></tr></thead><tbody>
+      ${deel.map((r) => { const foto = r.a.foto_pad || r.a.designs?.hoofdfoto_pad;
+        return `<tr><td style="width:56px">${foto ? `<img class="thumb" data-path="${esc(foto)}" alt="">` : '<span class="thumb"></span>'}</td>
+          <td><a href="#/artikel/${r.artikel_id}"><b>${esc(r.a.artikelnummer)}</b> ${esc(r.a.naam)}</a><br><span class="muted small">${esc([SOORT_ARTIKEL[r.a.soort], maatTxt(r.a)].filter(Boolean).join(' · '))}</span></td>
+          <td>${esc(r.a.leveranciers?.naam || '')}</td><td>${esc(r.reden)}</td>
+          <td class="num">${num(r.nu - r.n)}</td><td class="num"><b>${num(r.nu)}</b></td>
+          <td class="num">${r.prijs === null ? '<span class="muted">geen prijs</span>' : money(r.waarde)}</td>
+          <td style="text-align:right"><button class="btn small" data-terug="${r.id}"><i data-lucide="undo-2"></i> Terugzetten</button></td></tr>`; }).join('')}
+      </tbody></table>${lijst.length > toonMax ? `<div style="padding:12px 16px"><button class="btn" id="meer">Toon meer (nog ${num(lijst.length - toonMax)})</button></div>` : ''}`
+      : `<p class="empty">${$('#q', c).value.trim() ? 'Niets gevonden.' : richting === 'omlaag' ? 'Bij deze telling is niets omlaag gezet.' : 'Bij deze telling is niets omhoog gezet.'}</p>`;
+    window.lucide?.createIcons();
+    loadImages($('#tbl', c));
+  };
+
+  $('#q', c).addEventListener('input', () => { toonMax = 60; toon(); });
+  $('#welke', c)?.addEventListener('change', (e) => { kies = e.target.value; toonMax = 60; toon(); });
+  $('#richting', c).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-r]'); if (!b) return;
+    richting = b.dataset.r; toonMax = 60;
+    [...$('#richting', c).children].forEach((x) => x.classList.toggle('primary', x === b));
+    toon();
+  });
+  $('#tbl', c).addEventListener('click', async (e) => {
+    if (e.target.closest('#meer')) { toonMax += 100; toon(); return; }
+    const b = e.target.closest('[data-terug]'); if (!b) return;
+    const r = rijen.find((x) => x.id === Number(b.dataset.terug)); if (!r) return;
+    if (!(await confirmBox(`${r.a.artikelnummer} ${r.a.naam}: voorraad terugzetten van ${num(r.nu)} naar ${num(r.nu - r.n)}?`, 'Ja, terugzetten'))) return;
+    b.disabled = true;
+    try {
+      check(await sb.from('voorraad_mutaties').delete().eq('id', r.id));
+      rijen = rijen.filter((x) => x.id !== r.id);
+      rijen.forEach((x) => { if (x.artikel_id === r.artikel_id) x.nu -= r.n; });
+      toast(`${r.a.artikelnummer} staat weer op ${num(r.nu - r.n)}`, 'ok');
+      toon();
+    } catch (err) { b.disabled = false; toast(err.message || 'Terugzetten is niet gelukt', 'error'); }
+  });
+  $('#csv', c).onclick = () => {
+    const regels = [['Telling', 'Artikelnummer', 'Naam', 'Soort', 'Leverancier', 'Wat is er gebeurd', 'Voor de telling', 'Nu', 'Verschil', 'Inkoopprijs per stuk', 'Inkoopwaarde verschil']]
+      .concat(rijen.filter((r) => r.telling === kies).sort((x, y) => x.n - y.n || y.waarde - x.waarde).map((r) => [r.telling, r.a.artikelnummer, r.a.naam, SOORT_ARTIKEL[r.a.soort] || '', r.a.leveranciers?.naam || '', r.reden, r.nu - r.n, r.nu, r.n,
+        r.prijs === null ? '' : r.prijs.toFixed(2).replace('.', ','), r.prijs === null ? '' : (r.n * r.prijs).toFixed(2).replace('.', ',')]));
+    const blob = new Blob(['﻿' + regels.map((x) => x.map(csvCel).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${kies.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-aanpassingen.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  toon();
 }

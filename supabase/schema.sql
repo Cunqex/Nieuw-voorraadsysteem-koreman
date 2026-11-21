@@ -771,3 +771,7 @@ update public.reiniging_regels set prijs_handmatig = true where prijs > 0 and no
 -- Reiniging: reparatie per tapijt, prijs zelf in te vullen
 alter table public.reiniging_regels add column if not exists reparatie text;
 alter table public.reiniging_regels add column if not exists reparatie_prijs numeric(12,2);
+
+
+-- Voorraadcontrole: bijhouden welke artikelen zijn nagelopen (veilig om opnieuw te draaien)
+alter table public.artikelen add column if not exists voorraad_gecontroleerd_op date;

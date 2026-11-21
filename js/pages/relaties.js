@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_KLANT, BTW, badge, PO_STATUS, SO_STATUS, setTitle, withTotals, alles, vandaag, refresh, loadImages,
-} from '../ui.js?v=20261121161153';
+} from '../ui.js?v=20261121162355';
 
 const KLANT_FIELDS = [
   { name: 'aanhef', label: 'Aanhef', placeholder: 'bv. Familie, De heer, Mevrouw' },

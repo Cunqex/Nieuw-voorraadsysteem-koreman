@@ -1,8 +1,8 @@
 // Voorraadwaarde (inkoop): wat is de voorraad waard, vandaag of op een gekozen datum in het verleden.
 // Rekent met de voorraadmutaties tot en met de gekozen dag, op dezelfde manier als de rest van de app:
 // aantal op voorraad × gemiddelde inkoopprijs. Vracht en invoerrechten tellen niet mee.
-import { sb, esc, money, $, setTitle, alles, vandaag, toast, SOORT_ARTIKEL, loadImages } from '../ui.js?v=20261121161153';
-import { lijnen, legenda, koppelZweef, iso, dn, r2 } from './rapportage.js?v=20261121161153';
+import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, SOORT_ARTIKEL, loadImages, confirmBox, refresh, modal, formFields } from '../ui.js?v=20261121162355';
+import { lijnen, legenda, koppelZweef, iso, dn, r2 } from './rapportage.js?v=20261121162355';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 const lokaleDag = (ts) => iso(new Date(ts));
@@ -29,7 +29,7 @@ export async function render(c) {
   const [mut, kost, arts] = await Promise.all([
     alles(() => sb.from('voorraad_mutaties').select('id, artikel_id, aantal, soort, inkoopregel_id, waarde_eur_stuk, datum').order('id')),
     alles(() => sb.from('v_inkoopregel_kostprijs').select('inkoopregel_id, kostprijs_eur_stuk, is_schatting').order('inkoopregel_id')),
-    alles(() => sb.from('artikelen').select('id, artikelnummer, naam, soort, omzetgroep, lengte_cm, breedte_cm, materiaal, foto_pad, leverancier_id, leveranciers(naam), designs(hoofdfoto_pad)').order('id')),
+    alles(() => sb.from('artikelen').select('id, artikelnummer, naam, soort, omzetgroep, lengte_cm, breedte_cm, materiaal, foto_pad, verkoopprijs, voorraad_gecontroleerd_op, leverancier_id, leveranciers(naam), designs(hoofdfoto_pad)').order('id')),
   ]);
   const kostVan = new Map(kost.map((k) => [k.inkoopregel_id, k]));
   const art = new Map(arts.map((a) => [a.id, a]));
@@ -57,6 +57,42 @@ export async function render(c) {
     return rijen;
   };
   const totaal = (rijen) => rijen.reduce((t, r) => t + r.waarde, 0);
+
+  // Drie lijsten om na te lopen. Een afgevinkt artikel verdwijnt uit de lijst "mogelijk al verkocht".
+  const controleHtml = (rijen) => {
+    const pos = rijen.filter((r) => r.aantal > 0);
+    const zonder = pos.filter((r) => r.prijs === null);
+    const duur = pos.filter((r) => r.prijs !== null && Number(r.a.verkoopprijs) > 0 && r.prijs > Number(r.a.verkoopprijs) / 1.21);
+    // verdacht: na de laatste inkoop zijn er minstens zoveel verkocht als er nu nog zouden liggen (bij losse stukken: 1 verkocht, 1 op voorraad)
+    const verkocht = pos.filter((r) => { const v = laatsteVerkoop.get(r.id); if (!v || r.a.voorraad_gecontroleerd_op) return false; const i = laatsteInkoop.get(r.id);
+      const stuks = verk.filter((x) => x.artikel_id === r.id && (!i || x.verkooporders.orderdatum >= i)).reduce((t, x) => t + Number(x.aantal), 0);
+      return stuks > 0 && r.aantal <= stuks; });
+    if (!zonder.length && !duur.length && !verkocht.length) return '<div class="help" style="margin-bottom:16px">Niets om na te lopen: elk artikel op voorraad heeft een inkoopprijs en er staat niets op voorraad dat daarna nog verkocht is.</div>';
+    const foto = (r) => { const f = r.a.foto_pad || r.a.designs?.hoofdfoto_pad; return `<td class="vw-foto">${f ? `<img data-path="${esc(f)}" alt="">` : '<span><i data-lucide="image-off"></i></span>'}</td>`; };
+    const art = (r) => `${foto(r)}<td><b>${esc(r.a.artikelnummer || '')}</b></td><td>${esc(r.a.naam || '')}<br><span class="small muted">${esc(r.a.leveranciers?.naam || '')}</span></td><td class="num">${n0(r.aantal)}</td>`;
+    const prijsVeld = (r) => `<td class="num"><span class="ctl-prijs">€ <input type="number" step="0.01" min="0" value="${r.prijs ?? ''}" placeholder="0,00" data-prijs="${r.id}" aria-label="Inkoopprijs per stuk voor ${esc(r.a.artikelnummer || '')}"><button class="btn small" data-prijsok="${r.id}">Opslaan</button></span></td>`;
+    const groep = (open, titel, uitleg, kop, lijst, rij) => (lijst.length ? `<details class="ctl" ${open ? 'open' : ''}><summary><b>${titel}</b><span class="badge orange">${lijst.length}</span><span class="small muted">${uitleg}</span></summary>
+      <div class="table-wrap"><table class="list"><thead><tr><th></th><th>Artikel</th><th>Naam</th><th class="num">Op voorraad</th>${kop}</tr></thead><tbody>${lijst.map((r) => `<tr class="click" data-href="#/artikel/${r.id}">${art(r)}${rij(r)}</tr>`).join('')}</tbody></table></div></details>` : '');
+    return `<div class="card"><h2>Nalopen <span class="muted small" style="font-weight:400">· hiermee maak je de voorraadwaarde kloppend</span></h2>
+      ${groep(true, 'Mogelijk al verkocht', `Liggen volgens de app op voorraad, maar staan ook op een geleverde of gefactureerde verkooporder en zijn daarna niet opnieuw ingekocht. Samen ${money(totaal(verkocht))}.`,
+        '<th>Laatste verkoop</th><th class="num">Waarde</th><th></th>', verkocht.sort((x, y) => y.waarde - x.waarde),
+        (r) => { const v = laatsteVerkoop.get(r.id); return `<td><a href="#/verkoop/${v.id}">Order ${v.orderbev_nummer ?? ''}</a> · ${dn(v.orderdatum)}<br><span class="small muted">${esc(v.klanten?.naam || '')}</span></td><td class="num"><b>${money(r.waarde)}</b></td>
+          <td class="ctl-knoppen"><button class="btn small" data-ligt="${r.id}">Ligt er nog</button><button class="btn small danger" data-weg="${r.id}">Is verkocht</button></td>`; })}
+      ${groep(!verkocht.length, 'Zonder inkoopprijs', 'Tellen nu voor € 0 mee. Vul de inkoopprijs per stuk in.', '<th class="num">Inkoopprijs per stuk</th>', zonder, prijsVeld)}
+      ${groep(!verkocht.length && !zonder.length, 'Inkoopprijs hoger dan de verkoopprijs', 'De inkoopprijs ligt boven de verkoopprijs excl. btw. Waarschijnlijk klopt een van de twee niet.', '<th class="num">Verkoopprijs incl. btw</th><th class="num">Inkoopprijs per stuk</th>', duur, (r) => `<td class="num">${money(r.a.verkoopprijs)}</td>${prijsVeld(r)}`)}
+    </div>`;
+  };
+
+  // ---- controlelijst (alleen voor de stand van vandaag) ----
+  const nuStand = stand(vandaag()).filter((r) => r.aantal > 0);
+  const perDeel = async (ids, fn) => { const uit = []; for (let i = 0; i < ids.length; i += 150) uit.push(...check(await fn(ids.slice(i, i + 150)))); return uit; };
+  const vrdIds = nuStand.map((r) => r.id);
+  const [verk, inkp] = await Promise.all([
+    perDeel(vrdIds, (d) => sb.from('verkooporder_regels').select('artikel_id, aantal, verkooporders!inner(id, orderbev_nummer, orderdatum, status, klanten(naam))').in('artikel_id', d).in('verkooporders.status', ['geleverd', 'gefactureerd', 'betaald'])),
+    perDeel(vrdIds, (d) => sb.from('inkooporder_regels').select('artikel_id, inkooporders!inner(orderdatum, status)').in('artikel_id', d).neq('inkooporders.status', 'geannuleerd')),
+  ]);
+  const laatsteVerkoop = new Map(); verk.forEach((x) => { const o = x.verkooporders; const h = laatsteVerkoop.get(x.artikel_id); if (!h || o.orderdatum > h.orderdatum) laatsteVerkoop.set(x.artikel_id, o); });
+  const laatsteInkoop = new Map(); inkp.forEach((x) => { const d = x.inkooporders.orderdatum; if (d && (!laatsteInkoop.get(x.artikel_id) || d > laatsteInkoop.get(x.artikel_id))) laatsteInkoop.set(x.artikel_id, d); });
 
   let tips = {}; let huidige = []; let toonAlles = false; let alleLev = false; let filter = null; // filter: { soort } of { lev }
   const teken = () => {
@@ -104,8 +140,7 @@ export async function render(c) {
         ${kpi('', 'Ten opzichte van een jaar eerder', voorHist(jaarEerder) ? '–' : money(waarde - wJaar), versch(wJaar, jaarEerder))}
         ${kpi('', `Sinds 31 december ${beginJaar.slice(0, 4)}`, voorHist(beginJaar) ? '–' : money(waarde - wBegin), versch(wBegin, beginJaar))}
       </div>
-      ${zonder.length ? `<div class="warnbox">${zonder.length} artikel${zonder.length === 1 ? '' : 'en'} op voorraad ${zonder.length === 1 ? 'heeft' : 'hebben'} geen inkoopprijs (${n0(zonder.reduce((t, r) => t + r.aantal, 0))} stuks) en tel${zonder.length === 1 ? 't' : 'len'} voor € 0 mee. Vul de inkoopprijs in via een voorraadcorrectie bij het artikel om de waarde kloppend te krijgen.</div>` : ''}
-      ${negatief.length ? `<div class="warnbox">${negatief.length} artikel${negatief.length === 1 ? ' staat' : 'en staan'} op een negatieve voorraad. Dat drukt de waarde; controleer ${negatief.length === 1 ? 'dit artikel' : 'deze artikelen'} in de lijst hieronder.</div>` : ''}
+      ${dag === vandaag() ? controleHtml(rijen) : (zonder.length ? `<div class="warnbox">${zonder.length} artikel${zonder.length === 1 ? '' : 'en'} op voorraad zonder inkoopprijs tel${zonder.length === 1 ? 't' : 'len'} voor € 0 mee.</div>` : '')}
       <div class="card"><h2>Verloop van de voorraadwaarde</h2>
         ${legenda([['res', 'Voorraadwaarde aan het eind van de maand']])}
         ${lijnen('verloop', punten.map((p) => p.l), [{ kl: 'res', waarden: reeks }], 260)}
@@ -129,12 +164,44 @@ export async function render(c) {
 
   koppelZweef(c, () => tips);
   const open = (tr) => { location.hash = tr.dataset.href; };
+  const vindRij = (id) => stand(vandaag()).find((r) => String(r.id) === String(id));
+  // inkoopprijs vastleggen op de beginvoorraad/correctie van het artikel en op het artikel zelf
+  const zetPrijs = async (id, prijs) => {
+    check(await sb.from('voorraad_mutaties').update({ waarde_eur_stuk: prijs }).eq('artikel_id', id).gt('aantal', 0).in('soort', ['beginvoorraad', 'correctie']).is('inkoopregel_id', null));
+    check(await sb.from('artikelen').update({ inkoopprijs: prijs }).eq('id', id));
+  };
+  c.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-prijsok], [data-ligt], [data-weg]'); if (!b || b.disabled) return;
+    e.stopPropagation(); b.disabled = true;
+    try {
+      if (b.dataset.prijsok) {
+        const v = $(`[data-prijs="${b.dataset.prijsok}"]`, c).value; const prijs = Number(String(v).replace(',', '.'));
+        if (v === '' || !(prijs >= 0)) { toast('Vul een inkoopprijs in', 'error'); return; }
+        await zetPrijs(b.dataset.prijsok, prijs); toast('Inkoopprijs opgeslagen', 'ok');
+      } else if (b.dataset.ligt) {
+        check(await sb.from('artikelen').update({ voorraad_gecontroleerd_op: vandaag() }).eq('id', b.dataset.ligt)); toast('Afgevinkt: ligt er nog', 'ok');
+      } else {
+        const r = vindRij(b.dataset.weg); const v = laatsteVerkoop.get(Number(b.dataset.weg));
+        let weg = r.aantal;
+        if (r.aantal > 1) {
+          weg = await modal({ title: `Artikel ${r.a.artikelnummer} van de voorraad halen`, submitLabel: 'Van voorraad halen',
+            body: `<p style="margin-bottom:12px">Er liggen er volgens de app ${n0(r.aantal)}. Hoeveel daarvan zijn al verkocht?</p>` + formFields([{ name: 'aantal', label: 'Aantal verkocht', type: 'number', required: true, default: r.aantal }]),
+            onSubmit: async (f) => { const n = Number(f.aantal); if (!(n > 0) || n > r.aantal) { toast(`Vul een aantal in van 1 t/m ${n0(r.aantal)}`, 'error'); return false; } return n; } });
+          if (!weg) return;
+        } else if (!await confirmBox(`Artikel ${r.a.artikelnummer} (${money(r.waarde)}) van de voorraad halen omdat het al verkocht is?`, 'Van voorraad halen')) return;
+        check(await sb.from('voorraad_mutaties').insert({ artikel_id: r.id, aantal: -weg, soort: 'correctie', omschrijving: `Voorraadcontrole: al verkocht${v ? ` (order ${v.orderbev_nummer ?? ''})` : ''}` }));
+        check(await sb.from('artikelen').update({ voorraad_gecontroleerd_op: vandaag() }).eq('id', r.id)); toast('Van de voorraad gehaald', 'ok');
+      }
+      refresh();
+    } finally { b.disabled = false; }
+  });
+
   const klik = (tr) => {
     if (tr.dataset.href) return open(tr);
     if (tr.dataset.meerlev !== undefined) { alleLev = true; return teken(); }
     if (tr.dataset.soort !== undefined) { filter = { soort: tr.dataset.soort }; toonAlles = false; teken(); $('#vw-lijst', c).scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   };
-  c.addEventListener('click', (e) => { const tr = e.target.closest('tr.click'); if (tr && !e.target.closest('button')) klik(tr); });
+  c.addEventListener('click', (e) => { const tr = e.target.closest('tr.click'); if (tr && !e.target.closest('button, input, a, .ctl-prijs')) klik(tr); });
   c.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches?.('tr.click')) klik(e.target); });
   $('#datum', c).addEventListener('change', () => { toonAlles = false; teken(); });
   c.addEventListener('click', (e) => { const b = e.target.closest('[data-d]'); if (b) { $('#datum', c).value = b.dataset.d; toonAlles = false; teken(); } });

@@ -662,7 +662,7 @@ table.list tr.gescand td { background: #e8f6ec; }
 
 /* Orderkaarten (verkoop/inkoop) */
 .ord-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin: 4px 0 8px; }
-.db-sectie .ord-grid { padding: 16px 0 0; }
+.db-sectie .ord-grid { padding: 20px 24px 24px; margin: 0; }
 .ord-img { aspect-ratio: 16 / 9; background: var(--navy-50); border-bottom: 1px solid var(--line); display: grid; gap: 2px; overflow: hidden; }
 .ord-img.n1 { grid-template-columns: 1fr; }
 .ord-img.n2 { grid-template-columns: 1fr 1fr; }
@@ -690,4 +690,4 @@ table.list tr.gescand td { background: #e8f6ec; }
 .klant-card .art-body { padding-top: 16px; }
 .ord-bet .db-balk { flex: none; }
 #tbl > .db-meer { border: 1px solid var(--line); border-radius: 12px; }
-.db-sectie .db-meer { margin-top: 16px; }
+.db-sectie .db-meer { margin-top: 0; }

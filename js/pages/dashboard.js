@@ -1,6 +1,6 @@
 // Overzicht: de lopende verkoop- en inkooporders.
-import { sb, check, esc, money, setTitle, withTotals, alles, loadImages } from '../ui.js?v=20261121131715';
-import { metRegels, vkKaart, ikKaart } from '../orderkaart.js?v=20261121131715';
+import { sb, check, esc, money, setTitle, withTotals, alles, loadImages } from '../ui.js?v=20261121131855';
+import { metRegels, vkKaart, ikKaart } from '../orderkaart.js?v=20261121131855';
 
 const STAP = 8;
 

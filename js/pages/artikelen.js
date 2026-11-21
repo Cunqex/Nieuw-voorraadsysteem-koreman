@@ -2,9 +2,9 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261121145253';
-import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261121145253';
-import { kaartenModal } from '../kaarten.js?v=20261121145253';
+} from '../ui.js?v=20261121150420';
+import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261121150420';
+import { kaartenModal } from '../kaarten.js?v=20261121150420';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -168,7 +168,7 @@ export async function renderList(c, _p, query) {
   };
 
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261121145253');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261121150420');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -267,9 +267,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121145253'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121145253'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261121145253'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121150420'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121150420'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261121150420'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -359,7 +359,7 @@ export async function renderDetail(c, [idStr], query) {
   const fVerkoop = [
     { name: 'verkoopprijs_m2', label: 'Standaardprijs per m²', type: 'number', step: '1', info: 'De gewone prijs per m² (standaardmaten en voorraad).' },
     { name: 'custom_prijs_m2', label: 'Maatwerkprijs per m²', type: 'number', step: '0.01', info: 'De prijs per m² voor maatwerk. Wordt automatisch van de website gehaald als het artikel daaraan gekoppeld is; vul je zelf een andere prijs in, dan blijft die staan.' },
-    { name: 'verkoopprijs', label: 'Prijs per stuk', type: 'number', step: '1', info: 'Standaardprijs per m² × oppervlakte, afgerond. Je kunt hem ook zelf aanpassen.' },
+    { name: 'verkoopprijs', label: 'Prijs per stuk', type: 'number', step: '1', info: 'Bij de standaardmaten 140×200, 170×240, 200×300 en 250×350 cm: standaardprijs per m² × oppervlakte. Bij elke andere maat: maatwerkprijs per m² × oppervlakte. Afgerond; je kunt hem ook zelf aanpassen.' },
   ];
 
   if (a.factor == null) a.factor = 6.5;
@@ -422,6 +422,18 @@ export async function renderDetail(c, [idStr], query) {
     collecties.push(nm); if (cc && nm !== cc.hoofd && !collecties.includes(cc.hoofd)) collecties.push(cc.hoofd);
     tekenColl();
   });
+  const leegOfNum = (x) => (x === null || x === undefined || x === '' ? null : Number(x));
+  // Standaardprijs per m² geldt alleen bij de standaardmaten; elke andere maat is maatwerk
+  const STANDAARDMATEN = [[140, 200], [170, 240], [200, 300], [250, 350]];
+  const isStdMaat = () => { const l = Number(form.lengte_cm.value), b = Number(form.breedte_cm.value); return STANDAARDMATEN.some(([x, y]) => (l === x && b === y) || (l === y && b === x)); };
+  const stukBerekening = () => {
+    const ar = area(); if (!ar) return null;
+    const std = leegOfNum(form.verkoopprijs_m2.value); const mw = leegOfNum(form.custom_prijs_m2.value);
+    const standaard = isStdMaat();
+    const m2p = standaard ? (std ?? mw) : (mw ?? std);
+    if (m2p == null) return null;
+    return { standaard, m2p, welke: (standaard && std != null) || mw == null ? 'standaardprijs' : 'maatwerkprijs', ar, stuk: psychPrijs(m2p * ar) };
+  };
   const area = () => { const l = Number(form.lengte_cm.value), b = Number(form.breedte_cm.value); return l && b ? (l * b) / 10000 : null; };
   const link = (stuk, perm2, verkoop = false) => {
     form[perm2].addEventListener('input', () => { const ar = area(); if (ar && form[perm2].value) form[stuk].value = verkoop ? psychPrijs(Number(form[perm2].value) * ar) : (Number(form[perm2].value) * ar).toFixed(2); });
@@ -437,7 +449,6 @@ export async function renderDetail(c, [idStr], query) {
   };
   form.soort.addEventListener('change', syncStaal);
   // ---- Maatwerkprijs per m²: van de website (zolang je hem niet zelf aanpast) ----
-  const leegOfNum = (x) => (x === null || x === undefined || x === '' ? null : Number(x));
   let webM2 = null; let handmatig = !!a.custom_prijs_handmatig;
   const zoekCustomprijs = () => websiteCustomprijs([form.website_handle?.value?.trim().replace(/^.*\/products\//, ''), a.designs?.website_handle]);
   form.custom_prijs_m2.insertAdjacentHTML('afterend', '<div id="custom-info" class="veld-info"></div>');
@@ -450,8 +461,11 @@ export async function renderDetail(c, [idStr], query) {
     else if (webM2 != null) delen.push('zoals op de website');
     $('#custom-info', c).innerHTML = delen.join(' · ');
     $('#custom-web', c)?.addEventListener('click', (e) => { e.preventDefault(); form.custom_prijs_m2.value = webM2; handmatig = false; toonPrijsInfo(); bewaarMaatwerk(); });
-    const st = leegOfNum(form.verkoopprijs_m2.value);
-    $('#stuk-info', c).innerHTML = st != null && ar ? `${money(st)} × ${num(ar, 2)} m²` : (ar ? '' : 'vul de maat in om te berekenen');
+    const b = stukBerekening(); const nu = leegOfNum(form.verkoopprijs.value);
+    $('#stuk-info', c).innerHTML = !ar ? 'vul de maat in om te berekenen'
+      : !b ? ''
+      : `${b.standaard ? 'Standaardmaat' : 'Geen standaardmaat'}: ${b.welke} ${money(b.m2p)} × ${num(ar, 2)} m²${nu != null && Math.abs(nu - b.stuk) > 0.5 ? ` = ${money(b.stuk)} · <a href="#" id="stuk-gebruik">gebruiken</a>` : ''}`;
+    $('#stuk-gebruik', c)?.addEventListener('click', (e) => { e.preventDefault(); form.verkoopprijs.value = b.stuk ?? ''; toonPrijsInfo(); });
   };
   const bewaarMaatwerk = async (melding) => {
     if (isNew) return;
@@ -478,7 +492,9 @@ export async function renderDetail(c, [idStr], query) {
     }
     toonPrijsInfo();
   });
-  link('verkoopprijs', 'verkoopprijs_m2', true);
+  // Prijs per stuk volgt de juiste m²-prijs (standaard of maatwerk) zodra prijs of maat verandert
+  const zetStuk = () => { const b = stukBerekening(); if (b?.stuk) form.verkoopprijs.value = b.stuk; toonPrijsInfo(); };
+  ['verkoopprijs_m2', 'custom_prijs_m2', 'lengte_cm', 'breedte_cm'].forEach((n) => form[n].addEventListener('input', () => { clearTimeout(form._st); form._st = setTimeout(zetStuk, 300); }));
   // ---- Verkoopprijs = inkoopprijs per m² × factor (standaard 6,5), afgerond op een psychologische prijs ----
   const factorPrijs = () => {
     const f = Number(form.factor.value) || 6.5; const ar = area();
@@ -490,7 +506,7 @@ export async function renderDetail(c, [idStr], query) {
   const pasFactorToe = () => {
     if (isStaal()) return;
     const p = factorPrijs(); if (!p) return;
-    form.verkoopprijs.value = p.stuk ?? ''; form.verkoopprijs_m2.value = p.m2 ?? '';
+    form.verkoopprijs_m2.value = p.m2 ?? ''; const b = stukBerekening(); form.verkoopprijs.value = b?.stuk ?? p.stuk ?? '';
     const el = $('#factor-info', c); if (el) el.innerHTML = `Standaardprijs: ${p.m2 ? `${money(p.m2)} per m²` : ''}${p.m2 && p.stuk ? ' · ' : ''}${p.stuk ? `${money(p.stuk)} per stuk` : ''}`;
     toonPrijsInfo();
   };
@@ -632,7 +648,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261121145253');
+      const { artikelPicker } = await import('../ui.js?v=20261121150420');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

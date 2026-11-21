@@ -721,3 +721,19 @@ table.list tr.gescand td { background: #e8f6ec; }
 .rn-extras small { font-weight: 400; }
 .rn-extras .check { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; }
 .rn-prijsinfo { grid-column: 1 / -1; font-size: 12.5px; color: var(--navy-500); text-align: right; }
+/* Reiniging: regel */
+.line.rn-line { grid-template-columns: 104px minmax(220px, 1fr) auto 32px; position: relative; }
+.rn-rechts { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.rn-prijsinfo { font-size: 12.5px; color: var(--navy-500); text-align: right; line-height: 1.5; max-width: 340px; }
+.rn-prijsinfo b { color: var(--navy-800, #1b1f3b); font-weight: 600; }
+.rn-regeltot { margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.rn-del { justify-self: end; align-self: start; }
+.rn-rep { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--amber-bg); border-radius: 10px; }
+.rn-rep[hidden] { display: none; }
+.rn-rep-kop { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--amber-fg); white-space: nowrap; }
+.rn-rep-kop svg { width: 15px; height: 15px; }
+.rn-rep > input { flex: 1; min-width: 0; background: #fff; }
+.rn-rep-prijs { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--navy-500); }
+.rn-rep-prijs input { width: 96px; text-align: right; background: #fff; font-variant-numeric: tabular-nums; }
+.rn-rep-knop { align-self: flex-start; }
+@media (max-width: 900px) { .line.rn-line { grid-template-columns: 1fr; } .rn-rechts { align-items: stretch; } .rn-del { position: absolute; top: 12px; right: 12px; } }

@@ -2,12 +2,13 @@
 import {
   sb, check, esc, money, datum, $, on, toast, modal, confirmBox, formFields, readForm, setTitle, vandaag, alles, refresh,
   loadImages, uploadFile, levOpt, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
-} from '../ui.js?v=20261121143249';
+} from '../ui.js?v=20261121144645';
 
 export const RN_STATUS = { aangenomen: 'Aangenomen', bij_reiniger: 'Bij reiniger', klaar: 'Klaar om op te halen', opgehaald: 'Opgehaald', geannuleerd: 'Geannuleerd' };
 const KLEUR = { aangenomen: 'blue', bij_reiniger: 'orange', klaar: 'green', opgehaald: '', geannuleerd: 'red' };
 const pil = (s) => `<span class="badge ${KLEUR[s] || ''}">${esc(RN_STATUS[s] || s)}</span>`;
-const totaalVan = (r) => (r.reiniging_regels || []).reduce((s, x) => s + Number(x.prijs || 0), 0);
+export const rnRegelTotaal = (x) => Number(x.prijs || 0) + Number(x.reparatie_prijs || 0);
+const totaalVan = (r) => (r.reiniging_regels || []).reduce((s, x) => s + rnRegelTotaal(x), 0);
 // Prijs: € 30 per m², elke extra behandeling (Scotchgard, antimot) + € 5 per m²
 export const RN_PRIJS_M2 = 30; export const RN_EXTRA_M2 = 5;
 export const rnM2 = (l, b) => (Number(l) && Number(b) ? (Number(l) * Number(b)) / 10000 : 0);
@@ -33,7 +34,7 @@ export async function renderList(c, _p, query = {}) {
   const load = async () => {
     const st = $('#status', c).value;
     let rows = await alles(() => {
-      let q = sb.from('reinigingen').select('id, nummer, status, datum_binnen, verwacht_klaar, betaald_op, klanten(naam), leveranciers(naam), reiniging_regels(omschrijving, prijs)').order('datum_binnen', { ascending: false }).order('id', { ascending: false });
+      let q = sb.from('reinigingen').select('id, nummer, status, datum_binnen, verwacht_klaar, betaald_op, klanten(naam), leveranciers(naam), reiniging_regels(omschrijving, prijs, reparatie_prijs)').order('datum_binnen', { ascending: false }).order('id', { ascending: false });
       if (st === 'open') q = q.not('status', 'in', '(opgehaald,geannuleerd)'); else if (st) q = q.eq('status', st);
       if ($('#onbetaald', c).checked) q = q.is('betaald_op', null).neq('status', 'geannuleerd');
       return q;
@@ -64,7 +65,9 @@ export async function renderList(c, _p, query = {}) {
         { name: 'behandeling', label: 'Wat moet er gebeuren?', placeholder: 'bv. Reinigen, franjes herstellen', default: 'Reinigen', full: true },
         { name: 'scotchgard', label: `Scotchgard (+ € ${RN_EXTRA_M2} per m²)`, type: 'checkbox' },
         { name: 'antimot', label: `Antimot (+ € ${RN_EXTRA_M2} per m²)`, type: 'checkbox' },
-        { name: 'prijs', label: 'Prijs incl. btw (€)', type: 'number', step: '0.01', hint: `Standaard € ${RN_PRIJS_M2} per m²; wordt berekend uit de maat.` },
+        { name: 'prijs', label: 'Prijs reiniging incl. btw (€)', type: 'number', step: '0.01', hint: `Standaard € ${RN_PRIJS_M2} per m²; wordt berekend uit de maat.` },
+        { name: 'reparatie', label: 'Reparatie (optioneel)', placeholder: 'bv. franjes herstellen' },
+        { name: 'reparatie_prijs', label: 'Prijs reparatie incl. btw (€)', type: 'number', step: '0.01', hint: 'Zelf invullen, verschilt per tapijt.' },
         { name: 'datum_binnen', label: 'Binnengebracht op', type: 'date', default: vandaag() },
         { name: 'verwacht_klaar', label: 'Verwacht klaar', type: 'date' },
       ]),
@@ -87,7 +90,7 @@ export async function renderList(c, _p, query = {}) {
         const auto = rnPrijs(v.lengte_cm, v.breedte_cm, v.scotchgard, v.antimot);
         const prijs = v.prijs !== null && v.prijs !== undefined && v.prijs !== '' ? Number(v.prijs) : auto;
         const r = check(await sb.from('reinigingen').insert({ klant_id: k.id, datum_binnen: v.datum_binnen || vandaag(), verwacht_klaar: v.verwacht_klaar || null }).select('id').single());
-        check(await sb.from('reiniging_regels').insert({ reiniging_id: r.id, omschrijving: v.omschrijving, lengte_cm: v.lengte_cm || null, breedte_cm: v.breedte_cm || null, behandeling: v.behandeling || null, scotchgard: !!v.scotchgard, antimot: !!v.antimot, prijs: prijs || 0, prijs_handmatig: !!form._handmatig && Math.abs((prijs || 0) - auto) > 0.004 }));
+        check(await sb.from('reiniging_regels').insert({ reiniging_id: r.id, omschrijving: v.omschrijving, lengte_cm: v.lengte_cm || null, breedte_cm: v.breedte_cm || null, behandeling: v.behandeling || null, scotchgard: !!v.scotchgard, antimot: !!v.antimot, reparatie: v.reparatie || (v.reparatie_prijs != null ? 'Reparatie' : null), reparatie_prijs: v.reparatie_prijs ?? null, prijs: prijs || 0, prijs_handmatig: !!form._handmatig && Math.abs((prijs || 0) - auto) > 0.004 }));
         return r.id;
       },
     });
@@ -107,7 +110,7 @@ export async function renderDetail(c, [id]) {
   ]).then((r) => r.map(check));
   setTitle(`Reiniging ${rn.nummer}`);
   const k = rn.klanten || {}; const st = rn.status; const geannuleerd = st === 'geannuleerd';
-  const totaal = regels.reduce((s, r) => s + Number(r.prijs || 0), 0);
+  const totaal = regels.reduce((s, r) => s + rnRegelTotaal(r), 0);
   const netto = Math.round((totaal / 1.21) * 100) / 100;
 
   const STAPPEN = [['aangenomen', 'Aangenomen', rn.datum_binnen], ['bij_reiniger', 'Bij reiniger', rn.naar_reiniger_op], ['klaar', 'Klaar', rn.klaar_op], ['opgehaald', 'Opgehaald', rn.opgehaald_op]];
@@ -159,28 +162,41 @@ export async function renderDetail(c, [id]) {
     </div>
 
     <div class="card"><h2>Tapijten</h2>
-      <div class="lines">${regels.length ? regels.map((r) => `<div class="line" data-regel="${r.id}">
+      <div class="lines">${regels.length ? regels.map((r) => { const heeftRep = r.reparatie != null || r.reparatie_prijs != null; return `<div class="line rn-line" data-regel="${r.id}">
         <div class="line-foto">${r.foto_pad ? `<img data-path="${esc(r.foto_pad)}" alt="">` : '<span class="line-nofoto"><i data-lucide="image-off"></i></span>'}
           <label class="btn small" style="cursor:pointer;justify-content:center"><i data-lucide="camera"></i> Foto<input type="file" accept="image/*" data-foto="${r.id}" hidden></label></div>
         <div class="line-main">
           <label class="line-lbl">Welk tapijt<input data-f="omschrijving" value="${esc(r.omschrijving || '')}" placeholder="bv. Perzisch tapijt rood"></label>
-          <label class="line-lbl">Wat moet er gebeuren<input data-f="behandeling" value="${esc(r.behandeling || '')}" placeholder="bv. Reinigen, franjes herstellen"></label>
+          <label class="line-lbl">Wat moet er gebeuren<input data-f="behandeling" value="${esc(r.behandeling || '')}" placeholder="bv. Reinigen"></label>
           <div class="rn-extras"><span>Extra behandeling <small>(+ € ${RN_EXTRA_M2} per m²)</small></span>
             <label class="check"><input type="checkbox" data-x="scotchgard" ${r.scotchgard ? 'checked' : ''}> Scotchgard</label>
             <label class="check"><input type="checkbox" data-x="antimot" ${r.antimot ? 'checked' : ''}> Antimot</label></div>
+          <div class="rn-rep" ${heeftRep ? '' : 'hidden'}>
+            <span class="rn-rep-kop"><i data-lucide="wrench"></i> Reparatie</span>
+            <input data-f="reparatie" value="${esc(r.reparatie || '')}" placeholder="Wat moet er gerepareerd worden? bv. franjes herstellen">
+            <label class="rn-rep-prijs">€<input type="number" step="0.01" data-f="reparatie_prijs" value="${r.reparatie_prijs ?? ''}" placeholder="Prijs"></label>
+            <button type="button" class="line-del" data-repweg="${r.id}" title="Reparatie weghalen" aria-label="Reparatie weghalen"><i data-lucide="x"></i></button>
+          </div>
+          ${heeftRep ? '' : `<button type="button" class="btn small rn-rep-knop" data-reptoe><i data-lucide="wrench"></i> Reparatie toevoegen</button>`}
         </div>
-        <div class="line-nums">
-          <label class="line-lbl">Lengte (cm)<input type="number" data-f="lengte_cm" value="${r.lengte_cm ?? ''}"></label>
-          <label class="line-lbl">Breedte (cm)<input type="number" data-f="breedte_cm" value="${r.breedte_cm ?? ''}"></label>
-          <label class="line-lbl">Prijs incl. btw<input type="number" step="0.01" data-f="prijs" value="${r.prijs ?? 0}"></label>
+        <div class="rn-rechts">
+          <div class="line-nums">
+            <label class="line-lbl">Lengte (cm)<input type="number" data-f="lengte_cm" value="${r.lengte_cm ?? ''}"></label>
+            <label class="line-lbl">Breedte (cm)<input type="number" data-f="breedte_cm" value="${r.breedte_cm ?? ''}"></label>
+            <label class="line-lbl">Reiniging incl. btw<input type="number" step="0.01" data-f="prijs" value="${r.prijs ?? 0}"></label>
+          </div>
+          <div class="rn-prijsinfo">${(() => { const a = rnPrijs(r.lengte_cm, r.breedte_cm, r.scotchgard, r.antimot); const m = rnM2(r.lengte_cm, r.breedte_cm);
+            let t;
+            if (!m) t = `Vul de maat in, dan wordt de prijs berekend (€ ${rnTarief(r.scotchgard, r.antimot)} per m²).`;
+            else {
+              const uitleg = `<b>${m.toLocaleString('nl-NL', { maximumFractionDigits: 2 })} m²</b> × € ${rnTarief(r.scotchgard, r.antimot)} = ${money(a)}`;
+              t = r.prijs_handmatig && Math.abs(Number(r.prijs) - a) > 0.004 ? `Zelf aangepast · berekend: ${uitleg} · <a href="#" data-auto="${r.id}">gebruiken</a>` : uitleg;
+            }
+            if (r.reparatie_prijs != null) t += `<div class="rn-regeltot">Reiniging ${money(r.prijs)} + reparatie ${money(r.reparatie_prijs)} = <b>${money(rnRegelTotaal(r))}</b></div>`;
+            return t; })()}</div>
         </div>
-        <div class="rn-prijsinfo">${(() => { const a = rnPrijs(r.lengte_cm, r.breedte_cm, r.scotchgard, r.antimot); const m = rnM2(r.lengte_cm, r.breedte_cm);
-          if (!m) return 'Vul de maat in, dan wordt de prijs berekend (€ ' + rnTarief(r.scotchgard, r.antimot) + ' per m²).';
-          const uitleg = `${m.toLocaleString('nl-NL', { maximumFractionDigits: 2 })} m² × € ${rnTarief(r.scotchgard, r.antimot)} = ${money(a)}`;
-          return r.prijs_handmatig && Math.abs(Number(r.prijs) - a) > 0.004 ? `Zelf aangepast · berekend zou zijn ${uitleg} · <a href="#" data-auto="${r.id}">berekende prijs gebruiken</a>` : uitleg; })()}</div>
-        <div class="line-side">${r.lengte_cm && r.breedte_cm ? `<span class="badge">${(r.lengte_cm * r.breedte_cm / 10000).toLocaleString('nl-NL', { maximumFractionDigits: 2 })} m²</span>` : ''}
-          <button class="line-del" data-delregel="${r.id}" title="Tapijt verwijderen" aria-label="Tapijt verwijderen"><i data-lucide="trash-2"></i></button></div>
-      </div>`).join('') : '<p class="empty">Nog geen tapijt toegevoegd.</p>'}</div>
+        <button class="line-del rn-del" data-delregel="${r.id}" title="Tapijt verwijderen" aria-label="Tapijt verwijderen"><i data-lucide="trash-2"></i></button>
+      </div>`; }).join('') : '<p class="empty">Nog geen tapijt toegevoegd.</p>'}</div>
       <div class="add-line"><button class="btn" id="regel"><i data-lucide="plus"></i> Nog een tapijt toevoegen</button></div>
       <div class="regel-voet"><p class="small muted">Prijzen zijn inclusief 21% btw.</p>
         <div class="totals"><div><span>Netto</span><span>${money(netto)}</span></div><div><span>21% btw</span><span>${money(totaal - netto)}</span></div>
@@ -243,13 +259,15 @@ export async function renderDetail(c, [id]) {
     const f = el.dataset.f; let v = el.value;
     if (['lengte_cm', 'breedte_cm'].includes(f)) v = v === '' ? null : Number(v);
     if (f === 'prijs') v = Number(v) || 0;
+    if (f === 'reparatie_prijs') v = v === '' ? null : Number(v);
+    if (f === 'reparatie') v = v.trim();
     const rid = el.closest('[data-regel]').dataset.regel;
     const r = regels.find((x) => String(x.id) === rid) || {};
     const upd = { [f]: v };
     if (f === 'prijs') upd.prijs_handmatig = Math.abs(v - rnPrijs(r.lengte_cm, r.breedte_cm, r.scotchgard, r.antimot)) > 0.004;
     if (['lengte_cm', 'breedte_cm'].includes(f) && !r.prijs_handmatig) { const n = { ...r, ...upd }; upd.prijs = rnPrijs(n.lengte_cm, n.breedte_cm, n.scotchgard, n.antimot); }
     check(await sb.from('reiniging_regels').update(upd).eq('id', rid));
-    if (['omschrijving', 'behandeling'].includes(f)) toast('Opgeslagen', 'ok'); else reload();
+    if (['omschrijving', 'behandeling', 'reparatie'].includes(f)) toast('Opgeslagen', 'ok'); else reload();
   });
   on(c, 'change', '[data-regel] [data-x]', async (_e, el) => {
     const rid = el.closest('[data-regel]').dataset.regel;
@@ -257,6 +275,14 @@ export async function renderDetail(c, [id]) {
     const upd = { [el.dataset.x]: el.checked };
     if (!r.prijs_handmatig) { const n = { ...r, ...upd }; upd.prijs = rnPrijs(n.lengte_cm, n.breedte_cm, n.scotchgard, n.antimot); }
     check(await sb.from('reiniging_regels').update(upd).eq('id', rid));
+    reload();
+  });
+  on(c, 'click', '[data-reptoe]', (_e, b) => {
+    const blok = b.closest('[data-regel]').querySelector('.rn-rep');
+    blok.hidden = false; b.remove(); blok.querySelector('[data-f=reparatie]').focus();
+  });
+  on(c, 'click', '[data-repweg]', async (_e, b) => {
+    check(await sb.from('reiniging_regels').update({ reparatie: null, reparatie_prijs: null }).eq('id', b.dataset.repweg));
     reload();
   });
   on(c, 'click', '[data-auto]', async (e, el) => {

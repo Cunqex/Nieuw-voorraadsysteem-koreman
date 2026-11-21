@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, maat, $, on, toast, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, isImage, mediaUrl, setTitle, refresh, levOpt,
-} from '../ui.js?v=20261121143249';
+} from '../ui.js?v=20261121144645';
 
 // =============================== LIJST ===============================
 export async function renderList(c) {

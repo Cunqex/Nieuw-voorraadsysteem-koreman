@@ -2,9 +2,9 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261121131855';
-import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261121131855';
-import { kaartenModal } from '../kaarten.js?v=20261121131855';
+} from '../ui.js?v=20261121132955';
+import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261121132955';
+import { kaartenModal } from '../kaarten.js?v=20261121132955';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -102,6 +102,7 @@ export async function renderList(c, _p, query) {
     <div id="meer" class="meer" hidden><button class="btn"></button></div>
     <div class="sel-bar" id="selbar" hidden><b id="sel-aantal"></b>
       <button class="btn small" id="sel-alles">Alles hierboven selecteren</button><button class="btn small" id="sel-wis">Selectie wissen</button>
+      <button class="btn small danger" id="sel-del"><i data-lucide="trash-2"></i> Verwijderen</button>
       <span class="spacer"></span><button class="btn" id="sel-wand"><i data-lucide="printer"></i> Wandkaarten printen</button><button class="btn primary" id="sel-stalen"><i data-lucide="printer"></i> Staalkaarten printen</button></div>`;
 
   let view = 'kaart';
@@ -135,8 +136,39 @@ export async function renderList(c, _p, query) {
   }, true);
   $('#sel-wis', c).onclick = () => { gekozen.clear(); werkSelectieBij(); };
   $('#sel-alles', c).onclick = () => { zichtbaar.forEach((r) => gekozen.set(r.id, r.artikelnummer)); werkSelectieBij(); };
+  // ---- geselecteerde artikelen verwijderen ----
+  // Artikelen die op een order staan of voorraad hebben, worden niet gewist maar op inactief gezet.
+  $('#sel-del', c).onclick = async (e) => {
+    const knop = e.currentTarget; if (knop.disabled) return;
+    knop.disabled = true;
+    try {
+      const ids = [...gekozen.keys()]; const inGebruik = new Set();
+      for (let i = 0; i < ids.length; i += 150) {
+        const deel = ids.slice(i, i + 150);
+        const [po, so, vrd] = (await Promise.all([
+          sb.from('inkooporder_regels').select('artikel_id').in('artikel_id', deel),
+          sb.from('verkooporder_regels').select('artikel_id').in('artikel_id', deel),
+          sb.from('v_voorraad').select('artikel_id, voorraad_totaal, uitgeleend').in('artikel_id', deel),
+        ])).map(check);
+        [...po, ...so].forEach((r) => inGebruik.add(r.artikel_id));
+        vrd.filter((v) => Number(v.voorraad_totaal) !== 0 || Number(v.uitgeleend) !== 0).forEach((v) => inGebruik.add(v.artikel_id));
+      }
+      const weg = ids.filter((id) => !inGebruik.has(id)); const inactief = ids.filter((id) => inGebruik.has(id));
+      const nrs = (l) => { const n = l.map((id) => gekozen.get(id)); return n.slice(0, 8).join(', ') + (n.length > 8 ? ` en ${n.length - 8} andere` : ''); };
+      const tekst = [
+        weg.length ? `${weg.length} artikel${weg.length === 1 ? '' : 'en'} definitief verwijderen (${nrs(weg)})? Dit kan niet ongedaan worden gemaakt.` : '',
+        inactief.length ? `${inactief.length} artikel${inactief.length === 1 ? ' staat' : 'en staan'} op een order of ${inactief.length === 1 ? 'heeft' : 'hebben'} voorraad (${nrs(inactief)}). ${inactief.length === 1 ? 'Dat wordt' : 'Die worden'} niet gewist maar op inactief gezet, zodat de orders en de voorraad blijven kloppen.` : '',
+      ].filter(Boolean).join(' ');
+      if (!await confirmBox(tekst, weg.length ? 'Verwijderen' : 'Op inactief zetten')) return;
+      for (let i = 0; i < weg.length; i += 150) check(await sb.from('artikelen').delete().in('id', weg.slice(i, i + 150)));
+      for (let i = 0; i < inactief.length; i += 150) check(await sb.from('artikelen').update({ actief: false }).in('id', inactief.slice(i, i + 150)));
+      toast([weg.length ? `${weg.length} verwijderd` : '', inactief.length ? `${inactief.length} op inactief gezet` : ''].filter(Boolean).join(', '), 'ok');
+      gekozen.clear(); werkSelectieBij(); load();
+    } finally { knop.disabled = false; }
+  };
+
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261121131855');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261121132955');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -235,9 +267,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121131855'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121131855'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261121131855'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121132955'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121132955'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261121132955'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -588,7 +620,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261121131855');
+      const { artikelPicker } = await import('../ui.js?v=20261121132955');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

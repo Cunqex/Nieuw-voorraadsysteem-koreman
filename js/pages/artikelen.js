@@ -2,9 +2,9 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
-} from '../ui.js?v=20261119150808';
-import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261119150808';
-import { kaartenModal } from '../kaarten.js?v=20261119150808';
+} from '../ui.js?v=20261121123332';
+import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261121123332';
+import { kaartenModal } from '../kaarten.js?v=20261121123332';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -138,7 +138,7 @@ export async function renderList(c, _p, query) {
   $('#sel-wis', c).onclick = () => { gekozen.clear(); werkSelectieBij(); };
   $('#sel-alles', c).onclick = () => { zichtbaar.forEach((r) => gekozen.set(r.id, r.artikelnummer)); werkSelectieBij(); };
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261119150808');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261121123332');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -237,9 +237,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261119150808'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261119150808'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261119150808'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121123332'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261121123332'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261121123332'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -293,15 +293,18 @@ export async function renderDetail(c, [idStr], query) {
   setTitle(isNew ? 'Nieuw artikel' : `Artikel ${a.artikelnummer}`);
   const valuta = levs.find((l) => l.id === a.leverancier_id)?.valuta || 'EUR';
 
-  const fields1 = [
-    { name: 'naam', label: 'Naam *', required: true, placeholder: 'bv. Fawn Design', hint: 'Alleen de naam van het kleed. Maat, kwaliteit, kleur en andere info bij "Aanvullende omschrijving".' },
+  // Algemeen: in groepen, zodat het kaartje rustig blijft (uitleg zit in de tooltip achter het i-icoon)
+  const fNaam = [
+    { name: 'naam', label: 'Naam *', required: true, placeholder: 'bv. Fawn Design' },
     { name: 'soort', label: 'Soort', type: 'select', options: SOORT_ARTIKEL },
-    { name: 'design_id', label: 'Design (van leverancier)', type: 'combo', empty: '– geen –', options: designs.map(designOpt) },
+  ];
+  const fHerkomst = [
+    { name: 'design_id', label: 'Design', type: 'combo', empty: '– geen –', options: designs.map(designOpt) },
     { name: 'leverancier_id', label: 'Leverancier', type: 'combo', placeholder: 'Kies…', options: levs.map(levOpt) },
-    { name: 'productnr_lev', label: 'Productnummer leverancier' },
-    { name: 'website_handle', label: 'Product op website (B2B)', placeholder: 'bv. terra-umber (laatste deel van de link)', hint: 'Voor de QR-code op de staalkaart. Wordt ook ingevuld als je bij "Kaarten printen" een product kiest.' },
-    { name: 'actief', label: 'Actief (zichtbaar bij zoeken)', type: 'checkbox' },
-    { name: 'omschrijving', label: 'Aanvullende omschrijving (komt op documenten)', type: 'textarea', placeholder: 'bv. Wool / real silk' },
+    { name: 'productnr_lev', label: 'Productnummer leverancier', placeholder: '–' },
+  ];
+  const fOms = [
+    { name: 'omschrijving', label: 'Aanvullende omschrijving', type: 'textarea', placeholder: 'Maat, kwaliteit, kleur… (komt op offertes en facturen)' },
   ];
   const fields2 = [
     { name: 'lengte_cm', label: 'Lengte (cm)', type: 'number' },
@@ -332,15 +335,25 @@ export async function renderDetail(c, [idStr], query) {
     </div>
     ${isNew ? '<div class="help">Het artikelnummer wordt automatisch toegekend bij opslaan (nieuwe reeks vanaf 9000; artikelen uit IOne houden hun eigen nummer).</div>' : ''}
     <form id="f">
-      <div class="card"><h2>Algemeen</h2>
-        <div style="display:flex;gap:20px;flex-wrap:wrap">
-          <div style="width:180px">
-            ${fotoPad ? `<img class="thumb big" data-path="${esc(fotoPad)}" alt="">` : '<div class="thumb big muted" style="display:flex;align-items:center;justify-content:center">geen foto</div>'}
-            ${isNew ? '' : `<label class="btn small" style="margin-top:6px">Eigen foto uploaden<input type="file" id="foto" accept="image/*" hidden></label>`}
-            ${a.designs ? `<p class="small">Design: <a href="#/design/${a.designs.id}">${esc(a.designs.naam)}</a><br>${esc(a.designs.design_code_lev || '')}</p>` : ''}
+      <div class="card art-alg"><h2>Algemeen<span class="spacer"></span>
+          <label class="switch" title="Uit = het artikel verschijnt niet meer bij zoeken"><input type="checkbox" name="actief" ${a.actief ? 'checked' : ''}><span class="switch-baan"></span><span class="switch-tekst">Actief</span></label></h2>
+        <div class="art-alg-grid">
+          <div class="art-foto">
+            ${fotoPad ? `<img class="art-foto-img" data-path="${esc(fotoPad)}" alt="">` : '<div class="art-foto-img leeg"><i data-lucide="image"></i><span>Geen foto</span></div>'}
+            ${isNew ? '' : `<label class="btn small art-foto-knop"><i data-lucide="upload"></i> Foto wijzigen<input type="file" id="foto" accept="image/*" hidden></label>`}
+            ${a.designs ? `<a class="art-design" href="#/design/${a.designs.id}"><span>Design</span><b>${esc(a.designs.naam)}</b>${a.designs.design_code_lev ? `<small>${esc(a.designs.design_code_lev)}</small>` : ''}</a>` : ''}
           </div>
-          <div style="flex:1;min-width:280px">${formFields(fields1, a)}
-            <div class="field"><label>Collecties (zoals op de website)</label><div id="coll-edit" class="coll-edit"></div></div></div>
+          <div class="art-velden">
+            <div class="art-groep art-naam">${formFields(fNaam, a)}</div>
+            <div class="art-groep"><h3>Herkomst</h3>${formFields(fHerkomst, a)}</div>
+            <div class="art-groep"><h3>Website ${'<i class="info" title="Het product op koremanmaastricht.nl. Wordt gebruikt voor de QR-code op de staalkaart en wordt ook ingevuld als je bij Kaarten printen een product kiest.">i</i>'}</h3>
+              <div class="art-web">
+                <div class="art-web-link"><span class="art-web-pre">koremanmaastricht.nl/products/</span><input name="website_handle" value="${esc(a.website_handle || '')}" placeholder="bv. terra-umber">
+                  ${a.website_handle ? `<a class="btn small" href="https://www.koremanmaastricht.nl/products/${esc(a.website_handle)}" target="_blank" rel="noopener" title="Bekijk op de website"><i data-lucide="external-link"></i></a>` : ''}</div>
+                <div class="field"><span>Collecties</span><div id="coll-edit" class="coll-edit"></div></div>
+              </div></div>
+            <div class="art-groep">${formFields(fOms, a)}</div>
+          </div>
         </div>
       </div>
       <div class="card"><h2>Maat en eigenschappen</h2>${formFields(fields2, a)}
@@ -359,8 +372,7 @@ export async function renderDetail(c, [idStr], query) {
   const collecties = [...(a.collecties || [])];
   const tekenColl = () => {
     $('#coll-edit', c).innerHTML = `${collecties.map((nm, i) => `<span class="chip aan">${esc(SUB_LABEL[nm] || CATEGORIEEN.find((x) => x.hoofd === nm)?.t || nm)} <a href="#" data-coll-weg="${i}" title="Weghalen">✕</a></span>`).join('')}
-      <select id="coll-add" style="width:auto"><option value="">+ collectie toevoegen…</option>${CATEGORIEEN.map((x) => `<optgroup label="${esc(x.t)}">${catNamen(x).filter((nm) => !collecties.includes(nm)).map((nm) => `<option value="${esc(nm)}">${esc(SUB_LABEL[nm] || x.t)}</option>`).join('')}</optgroup>`).join('')}</select>
-      ${a.website_handle ? `<a class="small" href="https://www.koremanmaastricht.nl/products/${esc(a.website_handle)}" target="_blank" rel="noopener">Bekijk op de website ↗</a>` : ''}`;
+      <select id="coll-add" class="coll-add"><option value="">+ toevoegen</option>${CATEGORIEEN.map((x) => `<optgroup label="${esc(x.t)}">${catNamen(x).filter((nm) => !collecties.includes(nm)).map((nm) => `<option value="${esc(nm)}">${esc(SUB_LABEL[nm] || x.t)}</option>`).join('')}</optgroup>`).join('')}</select>`;
   };
   tekenColl();
   $('#coll-edit', c).addEventListener('click', (e) => { const w = e.target.closest('[data-coll-weg]'); if (!w) return; e.preventDefault(); collecties.splice(Number(w.dataset.collWeg), 1); tekenColl(); });
@@ -606,7 +618,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261119150808');
+      const { artikelPicker } = await import('../ui.js?v=20261121123332');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

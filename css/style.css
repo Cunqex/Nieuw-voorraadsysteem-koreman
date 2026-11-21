@@ -737,3 +737,5 @@ table.list tr.gescand td { background: #e8f6ec; }
 .rn-rep-prijs input { width: 96px; text-align: right; background: #fff; font-variant-numeric: tabular-nums; }
 .rn-rep-knop { align-self: flex-start; }
 @media (max-width: 900px) { .line.rn-line { grid-template-columns: 1fr; } .rn-rechts { align-items: stretch; } .rn-del { position: absolute; top: 12px; right: 12px; } }
+.rn-line .rn-del, .rn-rep .line-del { margin: 0; }
+.rn-line .rn-del { margin-top: 18px; }

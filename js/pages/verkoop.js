@@ -1,8 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde, soRegelTotaal,
- bewaakFormulier} from '../ui.js?v=20261124102541';
-import { metRegels, vkKaart } from '../orderkaart.js?v=20261124102541';
+ bewaakFormulier} from '../ui.js?v=20261124103549';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261124103549';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
@@ -189,7 +189,7 @@ export async function renderDetail(c, [id]) {
   // ---- tijdlijn: wat is wanneer gebeurd ----
   const tijdlijn = [];
   const gebeurd = (d, tekst, icoon = 'circle') => { if (d) tijdlijn.push({ d: String(d).slice(0, 10), tekst, icoon }); };
-  gebeurd(so.aangemaakt_op, so.bron === 'ione' ? 'Overgenomen uit IOne' : 'Order aangemaakt', 'plus');
+  gebeurd(so.aangemaakt_op, so.bron === 'ione' ? 'Overgenomen uit IOne' : so.bron === 'website' ? `Doorgezet vanaf de website (order ${so.website_order || ''})` : 'Order aangemaakt', 'plus');
   gebeurd(so.offerte_datum, `Offerte ${so.offertenummer ?? ''} gemaakt`, 'file-text');
   gebeurd(so.orderbev_datum, `Order bevestigd (orderbevestiging ${so.orderbev_nummer ?? ''})`, 'check');
   let loop = 0; let volOp = null;

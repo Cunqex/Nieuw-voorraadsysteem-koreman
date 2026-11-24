@@ -1,4 +1,4 @@
-import { sb, check, esc, $, toast, mediaUrl, BTW } from './ui.js?v=20261121172428';
+import { sb, check, esc, $, toast, mediaUrl, BTW, soRegelTotaal } from './ui.js?v=20261124102541';
 
 const T = {
   nl: {
@@ -165,7 +165,7 @@ export async function render(el, type, id, soort, query) {
     const metFoto = regels.some((r) => r.foto);
     const nummer = { offerte: so.offertenummer, orderbevestiging: so.orderbev_nummer, factuur: so.factuurnummer }[soort];
     const docDatum = { offerte: so.offerte_datum, orderbevestiging: so.orderbev_datum, factuur: so.factuur_datum }[soort] || so.orderdatum;
-    const som = regels.reduce((s, r) => s + r.aantal * r.prijs * (1 - r.korting_pct / 100), 0);
+    const som = regels.reduce((s, r) => s + soRegelTotaal(r), 0);
     const btwPct = so.btw_regeling === 'nl21' ? 21 : 0;
     const r2 = (x) => Math.round(x * 100) / 100;
     // orders uit IOne: regelprijzen zijn inclusief btw
@@ -200,8 +200,8 @@ export async function render(el, type, id, soort, query) {
           [['T', k.telefoon], ['M', k.mobiel], ['@', k.email]])}
       </div>
       <table class="d-lines"><thead><tr>${metFoto ? '<th class="d-fotokol"></th>' : ''}<th class="d-qty">${t.aantal}</th><th>${t.oms}</th><th class="num">${t.stuks}</th><th class="num">${t.regel}</th></tr></thead><tbody>
-      ${regels.map((r) => { const lt = r.aantal * r.prijs * (1 - r.korting_pct / 100); return `<tr>${metFoto ? `<td class="d-fotokol">${r.foto ? `<img class="d-img" data-path="${esc(r.foto)}" alt="">` : ''}</td>` : ''}<td class="d-qty">${Number(r.aantal)}</td>
-        <td>${r.artikelen ? `${esc(r.artikelen.artikelnummer)}<br>` : ''}<span class="d-desc">${esc(r.omschrijving || '')}</span>${Number(r.korting_pct) ? `<br><i>${Number(r.korting_pct)}% ${t.korting}</i>` : ''}</td>
+      ${regels.map((r) => { const lt = soRegelTotaal(r); return `<tr>${metFoto ? `<td class="d-fotokol">${r.foto ? `<img class="d-img" data-path="${esc(r.foto)}" alt="">` : ''}</td>` : ''}<td class="d-qty">${Number(r.aantal)}</td>
+        <td>${r.artikelen ? `${esc(r.artikelen.artikelnummer)}<br>` : ''}<span class="d-desc">${esc(r.omschrijving || '')}</span>${Number(r.korting_pct) ? `<br><i>${Number(r.korting_pct)}% ${t.korting}</i>` : ''}${Number(r.korting_bedrag) ? `<br><i>€ ${getal(r.korting_bedrag)} ${t.korting}</i>` : ''}</td>
         <td class="num">${getal(r.prijs)}</td><td class="num">${getal(lt)}</td></tr>`; }).join('')}
       </tbody></table>
       ${so.opmerking ? `<div class="d-note">${esc(so.opmerking)}</div>` : ''}

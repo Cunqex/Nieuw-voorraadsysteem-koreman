@@ -1,8 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde,
- bewaakFormulier} from '../ui.js?v=20261121172428';
-import { metRegels, vkKaart } from '../orderkaart.js?v=20261121172428';
+  SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde, soRegelTotaal,
+ bewaakFormulier} from '../ui.js?v=20261124102541';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261124102541';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
@@ -138,7 +138,7 @@ export async function renderDetail(c, [id]) {
   const vrd = artIds.length ? check(await sb.from('v_voorraad').select('artikel_id, in_showroom, voorraad_totaal').in('artikel_id', artIds)) : [];
   const vmap = new Map(vrd.map((v) => [v.artikel_id, v]));
 
-  const som = regels.reduce((s, r) => s + r.aantal * r.prijs * (1 - r.korting_pct / 100), 0);
+  const som = regels.reduce((s, r) => s + soRegelTotaal(r), 0);
   const r2 = (x) => Math.round(x * 100) / 100;
   const nl21 = so.btw_regeling === 'nl21';
   const incl = so.prijzen_incl_btw; // orders uit IOne: regelprijzen zijn inclusief btw
@@ -262,8 +262,9 @@ export async function renderDetail(c, [id]) {
         <div class="line-nums">
           <label class="line-lbl">Aantal<input type="number" step="any" data-f="aantal" value="${r.aantal}"></label>
           <label class="line-lbl">Prijs ${incl ? 'incl.' : 'excl.'} btw<input type="number" step="0.01" data-f="prijs" value="${r.prijs}"></label>
-          <label class="line-lbl">Korting %<input type="number" step="0.01" data-f="korting_pct" value="${r.korting_pct}"></label>
-          <div class="line-lbl">Totaal<b class="line-tot">${money(r.aantal * r.prijs * (1 - r.korting_pct / 100))}</b></div>
+          <div class="line-lbl">Korting<span class="line-korting"><input type="number" step="0.01" min="0" data-korting value="${Number(r.korting_bedrag) ? r.korting_bedrag : r.korting_pct}" aria-label="Korting">
+            <select data-kortingsoort aria-label="Korting in procenten of euro's"><option value="pct">%</option><option value="eur" ${Number(r.korting_bedrag) ? 'selected' : ''}>€</option></select></span></div>
+          <div class="line-lbl">Totaal<b class="line-tot">${money(soRegelTotaal(r))}</b></div>
         </div>
         <div class="line-side">
           ${r.geleverd ? '<span class="badge green">Geleverd</span>' : fysiek ? `<span class="badge ${Number(v?.in_showroom ?? 0) >= r.aantal ? 'green' : ''}">${num(v?.in_showroom ?? 0)} in showroom</span>` : ''}
@@ -495,6 +496,16 @@ export async function renderDetail(c, [id]) {
     if (['aantal', 'prijs', 'korting_pct'].includes(f)) val = Number(val);
     check(await sb.from('verkooporder_regels').update({ [f]: val }).eq('id', rid));
     if (f !== 'omschrijving') reload(); else toast('Opgeslagen', 'ok');
+  });
+  // Korting: één veld, in procenten of in euro's
+  on(c, 'change', '[data-regel] [data-korting], [data-regel] [data-kortingsoort]', async (_e, el) => {
+    const regel = el.closest('[data-regel]');
+    const w = Math.max(0, Number($('[data-korting]', regel).value) || 0);
+    const eur = $('[data-kortingsoort]', regel).value === 'eur';
+    if (el.matches('[data-kortingsoort]') && !w) return; // alleen % of € gekozen, nog geen bedrag: niets op te slaan
+    if (!eur && w > 100) { toast('Een korting in procenten kan niet hoger zijn dan 100', 'error'); return; }
+    check(await sb.from('verkooporder_regels').update({ korting_pct: eur ? 0 : w, korting_bedrag: eur ? w : 0 }).eq('id', regel.dataset.regel));
+    reload();
   });
   on(c, 'click', '[data-delregel]', async (_e, b) => {
     if (!await confirmBox('Regel verwijderen?', 'Verwijderen')) return;

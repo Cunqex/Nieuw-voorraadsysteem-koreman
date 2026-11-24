@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261121172428';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261124102541';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -21,6 +21,8 @@ export const maat = (a) => (a?.breedte_cm && a?.lengte_cm) ? `${num(a.lengte_cm)
 export const m2 = (a) => (a?.breedte_cm && a?.lengte_cm) ? (a.breedte_cm * a.lengte_cm) / 10000 : null;
 
 // ---------- Labels ----------
+// Totaal van een verkoopregel: aantal x prijs, min korting in procenten, min korting in euro's
+export const soRegelTotaal = (r) => r.aantal * r.prijs * (1 - Number(r.korting_pct || 0) / 100) - Number(r.korting_bedrag || 0);
 export const SOORT_ARTIKEL = { voorraad: 'Voorraadtapijt', maatwerk: 'Maatwerk op bestelling', staal: 'Staal', dienst: 'Dienst' };
 export const SOORT_KLANT = { particulier: 'Particulier', zakelijk: 'Zakelijk', architect: 'Architect', agent: 'Agent' };
 export const BTW = { nl21: '21% btw (Nederland)', eu_verlegd: '0% btw verlegd (EU zakelijk)', export0: '0% btw (export buiten EU)' };

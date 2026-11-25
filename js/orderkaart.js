@@ -1,5 +1,5 @@
 // Kaartjes voor verkoop- en inkooporders (zelfde stijl als de artikelkaarten).
-import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS } from './ui.js?v=20261124143747';
+import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS } from './ui.js?v=20261125153010';
 
 // Haalt per order de regels op (artikelnaam + foto), voor de foto's en de inhoud op het kaartje.
 export async function metRegels(rows, tabel, key) {

@@ -2,9 +2,9 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
- bewaakFormulier} from '../ui.js?v=20261124143747';
-import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261124143747';
-import { kaartenModal } from '../kaarten.js?v=20261124143747';
+ bewaakFormulier} from '../ui.js?v=20261125153010';
+import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261125153010';
+import { kaartenModal } from '../kaarten.js?v=20261125153010';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -168,7 +168,7 @@ export async function renderList(c, _p, query) {
   };
 
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261124143747');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261125153010');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -267,9 +267,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261124143747'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261124143747'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261124143747'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261125153010'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261125153010'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261125153010'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -352,14 +352,14 @@ export async function renderDetail(c, [idStr], query) {
     { name: 'hs_code', label: 'HS-code', placeholder: 'bv. 5702910000', info: 'Douanecode, nodig bij import en export.' },
   ];
   const fInkoop = [
-    { name: 'inkoopprijs', label: `Per stuk (${valuta})`, type: 'number', step: '0.01' },
-    { name: 'inkoopprijs_m2', label: `Per m² (${valuta})`, type: 'number', step: '0.01' },
-    { name: 'factor', label: 'Factor', type: 'number', step: '0.1', info: 'Verkoopprijs = inkoopprijs per m² × factor (standaard 6,5). Pas je inkoop of factor aan, dan wordt de standaardprijs vanzelf berekend.' },
+    { name: 'inkoopprijs', label: `Per stuk (${valuta})`, type: 'number' },
+    { name: 'inkoopprijs_m2', label: `Per m² (${valuta})`, type: 'number' },
+    { name: 'factor', label: 'Factor', type: 'number', info: 'Verkoopprijs = inkoopprijs per m² × factor (standaard 6,5). Pas je inkoop of factor aan, dan wordt de standaardprijs vanzelf berekend.' },
   ];
   const fVerkoop = [
-    { name: 'verkoopprijs_m2', label: 'Standaardprijs per m²', type: 'number', step: '1', info: 'De gewone prijs per m² (standaardmaten en voorraad).' },
-    { name: 'custom_prijs_m2', label: 'Maatwerkprijs per m²', type: 'number', step: '0.01', info: 'De prijs per m² voor maatwerk. Wordt automatisch van de website gehaald als het artikel daaraan gekoppeld is; vul je zelf een andere prijs in, dan blijft die staan.' },
-    { name: 'verkoopprijs', label: 'Prijs per stuk', type: 'number', step: '1', info: 'Bij de standaardmaten 140×200, 170×240, 200×300 en 250×350 cm: standaardprijs per m² × oppervlakte. Bij elke andere maat: maatwerkprijs per m² × oppervlakte. Afgerond; je kunt hem ook zelf aanpassen.' },
+    { name: 'verkoopprijs_m2', label: 'Standaardprijs per m²', type: 'number', info: 'De gewone prijs per m² (standaardmaten en voorraad).' },
+    { name: 'custom_prijs_m2', label: 'Maatwerkprijs per m²', type: 'number', info: 'De prijs per m² voor maatwerk. Wordt automatisch van de website gehaald als het artikel daaraan gekoppeld is; vul je zelf een andere prijs in, dan blijft die staan.' },
+    { name: 'verkoopprijs', label: 'Prijs per stuk', type: 'number', info: 'Bij de standaardmaten 140×200, 170×240, 200×300 en 250×350 cm: standaardprijs per m² × oppervlakte. Bij elke andere maat: maatwerkprijs per m² × oppervlakte. Afgerond; je kunt hem ook zelf aanpassen.' },
   ];
 
   if (a.factor == null) a.factor = 6.5;
@@ -651,7 +651,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261124143747');
+      const { artikelPicker } = await import('../ui.js?v=20261125153010');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

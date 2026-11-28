@@ -1,4 +1,4 @@
-import { sb, check, esc, $, toast, mediaUrl, BTW, soRegelTotaal } from './ui.js?v=20261128145408';
+import { sb, check, esc, $, toast, mediaUrl, BTW, soRegelTotaal } from './ui.js?v=20261128145602';
 
 const T = {
   nl: {
@@ -7,7 +7,7 @@ const T = {
     datum: { offerte: 'Offertedatum', orderbevestiging: 'Datum', factuur: 'Factuurdatum' },
     klantnr: 'Klant nr.', obnr: 'Orderbevestiging nr.', levermethode: 'Levermethode', verkoper: 'Verkoper', ref: 'Uw referentie',
     adres: 'Factuuradres', aflever: 'Afleveradres', aantal: 'Aantal', oms: 'Omschrijving', stuks: 'Stuksprijs', regel: 'Regeltotaal',
-    korting: 'korting', netto: 'Netto', btw: 'BTW', totaal: 'Totaal orderbedrag', aanbet: 'Aanbetaling te voldoen', aanbetaald: 'Aanbetaald',
+    korting: 'korting', netto: 'Netto', btw: 'BTW', totaal: 'Totaal orderbedrag', aanbet: 'Aanbetaling te voldoen', aanbetaald: 'Aanbetaald', betaaldLbl: 'Betaald',
     open: 'Nog te voldoen', voorw: 'Betaalvoorwaarden', pagina: 'Pagina 1 van 1', btwnr: 'BTW nr.', kvk: 'KvK nr.',
     verlegd: 'BTW verlegd (intracommunautaire levering)', export: 'Export buiten de EU – 0% BTW',
     betaal: (iban, nr) => `Gelieve te betalen op ${iban} onder vermelding van ${nr}.`,
@@ -19,7 +19,7 @@ const T = {
     datum: { offerte: 'Quotation date', orderbevestiging: 'Date', factuur: 'Invoice date' },
     klantnr: 'Customer no.', obnr: 'Order confirmation no.', levermethode: 'Delivery method', verkoper: 'Sales person', ref: 'Your reference',
     adres: 'Invoice address', aflever: 'Delivery address', aantal: 'Qty', oms: 'Description', stuks: 'Unit price', regel: 'Total',
-    korting: 'discount', netto: 'Net', btw: 'VAT', totaal: 'Total order amount', aanbet: 'Down payment due', aanbetaald: 'Paid in advance',
+    korting: 'discount', netto: 'Net', btw: 'VAT', totaal: 'Total order amount', aanbet: 'Down payment due', aanbetaald: 'Paid in advance', betaaldLbl: 'Paid',
     open: 'Balance due', voorw: 'Payment terms', pagina: 'Page 1 of 1', btwnr: 'VAT no.', kvk: 'CoC no.',
     verlegd: 'VAT reverse charged (intra-Community supply)', export: 'Export outside the EU – 0% VAT',
     betaal: (iban, nr) => `Please transfer the amount to ${iban} stating ${nr}.`,
@@ -216,7 +216,7 @@ export async function render(el, type, id, soort, query) {
         <table class="d-totals">
           ${totRij(t.totaal, totaal, 'EUR', true)}
           ${soort === 'orderbevestiging' && Number(so.aanbetaling_pct) > 0 && !betaald ? totRij(`${t.aanbet} (${Number(so.aanbetaling_pct)}%)`, aanbet, 'EUR') : ''}
-          ${soort !== 'offerte' && betaald ? totRij(`${t.aanbetaald}${laatsteBet ? ' ' + d(laatsteBet.datum) : ''}:`, betaald, 'EUR') + totRij(t.open, totaal - betaald, 'EUR', true) : ''}
+          ${soort !== 'offerte' && betaald ? totRij(`${betaald >= totaal - 0.005 ? t.betaaldLbl : t.aanbetaald}${laatsteBet ? ' ' + d(laatsteBet.datum) : ''}:`, betaald, 'EUR') + totRij(t.open, totaal - betaald, 'EUR', true) : ''}
         </table>
       </div>
       ${(taal === 'en' ? inst.voorwaarden_en : inst.voorwaarden_nl) ? `<div class="d-klein">${esc(taal === 'en' ? inst.voorwaarden_en : inst.voorwaarden_nl)}</div>` : ''}

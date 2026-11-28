@@ -1,5 +1,5 @@
 // Rapportage: inkomsten en uitgaven per periode, vergeleken met dezelfde periode een jaar eerder.
-import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261128145408';
+import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, confirmBox, refresh } from '../ui.js?v=20261128145602';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 export const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

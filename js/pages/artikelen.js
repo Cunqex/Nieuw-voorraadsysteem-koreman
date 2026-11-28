@@ -2,9 +2,9 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
- bewaakFormulier, kleurNaam} from '../ui.js?v=20261128112843';
-import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261128112843';
-import { kaartenModal } from '../kaarten.js?v=20261128112843';
+ bewaakFormulier, kleurNaam, kleurenTekst} from '../ui.js?v=20261128114118';
+import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261128114118';
+import { kaartenModal } from '../kaarten.js?v=20261128114118';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -168,7 +168,7 @@ export async function renderList(c, _p, query) {
   };
 
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261128112843');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261128114118');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -205,7 +205,7 @@ export async function renderList(c, _p, query) {
     let ids = null;
     if ($('#opvoorraad', c).checked) ids = (await alles(() => sb.from('v_voorraad').select('artikel_id').gt('voorraad_totaal', 0))).map((v) => v.artikel_id);
     const maak = () => {
-      let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, verkoopprijs_m2, custom_prijs_m2, inkoopprijs, actief, foto_pad, collecties, custom, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
+      let query = sb.from('artikelen').select('id, artikelnummer, naam, soort, breedte_cm, lengte_cm, materiaal, verkoopprijs, verkoopprijs_m2, custom_prijs_m2, inkoopprijs, actief, foto_pad, collecties, kleuren, custom, designs(naam, hoofdfoto_pad, design_code_lev), leveranciers(naam)')
         .order('artikelnummer', { ascending: false }).order('id');
       if (q) query = /^\d+$/.test(q) ? query.or(`artikelnummer.ilike.${q}%,productnr_lev.ilike.%${q}%`) : query.or(`naam.ilike.%${q}%,omschrijving.ilike.%${q}%,productnr_lev.ilike.%${q}%`);
       if ($('#soort', c).value) query = query.eq('soort', $('#soort', c).value);
@@ -244,7 +244,7 @@ export async function renderList(c, _p, query) {
             <div class="art-nr">${r.artikelnummer}${r.actief ? '' : ' · inactief'}</div>
             <div class="art-naam">${esc(r.naam)}</div>
             <div class="art-meta">${[maat(r), r.materiaal].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
-            <div class="art-meta">${[r.designs?.naam ? 'Design ' + r.designs.naam : '', korteCollectie(r.collecties), r.leveranciers?.naam].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
+            <div class="art-meta">${[kleurenTekst(r.kleuren) ? 'Kleur: ' + kleurenTekst(r.kleuren) : '', r.designs?.naam ? 'Design ' + r.designs.naam : '', r.leveranciers?.naam].filter(Boolean).map(esc).join(' · ') || '&nbsp;'}</div>
             <div class="art-foot">${r.soort === 'staal' ? (r.verkoopprijs_m2 != null || r.custom_prijs_m2 != null ? `<span class="art-prijs">${money(r.verkoopprijs_m2 ?? r.custom_prijs_m2)} <small class="art-m2">/ m²</small></span>` : `<span class="art-prijs art-ink">${r.inkoopprijs != null ? `<small>inkoop</small> ${money(r.inkoopprijs)}` : '<small>geen inkoopprijs</small>'}</span>`) : `<span class="art-prijs">${r.verkoopprijs == null && r.verkoopprijs_m2 != null ? `${money(r.verkoopprijs_m2)} <small class="art-m2">/ m²</small>` : money(r.verkoopprijs)}</span>`}<span>${voorraadBadge(r)}</span></div>
           </div>
         </a>`).join('');
@@ -267,9 +267,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261128112843'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261128112843'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261128112843'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261128114118'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261128114118'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261128114118'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -690,7 +690,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261128112843');
+      const { artikelPicker } = await import('../ui.js?v=20261128114118');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

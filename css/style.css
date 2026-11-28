@@ -833,3 +833,12 @@ a.tel-link > span { flex: 1; }
 .line-korting { display: flex; }
 .line-korting input { width: 84px; border-radius: 8px 0 0 8px; }
 .line-korting select { width: 58px; padding: 0 6px; border-left: 0; border-radius: 0 8px 8px 0; font-weight: 600; color: var(--navy-700); cursor: pointer; }
+
+/* Artikel: kleuren (ARS-kleuren en eigen kleuren) */
+.kl-lijst { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; align-items: center; margin-bottom: 12px; }
+.kl-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 500; background: var(--navy-50); color: var(--navy-900); border: 1px solid var(--line); }
+.kl-chip.ars { background: #fff; border-color: var(--navy-300); }
+.kl-chip button { border: 0; background: none; width: 22px; height: 22px; border-radius: 50%; font-size: 16px; line-height: 1; color: var(--navy-400); cursor: pointer; }
+.kl-chip button:hover { background: var(--navy-100, #e8eaf2); color: var(--navy-900); }
+.kl-nieuw { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.kl-nieuw input { flex: 1; min-width: 160px; max-width: 280px; }

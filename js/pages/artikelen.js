@@ -2,9 +2,9 @@ import {
   alles,
   sb, check, esc, money, num, datum, maat, m2, $, $$, on, toast, modal, confirmBox, formFields, readForm,
   SOORT_ARTIKEL, loadImages, uploadFile, withTotals, setTitle, badge, PO_STATUS, SO_STATUS, vandaag, refresh, klantOpt, levOpt, designOpt, comboHtml,
- bewaakFormulier} from '../ui.js?v=20261125153010';
-import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261125153010';
-import { kaartenModal } from '../kaarten.js?v=20261125153010';
+ bewaakFormulier, kleurNaam} from '../ui.js?v=20261128112843';
+import { materiaalKeuze, psychPrijs, MATERIALEN_NL, activeerKeuzes } from '../keuzes.js?v=20261128112843';
+import { kaartenModal } from '../kaarten.js?v=20261128112843';
 
 const VORMEN = ['', 'Recht', 'Recht met afgeronde hoeken', 'Rond', 'Ovaal', 'Organisch', 'Anders'];
 
@@ -168,7 +168,7 @@ export async function renderList(c, _p, query) {
   };
 
   $('#sel-stalen', c).onclick = async () => {
-    const { stalenVelModal } = await import('../staalkaart.js?v=20261125153010');
+    const { stalenVelModal } = await import('../staalkaart.js?v=20261128112843');
     await stalenVelModal([...gekozen.keys()]);
   };
 
@@ -267,9 +267,9 @@ export async function renderList(c, _p, query) {
     zetView(); load();
   });
   on(c, 'click', 'tr[data-id]', (_e, tr) => { location.hash = '#/artikel/' + tr.dataset.id; });
-  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261125153010'); wandVelModal(); };
-  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261125153010'); await wandVelModal([...gekozen.keys()]); };
-  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261125153010'); stalenVelModal(); };
+  $('#wandvel', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261128112843'); wandVelModal(); };
+  $('#sel-wand', c).onclick = async () => { const { wandVelModal } = await import('../kaarten.js?v=20261128112843'); await wandVelModal([...gekozen.keys()]); };
+  $('#stalenvel', c).onclick = async () => { const { stalenVelModal } = await import('../staalkaart.js?v=20261128112843'); stalenVelModal(); };
   // ---- voorraadlijst als bestand (opent in Excel) ----
   $('#voorraadlijst', c).onclick = async (e) => {
     const knop = e.currentTarget; knop.disabled = true;
@@ -396,6 +396,14 @@ export async function renderDetail(c, [idStr], query) {
       <div class="card art-kaart"><h2>Maat en eigenschappen</h2>
         <div class="art-groep"><h3>Maat</h3><div class="art-maat">${formFields(fMaat, a)}<div class="art-opp"><span>Oppervlakte</span><b id="opp">${m2(a) ? `${num(m2(a), 2)} m²` : '–'}</b></div></div></div>
         <div class="art-groep art-kwal"><h3>Kwaliteit</h3>${formFields(fKwaliteit, a)}</div>
+        <div class="art-groep" id="grp-kleuren"><h3>Kleuren <i class="info" title="De kleuren van dit artikel. Kies ARS-kleur voor een nummer uit de ARS-kleurenwaaier, of Eigen kleur om de kleur zelf te omschrijven. De kleuren komen op de inkooporder te staan als je dit artikel bestelt."></i></h3>
+          <div class="kl-lijst" id="kl-lijst"></div>
+          <div class="kl-nieuw">
+            <div class="segmented" id="kl-soort" role="group" aria-label="Soort kleur"><button type="button" class="btn primary" data-kl="ars">ARS-kleur</button><button type="button" class="btn" data-kl="eigen">Eigen kleur</button></div>
+            <input id="kl-naam" autocomplete="off" aria-label="Kleur" placeholder="ARS-nummer">
+            <button type="button" class="btn" id="kl-plus"><i data-lucide="plus"></i> Toevoegen</button>
+          </div>
+        </div>
         <div class="art-groep"><h3>Logistiek</h3>${formFields(fLogistiek, a)}</div>
       </div>
       <div class="card art-kaart"><h2>Prijzen</h2>
@@ -527,10 +535,40 @@ export async function renderDetail(c, [idStr], query) {
     if (d?.leverancier_id && !form.leverancier_id.value) form.leverancier_id.value = d.leverancier_id;
   });
 
+  // ---- Kleuren: ARS-kleuren en/of zelf omschreven kleuren ----
+  let kleuren = Array.isArray(a.kleuren) ? a.kleuren.filter((k) => k && k.naam).map((k) => ({ soort: k.soort === 'ars' ? 'ars' : 'eigen', naam: String(k.naam) })) : [];
+  let klSoort = 'ars';
+  const klToon = () => {
+    $('#kl-lijst', c).innerHTML = kleuren.length
+      ? kleuren.map((k, i) => `<span class="kl-chip ${k.soort}">${esc(kleurNaam(k))}<button type="button" data-klweg="${i}" aria-label="${esc(kleurNaam(k))} verwijderen" title="Verwijderen">×</button></span>`).join('')
+      : '<span class="muted small">Nog geen kleuren toegevoegd.</span>';
+    form.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  const klPlus = () => {
+    const inp = $('#kl-naam', c);
+    const delen = inp.value.split(/[,;]/).map((t) => t.trim().replace(klSoort === 'ars' ? /^ars[\s.:-]*/i : /^$/, '')).filter(Boolean);
+    if (!delen.length) { inp.focus(); return; }
+    delen.forEach((naam) => { if (!kleuren.some((k) => k.soort === klSoort && k.naam.toLowerCase() === naam.toLowerCase())) kleuren.push({ soort: klSoort, naam }); });
+    inp.value = ''; klToon(); inp.focus();
+  };
+  $('#kl-soort', c).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-kl]'); if (!b) return;
+    klSoort = b.dataset.kl;
+    [...$('#kl-soort', c).children].forEach((x) => x.classList.toggle('primary', x === b));
+    $('#kl-naam', c).placeholder = klSoort === 'ars' ? 'ARS-nummer' : 'bv. zandbeige';
+    $('#kl-naam', c).focus();
+  });
+  $('#kl-plus', c).onclick = klPlus;
+  $('#kl-naam', c).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); klPlus(); } });
+  // Een getypte kleur die nog niet was toegevoegd gaat bij opslaan ook mee (vóór het opslaan zelf, zodat de pagina daarna als opgeslagen telt)
+  form.addEventListener('submit', () => { if ($('#kl-naam', c).value.trim()) klPlus(); }, true);
+  $('#kl-lijst', c).addEventListener('click', (e) => { const b = e.target.closest('[data-klweg]'); if (!b) return; kleuren.splice(Number(b.dataset.klweg), 1); klToon(); });
+
   form.onsubmit = async (e) => {
     e.preventDefault();
     const v = readForm(form);
     v.collecties = collecties;
+    v.kleuren = kleuren;
     v.custom = v.custom_prijs_m2 != null;
     v.custom_prijs_handmatig = !!(v.custom && handmatig);
     v.std_verkoopprijs = null; v.std_verkoopprijs_m2 = null;
@@ -548,7 +586,8 @@ export async function renderDetail(c, [idStr], query) {
       refresh();
     }
   };
-  bewaakFormulier(form, c, { negeer: ['custom_prijs_m2'], extra: () => JSON.stringify(collecties) });
+  bewaakFormulier(form, c, { negeer: ['custom_prijs_m2'], extra: () => JSON.stringify(collecties) + JSON.stringify(kleuren) });
+  klToon();
   if (isNew) return;
 
   $('#foto', c)?.addEventListener('change', async (e) => {
@@ -651,7 +690,7 @@ export async function uitleenModal(artikel) {
     ]),
     onOpen: async (form) => {
       if (artikel) return;
-      const { artikelPicker } = await import('../ui.js?v=20261125153010');
+      const { artikelPicker } = await import('../ui.js?v=20261128112843');
       artikelPicker($('#art-zoek', form), (r) => {
         form.artikel_id.value = r.id;
         $('#art-gekozen', form).innerHTML = `Gekozen: <b>${r.artikelnummer} ${esc(r.naam)}</b>`;

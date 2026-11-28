@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261125153010';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=20261128112843';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -23,6 +23,9 @@ export const m2 = (a) => (a?.breedte_cm && a?.lengte_cm) ? (a.breedte_cm * a.len
 // ---------- Labels ----------
 // Totaal van een verkoopregel: aantal x prijs, min korting in procenten, min korting in euro's
 export const soRegelTotaal = (r) => r.aantal * r.prijs * (1 - Number(r.korting_pct || 0) / 100) - Number(r.korting_bedrag || 0);
+// Kleuren van een artikel als tekst: "ARS 1234, zandbeige"
+export const kleurNaam = (k) => (k?.soort === 'ars' ? `ARS ${k.naam}` : String(k?.naam ?? ''));
+export const kleurenTekst = (lijst) => (Array.isArray(lijst) ? lijst.map(kleurNaam).filter(Boolean).join(', ') : '');
 export const SOORT_ARTIKEL = { voorraad: 'Voorraadtapijt', maatwerk: 'Maatwerk op bestelling', staal: 'Staal', dienst: 'Dienst' };
 export const SOORT_KLANT = { particulier: 'Particulier', zakelijk: 'Zakelijk', architect: 'Architect', agent: 'Agent' };
 export const BTW = { nl21: '21% btw (Nederland)', eu_verlegd: '0% btw verlegd (EU zakelijk)', export0: '0% btw (export buiten EU)' };
@@ -203,7 +206,7 @@ export function artikelPicker(input, onPick, { filter } = {}) {
     timer = setTimeout(async () => {
       const q = input.value.trim();
       if (q.length < 1) return close();
-      let query = sb.from('artikelen').select('id, artikelnummer, naam, omschrijving, soort, leverancier_id, inkoopprijs, verkoopprijs, breedte_cm, lengte_cm, foto_pad, design_id, designs(hoofdfoto_pad, design_code_lev)').eq('actief', true).limit(15);
+      let query = sb.from('artikelen').select('id, artikelnummer, naam, omschrijving, soort, leverancier_id, inkoopprijs, verkoopprijs, breedte_cm, lengte_cm, foto_pad, kleuren, design_id, designs(hoofdfoto_pad, design_code_lev)').eq('actief', true).limit(15);
       if (/^\d+$/.test(q)) query = query.ilike('artikelnummer', `${q}%`).order('artikelnummer');
       else query = query.or(`naam.ilike.%${q.replace(/[%,()]/g, '')}%,omschrijving.ilike.%${q.replace(/[%,()]/g, '')}%`);
       if (filter) query = filter(query);
@@ -284,7 +287,7 @@ export function artikelKiezer(input, onPick, { filter, titel = 'Artikel toevoege
       const soort = $('#kies-soort', bg).value; const opVrd = $('#kies-vrd', bg).checked;
       let ids = null;
       if (opVrd) ids = (await alles(() => sb.from('v_voorraad').select('artikel_id').gt('voorraad_totaal', 0).order('artikel_id'))).map((v) => v.artikel_id);
-      let query = sb.from('artikelen').select('id, artikelnummer, naam, omschrijving, soort, leverancier_id, inkoopprijs, verkoopprijs, breedte_cm, lengte_cm, materiaal, foto_pad, design_id, designs(hoofdfoto_pad, design_code_lev), leveranciers(naam)', { count: 'exact' })
+      let query = sb.from('artikelen').select('id, artikelnummer, naam, omschrijving, soort, leverancier_id, inkoopprijs, verkoopprijs, breedte_cm, lengte_cm, materiaal, foto_pad, kleuren, design_id, designs(hoofdfoto_pad, design_code_lev), leveranciers(naam)', { count: 'exact' })
         .eq('actief', true).order('artikelnummer', { ascending: false }).order('id', { ascending: false }).limit(toon);
       if (q) query = /^\d+$/.test(q) ? query.or(`artikelnummer.ilike.${q}%,productnr_lev.ilike.%${q}%`) : query.or(`naam.ilike.%${q}%,omschrijving.ilike.%${q}%,productnr_lev.ilike.%${q}%`);
       if (soort) query = query.eq('soort', soort);

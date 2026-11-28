@@ -940,3 +940,8 @@ end $$;
 
 revoke all on function public.website_order_ontvangen(jsonb) from public, anon, authenticated;
 grant execute on function public.website_order_ontvangen(jsonb) to service_role;
+
+
+-- Kleuren van een artikel: een lijst met ARS-kleuren en/of zelf omschreven kleuren (veilig om opnieuw te draaien).
+-- Elk item: {"soort": "ars" | "eigen", "naam": "..."}
+alter table public.artikelen add column if not exists kleuren jsonb not null default '[]'::jsonb;

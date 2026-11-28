@@ -2,8 +2,8 @@
 // Gegevens komen van de B2B-productpagina op koremanmaastricht.nl (collectie, compositie,
 // maakwijze, knoopdichtheid, prijs per m², maatwerk per m²). De QR-code linkt naar die pagina,
 // de streepjescode is het artikelnummer (Code 128) zodat de voorraad te scannen is.
-import { sb, check, esc, $, toast } from './ui.js?v=20261125153010';
-import { WEG, volgGebruiker, kaartWaarde, naVinkjes, keuzeSelect, zetWaarde, materiaalKeuze, METHODES_EN, KNOOP_EN, MATERIALEN_EN } from './keuzes.js?v=20261125153010';
+import { sb, check, esc, $, toast, kleurenTekst } from './ui.js?v=20261128112843';
+import { WEG, volgGebruiker, kaartWaarde, naVinkjes, keuzeSelect, zetWaarde, materiaalKeuze, METHODES_EN, KNOOP_EN, MATERIALEN_EN } from './keuzes.js?v=20261128112843';
 
 const SITE = 'https://www.koremanmaastricht.nl';
 export const productUrl = (handle) => `${SITE}/products/${handle}`;
@@ -153,7 +153,7 @@ export function staalkaart(k, logoUrl, qr) {
 // Foto voor de kaart: dezelfde foto als in het voorraadsysteem (artikel, anders design); alleen zonder eigen foto die van de website.
 // De link naar de app-foto verloopt na een uur, dus die wordt vlak voor het tonen/printen opgehaald.
 export async function fotosOphalen(kaarten) {
-  const { mediaUrl } = await import('./ui.js?v=20261125153010');
+  const { mediaUrl } = await import('./ui.js?v=20261128112843');
   await Promise.all(kaarten.map(async (k) => {
     k.foto = '';
     if (k.fotoPad) { try { k.foto = (await mediaUrl(k.fotoPad)) || ''; } catch { k.foto = ''; } }
@@ -200,7 +200,7 @@ export function staalPaneInit(form, a, logoUrl, onthoud, printHtml) {
   }).catch(() => {});
   zet('sk-w', onthoud.get('sk3-w', '105')); zet('sk-h', onthoud.get('sk3-h', '148.5'));
   zet('sk-titel', a.naam || '');
-  zet('sk-kleur', a.kleurcode || '');
+  zet('sk-kleur', a.kleurcode || kleurenTekst(a.kleuren));
   zet('sk-materiaal', naarEngels(a.materiaal)); zet('sk-methode', naarEngels(a.techniek));
   // Bij een staal gaan de prijzen die je zelf op het artikel hebt ingevuld vóór de prijzen van de website
   const staal = a.soort === 'staal';
@@ -334,8 +334,8 @@ async function kaartVoorArtikel(a) {
 }
 
 export async function stalenVelModal(ids = []) {
-  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261125153010');
-  const { printHtml } = await import('./kaarten.js?v=20261125153010');
+  const { modal: mdl, artikelPicker } = await import('./ui.js?v=20261128112843');
+  const { printHtml } = await import('./kaarten.js?v=20261128112843');
   const logoUrl = new URL('img/logo-koreman-transparant.png', document.baseURI).href;
   let qr = null; qrLib().then((q) => { qr = q; }).catch(() => {});
   await mdl({

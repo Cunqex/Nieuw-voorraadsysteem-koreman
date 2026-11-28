@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, artikelKiezer, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde , bewaakFormulier} from '../ui.js?v=20261125153010';
-import { metRegels, ikKaart } from '../orderkaart.js?v=20261125153010';
+  PO_STATUS, badge, artikelPicker, artikelKiezer, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde , bewaakFormulier, kleurenTekst} from '../ui.js?v=20261128112843';
+import { metRegels, ikKaart } from '../orderkaart.js?v=20261128112843';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
@@ -314,7 +314,8 @@ export async function renderDetail(c, [id]) {
 
   // ---- regels ----
   artikelKiezer($('#zoek', c), async (a) => {
-    const oms = [a.naam, a.omschrijving, a.designs?.design_code_lev ? 'Design: ' + a.designs.design_code_lev : null].filter(Boolean).join('\n');
+    const kl = kleurenTekst(a.kleuren);
+    const oms = [a.naam, a.omschrijving, a.designs?.design_code_lev ? 'Design: ' + a.designs.design_code_lev : null, kl ? 'Kleuren: ' + kl : null].filter(Boolean).join('\n');
     check(await sb.from('inkooporder_regels').insert({
       inkooporder_id: po.id, artikel_id: a.id, omschrijving: oms, aantal: 1, prijs: a.inkoopprijs || 0,
       foto_pad: a.foto_pad || a.designs?.hoofdfoto_pad || null, volgorde: regels.length,

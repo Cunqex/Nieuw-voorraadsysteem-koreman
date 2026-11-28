@@ -852,3 +852,4 @@ a.tel-link > span { flex: 1; }
 
 /* Instellingen: melding dat een koppeling goed staat */
 .okbox { background: var(--green-bg, #e7f6ec); color: var(--green-fg, #17663a); border-radius: 12px; padding: 12px 16px; font-size: 13.5px; }
+#web-koppel[hidden] { display: none; }

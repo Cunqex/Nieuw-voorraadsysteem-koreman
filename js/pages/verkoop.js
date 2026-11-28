@@ -1,8 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde, soRegelTotaal,
- bewaakFormulier} from '../ui.js?v=20261128145057';
-import { metRegels, vkKaart } from '../orderkaart.js?v=20261128145057';
+ bewaakFormulier} from '../ui.js?v=20261128145408';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261128145408';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
@@ -157,10 +157,10 @@ export async function renderDetail(c, [id]) {
   // ---- voortgang: welke stap is klaar, welke is nu aan de beurt ----
   const volBetaald = totaal > 0 && betaald >= totaal;
   const stappen = [
-    { k: 'offerte', attr: 'data-doc="offerte"', lbl: 'Offerte', klaar: !!so.offertenummer, over: !so.offertenummer && !!so.orderbev_nummer,
-      sub: so.offertenummer ? `${so.offertenummer}${so.offerte_datum ? ' · ' + datum(so.offerte_datum) : ''}` : so.orderbev_nummer ? 'Overgeslagen' : '' },
-    { k: 'bevestig', attr: 'id="bevestig"', lbl: 'Orderbevestiging', klaar: !!so.orderbev_nummer,
-      sub: so.orderbev_nummer ? `${so.orderbev_nummer}${so.orderbev_datum ? ' · ' + datum(so.orderbev_datum) : ''}` : '' },
+    { k: 'offerte', attr: 'data-doc="offerte"', lbl: 'Offerte', klaar: !!so.offertenummer, over: !so.offertenummer && (!!so.orderbev_nummer || !!so.factuurnummer),
+      sub: so.offertenummer ? `${so.offertenummer}${so.offerte_datum ? ' · ' + datum(so.offerte_datum) : ''}` : so.orderbev_nummer || so.factuurnummer ? 'Overgeslagen' : '' },
+    { k: 'bevestig', attr: 'id="bevestig"', lbl: 'Orderbevestiging', klaar: !!so.orderbev_nummer, over: !so.orderbev_nummer && !!so.factuurnummer, // bv. op de website al betaald: direct de factuur
+      sub: so.orderbev_nummer ? `${so.orderbev_nummer}${so.orderbev_datum ? ' · ' + datum(so.orderbev_datum) : ''}` : so.factuurnummer ? 'Overgeslagen' : '' },
     { k: 'betaling', attr: 'id="betaling"', lbl: 'Betaling', klaar: volBetaald,
       sub: betaald ? `${money(betaald)} ontvangen` : '' },
     { k: 'lever', attr: `id="lever" ${allesGeleverd ? 'disabled' : ''}`, lbl: 'Levering', klaar: !!allesGeleverd, sub: allesGeleverd ? 'Geleverd' : '' },
@@ -245,7 +245,7 @@ export async function renderDetail(c, [id]) {
           : '<span class="small muted">Nog geen documenten. Maak eerst een offerte of bevestig de order.</span>'}
         ${documenten.length ? `<span class="small muted">in het ${taal === 'en' ? 'Engels' : 'Nederlands'}</span>` : ''}
       </div>
-      ${nogBestellen.length && so.orderbev_nummer ? `<div class="warnbox">${nogBestellen.length} regel(s) moeten nog besteld worden. <button class="btn small" id="maakpo">Inkooporder(s) aanmaken</button></div>` : ''}
+      ${nogBestellen.length && (so.orderbev_nummer || so.factuurnummer) ? `<div class="warnbox">${nogBestellen.length} regel(s) moeten nog besteld worden. <button class="btn small" id="maakpo">Inkooporder(s) aanmaken</button></div>` : ''}
       ${zonderLev.length ? `<div class="warnbox">Let op: ${zonderLev.length} te bestellen artikel(en) hebben geen leverancier. Vul die in bij het artikel, anders kan er geen inkooporder gemaakt worden.</div>` : ''}
     </div>
 

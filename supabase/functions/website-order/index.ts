@@ -110,7 +110,7 @@ Deno.serve(async (req: Request) => {
       if (data?.nieuw) {
         await sb.from('website_meldingen').insert({
           website_order: naam, gelukt: true, verkooporder_id: data.verkooporder_id,
-          melding: `Verkooporder ${data.ordernummer} aangemaakt` + (data.inkooporders ? `, ${data.inkooporders} concept-inkooporder(s)` : '') + (data.regels_los ? `, ${data.regels_los} regel(s) zonder artikel` : ''),
+          melding: (data.melding ?? `Verkooporder ${data.ordernummer} aangemaakt`) + (data.inkooporders ? `, ${data.inkooporders} concept-inkooporder(s)` : '') + (data.regels_los ? `, ${data.regels_los} regel(s) zonder artikel` : ''),
         });
       }
       return json(200, data);

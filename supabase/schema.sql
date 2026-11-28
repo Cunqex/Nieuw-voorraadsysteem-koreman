@@ -966,6 +966,7 @@ declare
   land    text;
   so_id   bigint;
   so_nr   integer;
+  f_nr    integer;
   kid     bigint;
   klant_nieuw boolean := false;
   dag     date;
@@ -1037,7 +1038,13 @@ begin
     select id, orderbev_nummer into so_id, so_nr from public.verkooporders where website_order = nr;
     return jsonb_build_object('nieuw', false, 'verkooporder_id', so_id, 'ordernummer', so_nr, 'website_order', nr);
   end;
-  so_nr := public.ken_nummer_toe(so_id, 'orderbevestiging');
+  -- Op de website betaald: geen orderbevestiging nodig, de factuur staat meteen klaar. Nog niet betaald: gewone orderbevestiging.
+  if upper(coalesce(p->>'betaald', '')) = 'PAID' and totaal > 0 then
+    f_nr := public.ken_nummer_toe(so_id, 'factuur');
+    update public.verkooporders set factuur_datum = dag, orderbev_datum = null where id = so_id;
+  else
+    so_nr := public.ken_nummer_toe(so_id, 'orderbevestiging');
+  end if;
 
   -- regels: artikel zoeken op artikelnummer (SKU), ook als de voorloopnullen ontbreken
   for r in select value from jsonb_array_elements(case when jsonb_typeof(p->'regels') = 'array' then p->'regels' else '[]'::jsonb end) loop
@@ -1087,7 +1094,8 @@ begin
      where id = so_id;
   end if;
 
-  return jsonb_build_object('nieuw', true, 'verkooporder_id', so_id, 'ordernummer', so_nr, 'website_order', nr,
+  return jsonb_build_object('nieuw', true, 'verkooporder_id', so_id, 'ordernummer', so_nr, 'factuurnummer', f_nr, 'website_order', nr,
+                            'melding', case when f_nr is not null then 'Betaald op de website: factuur ' || f_nr || ' staat klaar' else 'Verkooporder ' || so_nr || ' aangemaakt' end,
                             'totaal_website', totaal, 'totaal_app', app_totaal,
                             'klant_id', kid, 'klant_nieuw', klant_nieuw, 'regels_gekoppeld', gekoppeld, 'regels_los', los, 'inkooporders', n_po);
 end $$;

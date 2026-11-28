@@ -53,7 +53,7 @@ begin
   btw     := coalesce(nullif(regexp_replace(coalesce(p->>'btw', ''), getal, '', 'g'), '')::numeric, 0);
   verzend := coalesce(nullif(regexp_replace(coalesce(p->>'verzendkosten', ''), getal, '', 'g'), '')::numeric, 0);
   incl := coalesce(lower(p->>'incl_btw') in ('true', 't', '1', 'ja'), true);
-  if btw = 0 and totaal > 0 then regeling := 'export0'; incl := false; end if;
+  -- De webshop rekent prijzen inclusief btw en legt zelf geen btw-bedrag vast: altijd 21% inbegrepen (uitzonderingen pas je op de order aan)
 
   -- klant: bestaande klant met hetzelfde e-mailadres, anders een nieuwe
   if mail is not null then

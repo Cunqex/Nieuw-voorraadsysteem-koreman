@@ -1,8 +1,8 @@
 // Voorraadwaarde (inkoop): wat is de voorraad waard, vandaag of op een gekozen datum in het verleden.
 // Rekent met de voorraadmutaties tot en met de gekozen dag, op dezelfde manier als de rest van de app:
 // aantal op voorraad × gemiddelde inkoopprijs. Vracht en invoerrechten tellen niet mee.
-import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, SOORT_ARTIKEL, loadImages, confirmBox, refresh, modal, formFields } from '../ui.js?v=20261128122145';
-import { lijnen, legenda, koppelZweef, iso, dn, r2 } from './rapportage.js?v=20261128122145';
+import { sb, check, esc, money, $, setTitle, alles, vandaag, toast, SOORT_ARTIKEL, loadImages, confirmBox, refresh, modal, formFields } from '../ui.js?v=20261128132444';
+import { lijnen, legenda, koppelZweef, iso, dn, r2 } from './rapportage.js?v=20261128132444';
 
 const MAAND = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 const lokaleDag = (ts) => iso(new Date(ts));

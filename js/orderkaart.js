@@ -1,5 +1,5 @@
 // Kaartjes voor verkoop- en inkooporders (zelfde stijl als de artikelkaarten).
-import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS } from './ui.js?v=20261128132455';
+import { sb, check, esc, money, datum, badge, PO_STATUS, SO_STATUS } from './ui.js?v=20261128145057';
 
 // Haalt per order de regels op (artikelnaam + foto), voor de foto's en de inhoud op het kaartje.
 export async function metRegels(rows, tabel, key) {
@@ -45,7 +45,7 @@ export function vkKaart(s) {
   const pct = tot ? Math.min(100, Math.round((bet / tot) * 100)) : 0;
   const nrs = [s.offertenummer && 'OF ' + s.offertenummer, s.orderbev_nummer && 'OB ' + s.orderbev_nummer, s.factuurnummer && 'F ' + s.factuurnummer].filter(Boolean);
   const geld = OPEN.includes(s.status) || s.status === 'betaald';
-  return `<a class="art-card ord-card" href="#/verkoop/${s.id}">
+  return `<a class="art-card ord-card${s.bron === 'website' ? ' van-website' : ''}" href="#/verkoop/${s.id}"${s.bron === 'website' ? ' title="Bestelling van de website"' : ''}>
     ${fotos(s._r || [])}
     <div class="art-body">
       <div class="ord-top"><span class="art-nr">${nrs.join(' · ') || 'Concept'}</span>${badge(SO_STATUS, s.status)}</div>

@@ -1,6 +1,6 @@
 // Overzicht: de lopende verkoop- en inkooporders.
-import { sb, check, esc, money, setTitle, withTotals, alles, loadImages } from '../ui.js?v=20261128132455';
-import { metRegels, vkKaart, ikKaart } from '../orderkaart.js?v=20261128132455';
+import { sb, check, esc, money, setTitle, withTotals, alles, loadImages } from '../ui.js?v=20261128145057';
+import { metRegels, vkKaart, ikKaart } from '../orderkaart.js?v=20261128145057';
 
 // Aantal kaartjes altijd een veelvoud van het aantal kolommen, zodat rijen vol zijn
 const kolommen = () => {
@@ -16,7 +16,7 @@ export async function render(c) {
   setTitle('Overzicht');
   const [pos, sos] = await Promise.all([
     alles(() => sb.from('inkooporders').select('id, ordernummer, status, orderdatum, leverdatum, valuta, voor_wie, leveranciers(naam), klanten(naam), verkooporders(id, orderbev_nummer, offertenummer, klanten(naam)), referentie').not('status', 'in', '(ontvangen,geannuleerd)').order('orderdatum', { ascending: false })),
-    alles(() => sb.from('verkooporders').select('id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klant_referentie, klanten(naam)').not('status', 'in', '(betaald,geannuleerd)').order('orderdatum', { ascending: false })),
+    alles(() => sb.from('verkooporders').select('id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klant_referentie, bron, klanten(naam)').not('status', 'in', '(betaald,geannuleerd)').order('orderdatum', { ascending: false })),
   ]);
   await Promise.all([withTotals(sos, 'v_verkooporder_totalen', 'verkooporder_id'), withTotals(pos, 'v_inkooporder_totalen', 'inkooporder_id')]);
   const t = (r) => r._t || {};

@@ -1,8 +1,8 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
   SO_STATUS, PO_STATUS, BTW, SOORT_ARTIKEL, badge, artikelPicker, artikelKiezer, setTitle, withTotals, vandaag, refresh, klantOpt, loadImages, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde, soRegelTotaal,
- bewaakFormulier} from '../ui.js?v=20261128132455';
-import { metRegels, vkKaart } from '../orderkaart.js?v=20261128132455';
+ bewaakFormulier} from '../ui.js?v=20261128145057';
+import { metRegels, vkKaart } from '../orderkaart.js?v=20261128145057';
 
 // Orders waarvoor de klant ons nog geld schuldig kan zijn (offertes en geannuleerde/afgeronde orders tellen niet mee)
 const OPEN_STATUS = ['bevestigd', 'geleverd', 'gefactureerd'];
@@ -67,7 +67,7 @@ export async function renderList(c, _p, query) {
     if (modus === 'klanten') return loadKlanten();
     const st = klantFilter ? '' : $('#status', c).value;
     let rows = await alles(() => {
-      let q = sb.from('verkooporders').select('id, klant_id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klant_referentie, klanten(naam)').order('orderdatum', { ascending: false }).order('id', { ascending: false });
+      let q = sb.from('verkooporders').select('id, klant_id, offertenummer, orderbev_nummer, factuurnummer, status, orderdatum, klant_referentie, bron, klanten(naam)').order('orderdatum', { ascending: false }).order('id', { ascending: false });
       if (klantFilter) q = q.eq('klant_id', klantFilter);
       if (st === 'open') q = q.not('status', 'in', '(betaald,geannuleerd)'); else if (st) q = q.eq('status', st);
       return q;

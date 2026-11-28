@@ -1,7 +1,7 @@
 import {
   sb, check, esc, money, num, datum, $, on, toast, modal, confirmBox, formFields, readForm,
-  PO_STATUS, badge, artikelPicker, artikelKiezer, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde , bewaakFormulier, kleurenTekst} from '../ui.js?v=20261128114118';
-import { metRegels, ikKaart } from '../orderkaart.js?v=20261128114118';
+  PO_STATUS, badge, artikelPicker, artikelKiezer, loadImages, setTitle, withTotals, vandaag, isImage, refresh, klantOpt, levOpt, comboHtml, alles, klantKiezerHtml, klantKiezerInit, klantKiezerWaarde , bewaakFormulier, kleurenTekst} from '../ui.js?v=20261128120901';
+import { metRegels, ikKaart } from '../orderkaart.js?v=20261128120901';
 
 // =============================== LIJST ===============================
 export async function renderList(c, _p, query) {
